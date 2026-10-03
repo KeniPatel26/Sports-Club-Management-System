@@ -1,17 +1,19 @@
 import User from '../models/User.js';
+import MemberProfile from '../models/MemberProfile.js';
+import StaffProfile from '../models/StaffProfile.js';
 import { generateToken } from '../utils/generateToken.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
 import { logActivity, logAudit } from '../services/activityService.js';
 
 /**
- * @desc    Register a new user
+ * @desc    Register a new user / member
  * @route   POST /api/auth/register
  * @access  Public
  */
 export const registerUser = async (req, res, next) => {
   try {
-    const { name, emailId, email, password, role } = req.body;
-    const resolvedEmail = (emailId || email || '').toLowerCase().trim();
+    const { firstName, lastName, name, emailId, email, phone, password, role = 'MEMBER' } = req.body;
+    const resolvedEmail = (email || emailId || '').toLowerCase().trim();
 
     if (!resolvedEmail || !password) {
       return sendError(res, {
@@ -20,7 +22,7 @@ export const registerUser = async (req, res, next) => {
       });
     }
 
-    const existingUser = await User.findOne({ emailId: resolvedEmail });
+    const existingUser = await User.findOne({ email: resolvedEmail });
     if (existingUser) {
       return sendError(res, {
         statusCode: 400,
@@ -28,18 +30,41 @@ export const registerUser = async (req, res, next) => {
       });
     }
 
+    // Split name if firstName not provided
+    let fName = firstName;
+    let lName = lastName || '';
+    if (!fName && name) {
+      const parts = name.trim().split(' ');
+      fName = parts[0];
+      lName = parts.slice(1).join(' ');
+    }
+
     const user = await User.create({
-      name: name || 'Team Member',
-      emailId: resolvedEmail,
+      firstName: fName || 'Member',
+      lastName: lName,
+      email: resolvedEmail,
+      phone: phone || `+91-${Date.now().toString().slice(-10)}`,
       password,
-      role: role && ['user', 'admin', 'manager'].includes(role) ? role : 'user',
+      role: role.toUpperCase(),
+      status: 'ACTIVE',
     });
+
+    // If member, automatically initialize MemberProfile
+    if (user.role === 'MEMBER' || user.role === 'USER') {
+      const memberCount = await MemberProfile.countDocuments();
+      const memberId = `MEM${(memberCount + 1001).toString()}`;
+      await MemberProfile.create({
+        user: user._id,
+        memberId,
+        joinedAt: new Date(),
+      });
+    }
 
     const token = generateToken(user);
 
     await logActivity({
       userId: user._id,
-      action: 'Account registered',
+      action: `Registered as ${user.role}`,
       entity: 'User',
       entityId: user._id,
     });
@@ -58,13 +83,15 @@ export const registerUser = async (req, res, next) => {
       message: 'Account registered successfully',
       data: {
         _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
         name: user.name,
-        emailId: user.emailId,
-        email: user.emailId,
+        email: user.email,
+        phone: user.phone,
         role: user.role,
+        profileImage: user.profileImage,
         avatar: user.avatar,
-        title: user.title,
-        bio: user.bio,
+        status: user.status,
         token,
       },
     });
@@ -81,7 +108,7 @@ export const registerUser = async (req, res, next) => {
 export const loginUser = async (req, res, next) => {
   try {
     const { emailId, email, password } = req.body;
-    const resolvedEmail = (emailId || email || '').toLowerCase().trim();
+    const resolvedEmail = (email || emailId || '').toLowerCase().trim();
 
     if (!resolvedEmail || !password) {
       return sendError(res, {
@@ -90,13 +117,19 @@ export const loginUser = async (req, res, next) => {
       });
     }
 
-    // Include hidden password field for authentication
-    const user = await User.findOne({ emailId: resolvedEmail }).select('+password');
+    const user = await User.findOne({ email: resolvedEmail }).select('+password');
 
     if (!user) {
       return sendError(res, {
         statusCode: 401,
         message: 'Invalid credentials. User not found.',
+      });
+    }
+
+    if (user.status === 'SUSPENDED' || user.status === 'INACTIVE') {
+      return sendError(res, {
+        statusCode: 403,
+        message: `Your account is ${user.status}. Please contact the club manager.`,
       });
     }
 
@@ -108,11 +141,14 @@ export const loginUser = async (req, res, next) => {
       });
     }
 
+    user.lastLogin = new Date();
+    await user.save();
+
     const token = generateToken(user);
 
     await logActivity({
       userId: user._id,
-      action: 'Logged into system',
+      action: 'Signed in to Champions Club workspace',
       entity: 'User',
       entityId: user._id,
     });
@@ -131,13 +167,15 @@ export const loginUser = async (req, res, next) => {
       message: 'Logged in successfully',
       data: {
         _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
         name: user.name,
-        emailId: user.emailId,
-        email: user.emailId,
+        email: user.email,
+        phone: user.phone,
         role: user.role,
+        profileImage: user.profileImage,
         avatar: user.avatar,
-        title: user.title,
-        bio: user.bio,
+        status: user.status,
         token,
       },
     });
@@ -147,7 +185,7 @@ export const loginUser = async (req, res, next) => {
 };
 
 /**
- * @desc    Get current logged in user profile
+ * @desc    Get current user profile with Member or Staff profile info
  * @route   GET /api/auth/me
  * @access  Private
  */
@@ -155,15 +193,25 @@ export const getMe = async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id);
     if (!user) {
-      return sendError(res, {
-        statusCode: 404,
-        message: 'User not found',
-      });
+      return sendError(res, { statusCode: 404, message: 'User not found' });
+    }
+
+    let memberProfile = null;
+    let staffProfile = null;
+
+    if (user.role === 'MEMBER' || user.role === 'USER') {
+      memberProfile = await MemberProfile.findOne({ user: user._id });
+    } else if (['STAFF', 'FRONT_DESK', 'SHOP_STAFF', 'CANTEEN_STAFF'].includes(user.role)) {
+      staffProfile = await StaffProfile.findOne({ user: user._id });
     }
 
     return sendSuccess(res, {
       message: 'Profile fetched successfully',
-      data: user,
+      data: {
+        ...user.toObject(),
+        memberProfile,
+        staffProfile,
+      },
     });
   } catch (error) {
     next(error);
@@ -171,33 +219,30 @@ export const getMe = async (req, res, next) => {
 };
 
 /**
- * @desc    Update current user profile
+ * @desc    Update profile
  * @route   PUT /api/auth/profile
  * @access  Private
  */
 export const updateProfile = async (req, res, next) => {
   try {
-    const { name, title, bio, avatar, phone } = req.body;
+    const { firstName, lastName, name, phone, profileImage, avatar } = req.body;
     const user = await User.findById(req.user._id);
 
     if (!user) {
       return sendError(res, { statusCode: 404, message: 'User not found' });
     }
 
-    if (name) user.name = name;
-    if (title !== undefined) user.title = title;
-    if (bio !== undefined) user.bio = bio;
-    if (avatar !== undefined) user.avatar = avatar;
-    if (phone !== undefined) user.phone = phone;
+    if (firstName) user.firstName = firstName;
+    if (lastName !== undefined) user.lastName = lastName;
+    if (!firstName && name) {
+      const parts = name.trim().split(' ');
+      user.firstName = parts[0];
+      user.lastName = parts.slice(1).join(' ');
+    }
+    if (phone) user.phone = phone;
+    if (profileImage || avatar) user.profileImage = profileImage || avatar;
 
     const updatedUser = await user.save();
-
-    await logActivity({
-      userId: user._id,
-      action: 'Updated profile information',
-      entity: 'User',
-      entityId: user._id,
-    });
 
     return sendSuccess(res, {
       message: 'Profile updated successfully',
@@ -218,20 +263,14 @@ export const changePassword = async (req, res, next) => {
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
-      return sendError(res, {
-        statusCode: 400,
-        message: 'Current and new password are required',
-      });
+      return sendError(res, { statusCode: 400, message: 'Current and new password are required' });
     }
 
     const user = await User.findById(req.user._id).select('+password');
     const isMatch = await user.matchPassword(currentPassword);
 
     if (!isMatch) {
-      return sendError(res, {
-        statusCode: 400,
-        message: 'Current password is incorrect',
-      });
+      return sendError(res, { statusCode: 400, message: 'Current password is incorrect' });
     }
 
     user.password = newPassword;

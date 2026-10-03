@@ -8,6 +8,13 @@ import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
 import Dashboard from '../pages/Dashboard';
+import CourtsBookingPage from '../pages/CourtsBookingPage';
+import ProShopPage from '../pages/ProShopPage';
+import CanteenBarPage from '../pages/CanteenBarPage';
+import MembershipsPage from '../pages/MembershipsPage';
+import StaffOperationsPage from '../pages/StaffOperationsPage';
+import OwnerAnalyticsPage from '../pages/OwnerAnalyticsPage';
+import LeadsCrmPage from '../pages/LeadsCrmPage';
 import ProjectsPage from '../pages/ProjectsPage';
 import ItemDetail from '../pages/ItemDetail';
 import FormTemplate from '../pages/FormTemplate';
@@ -34,18 +41,18 @@ export const ProtectedRoute = ({ children }) => {
 
 // Admin-Only Role Guard
 export const AdminRoute = ({ children }) => {
-  const { isAuthenticated, isAdmin, loading } = useAuth();
+  const { isAuthenticated, isOwner, isAdmin, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
-    return <Loader fullPage text="Checking admin permissions..." />;
+    return <Loader fullPage text="Checking owner permissions..." />;
   }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (!isAdmin) {
+  if (!isOwner && !isAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -60,7 +67,7 @@ export const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* Protected Pages */}
+      {/* Core Sports Club Management Pages */}
       <Route
         path="/dashboard"
         element={
@@ -69,6 +76,66 @@ export const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/courts"
+        element={
+          <ProtectedRoute>
+            <CourtsBookingPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/shop"
+        element={
+          <ProtectedRoute>
+            <ProShopPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/canteen"
+        element={
+          <ProtectedRoute>
+            <CanteenBarPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/memberships"
+        element={
+          <ProtectedRoute>
+            <MembershipsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/staff-roster"
+        element={
+          <ProtectedRoute>
+            <StaffOperationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/leads"
+        element={
+          <ProtectedRoute>
+            <LeadsCrmPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Owner Financial Analytics Hub */}
+      <Route
+        path="/finance-analytics"
+        element={
+          <AdminRoute>
+            <OwnerAnalyticsPage />
+          </AdminRoute>
+        }
+      />
+
+      {/* Extended Starter & Tool Hubs */}
       <Route
         path="/projects"
         element={
@@ -110,7 +177,7 @@ export const AppRoutes = () => {
         }
       />
 
-      {/* Admin Only Pages */}
+      {/* Admin / Owner User Directory */}
       <Route
         path="/users"
         element={

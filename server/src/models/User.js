@@ -2,51 +2,79 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 /**
- * User Schema with emailId, role, and password as primary fields
+ * User Schema - Central Authentication and Identity for The Champions Club
  */
 const userSchema = new mongoose.Schema(
   {
-    name: {
+    firstName: {
+      type: String,
+      required: [true, 'Please provide a first name'],
+      trim: true,
+    },
+
+    lastName: {
       type: String,
       trim: true,
-      default: 'Member',
-      maxlength: [50, 'Name cannot exceed 50 characters'],
+      default: '',
     },
-    emailId: {
+
+    email: {
       type: String,
-      required: [true, 'Please provide an emailId'],
+      required: [true, 'Please provide an email address'],
       unique: true,
       lowercase: true,
       trim: true,
       match: [
         /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
-        'Please provide a valid email address for emailId',
+        'Please provide a valid email address',
       ],
     },
-    role: {
+
+    phone: {
       type: String,
-      enum: ['user', 'admin', 'manager'],
-      default: 'user',
+      required: [true, 'Please provide a phone number'],
+      unique: true,
+      trim: true,
     },
+
     password: {
       type: String,
       required: [true, 'Please provide a password'],
       minlength: [6, 'Password must be at least 6 characters long'],
-      select: false, // Hidden by default from queries for security
+      select: false, // Hidden by default from queries
     },
-    title: {
+
+    role: {
       type: String,
-      default: 'Product Specialist',
-      trim: true,
+      enum: ['MEMBER', 'STAFF', 'OWNER', 'FRONT_DESK', 'SHOP_STAFF', 'CANTEEN_STAFF', 'admin', 'user', 'manager'],
+      required: true,
+      default: 'MEMBER',
     },
-    bio: {
+
+    profileImage: {
       type: String,
-      default: 'Passionate about building modern software solutions.',
-      maxlength: [250, 'Bio cannot exceed 250 characters'],
+      default: null,
     },
-    avatar: {
+
+    status: {
       type: String,
-      default: '',
+      enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED'],
+      default: 'ACTIVE',
+    },
+
+    lastLogin: {
+      type: Date,
+      default: null,
+    },
+
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+
+    isPhoneVerified: {
+      type: Boolean,
+      default: false,
     },
   },
   {
@@ -56,13 +84,35 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Virtual field for email backward compatibility
-userSchema.virtual('email')
+// Virtual field for full name
+userSchema.virtual('name')
   .get(function () {
-    return this.emailId;
+    return `${this.firstName || ''} ${this.lastName || ''}`.trim() || 'Club Member';
+  })
+  .set(function (fullName) {
+    if (fullName) {
+      const parts = fullName.trim().split(' ');
+      this.firstName = parts[0] || 'Member';
+      this.lastName = parts.slice(1).join(' ') || '';
+    }
+  });
+
+// Virtual field for avatar compatibility
+userSchema.virtual('avatar')
+  .get(function () {
+    return this.profileImage || '';
   })
   .set(function (val) {
-    this.emailId = val;
+    this.profileImage = val;
+  });
+
+// Virtual field for emailId backward compatibility
+userSchema.virtual('emailId')
+  .get(function () {
+    return this.email;
+  })
+  .set(function (val) {
+    this.email = val;
   });
 
 // Encrypt password using bcryptjs pre-save hook
@@ -75,10 +125,10 @@ userSchema.pre('save', async function (next) {
   next();
 });
 
-// Compare user entered plain password with hashed password in MongoDB
+// Compare entered password with hashed password in database
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-export const User = mongoose.model('User', userSchema);
+export const User = mongoose.models.User || mongoose.model('User', userSchema);
 export default User;

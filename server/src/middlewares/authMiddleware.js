@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { hasPermission } from '../config/permissions.js';
 
 /**
  * Protect routes - Verify JWT token from Authorization header (Bearer <token>)
@@ -26,7 +27,14 @@ export const protect = async (req, res, next) => {
       if (!req.user) {
         return res.status(401).json({
           success: false,
-          message: 'User belonging to this token no longer exists',
+          message: 'User belonging to this session token no longer exists',
+        });
+      }
+
+      if (req.user.status === 'SUSPENDED' || req.user.status === 'INACTIVE') {
+        return res.status(403).json({
+          success: false,
+          message: `Your account is currently ${req.user.status}. Please contact the club manager.`,
         });
       }
 
@@ -50,16 +58,61 @@ export const protect = async (req, res, next) => {
 
 /**
  * Role-based authorization middleware
- * @param  {...string} roles Allowed roles ('admin', 'manager', 'user')
+ * @param  {...string} roles Allowed roles ('OWNER', 'FRONT_DESK', 'SHOP_STAFF', 'CANTEEN_STAFF', 'MEMBER', etc.)
  */
 export const authorize = (...roles) => {
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
+    const userRole = req.user.role?.toUpperCase();
+    const allowedRoles = roles.map((r) => r.toUpperCase());
+
+    // OWNER and ADMIN always have access
+    if (userRole === 'OWNER' || userRole === 'ADMIN') {
+      return next();
+    }
+
+    if (!allowedRoles.includes(userRole)) {
       return res.status(403).json({
         success: false,
-        message: `User role '${req.user?.role || 'guest'}' is not authorized to access this route`,
+        message: `Role '${req.user.role}' is not authorized to access this resource`,
       });
     }
     next();
   };
+};
+
+/**
+ * Granular Permission-based authorization middleware
+ * @param {string} permission Operational permission token (e.g. 'BOOKING_MANAGE', 'INVENTORY_MANAGE')
+ */
+export const requirePermission = (permission) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
+    if (!hasPermission(req.user.role, permission)) {
+      return res.status(403).json({
+        success: false,
+        message: `Missing required permission: ${permission}`,
+      });
+    }
+
+    next();
+  };
+};
+
+export default {
+  protect,
+  authorize,
+  requirePermission,
 };

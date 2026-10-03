@@ -62,11 +62,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   const loginDemoAdmin = async () => {
-    return await login('admin@demo.com', 'Admin@123');
+    return await login('owner@championsclub.com', 'Champions@123');
   };
 
   const loginDemoUser = async () => {
-    return await login('user@demo.com', 'User@123');
+    return await login('gold.member@championsclub.com', 'Champions@123');
+  };
+
+  const loginDemoRole = async (email, password = 'Champions@123') => {
+    return await login(email, password);
   };
 
   const updateUser = (updatedUserData) => {
@@ -82,6 +86,14 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
   };
 
+  const role = user?.role?.toUpperCase();
+  const isOwner = role === 'OWNER' || role === 'ADMIN';
+  const isFrontDesk = role === 'FRONT_DESK';
+  const isShopStaff = role === 'SHOP_STAFF';
+  const isCanteenStaff = role === 'CANTEEN_STAFF';
+  const isMember = role === 'MEMBER';
+  const isStaff = isOwner || isFrontDesk || isShopStaff || isCanteenStaff;
+
   return (
     <AuthContext.Provider
       value={{
@@ -89,12 +101,19 @@ export const AuthProvider = ({ children }) => {
         token,
         loading,
         isAuthenticated: !!token && !!user,
-        isAdmin: user?.role === 'admin',
-        isManager: user?.role === 'manager' || user?.role === 'admin',
+        isAdmin: isOwner,
+        isOwner,
+        isFrontDesk,
+        isShopStaff,
+        isCanteenStaff,
+        isMember,
+        isStaff,
+        isManager: isOwner,
         login,
         register,
         loginDemoAdmin,
         loginDemoUser,
+        loginDemoRole,
         updateUser,
         logout,
       }}

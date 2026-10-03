@@ -5,6 +5,12 @@ import path from 'path';
 
 // Route imports
 import authRoutes from './routes/authRoutes.js';
+import membershipRoutes from './routes/membershipRoutes.js';
+import courtBookingRoutes from './routes/courtBookingRoutes.js';
+import shopCanteenRoutes from './routes/shopCanteenRoutes.js';
+import staffRoutes from './routes/staffRoutes.js';
+import financeReportsRoutes from './routes/financeReportsRoutes.js';
+import leadRoutes from './routes/leadRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import projectRoutes from './routes/projectRoutes.js';
 import taskRoutes from './routes/taskRoutes.js';
@@ -35,7 +41,7 @@ app.use(
 const uploadsPath = path.join(process.cwd(), 'uploads');
 app.use('/uploads', express.static(uploadsPath));
 
-// Morgan logger in dev mode
+// HTTP Request Logger
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
@@ -44,15 +50,24 @@ if (process.env.NODE_ENV === 'development') {
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'MERN Hackathon Backend API is healthy & running',
+    message: 'The Champions Club Management API is healthy & running',
+    system: 'Sports Club Management System',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    version: '1.0.0',
+    version: '2.0.0',
   });
 });
 
-// API Routes
+// Sports Club Management System API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/memberships', membershipRoutes);
+app.use('/api', courtBookingRoutes); // /api/courts, /api/bookings
+app.use('/api', shopCanteenRoutes);  // /api/products, /api/orders
+app.use('/api/staff', staffRoutes);
+app.use('/api/finance', financeReportsRoutes);
+app.use('/api/leads', leadRoutes);
+
+// User & Utility API Routes
 app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
@@ -65,12 +80,13 @@ app.use('/api/upload', uploadRoutes);
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'MERN Hackathon Universal Starter Kit API is live!',
+    name: 'The Champions Club Management System API',
+    description: 'Digital backbone for tennis, padel, cricket, and badminton sports club',
     docs: '/api/health',
   });
 });
 
-// Error handling middleware
+// Centralized error handling
 app.use(notFound);
 app.use(errorHandler);
 
