@@ -108,20 +108,7 @@ export const updateMenuItem = async (req, res) => {
 
 export const getTables = async (req, res) => {
   try {
-    let tables = await DiningTable.find().sort({ tableNumber: 1 });
-
-    // Auto-seed basic tables if none exist
-    if (tables.length === 0) {
-      const defaultTables = [
-        { tableNumber: 'T1', capacity: 4, section: 'INDOOR_CAFE', status: 'AVAILABLE' },
-        { tableNumber: 'T2', capacity: 4, section: 'INDOOR_CAFE', status: 'OCCUPIED' },
-        { tableNumber: 'T3', capacity: 6, section: 'COURTSIDE_BAR', status: 'AVAILABLE' },
-        { tableNumber: 'T4', capacity: 2, section: 'OUTDOOR_TERRACE', status: 'RESERVED' },
-        { tableNumber: 'T5', capacity: 8, section: 'VIP_LOUNGE', status: 'AVAILABLE' },
-        { tableNumber: 'T6', capacity: 4, section: 'COURTSIDE_BAR', status: 'CLEANING' },
-      ];
-      tables = await DiningTable.insertMany(defaultTables);
-    }
+    const tables = await DiningTable.find().sort({ tableNumber: 1 });
 
     return res.status(200).json({
       success: true,

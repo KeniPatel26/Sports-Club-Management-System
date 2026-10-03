@@ -26,6 +26,19 @@ export const getCanteenOverview = async (req, res) => {
       status: 'OCCUPIED',
     });
 
+    const [newOrdersCount, servedCount, openTabsCount, pendingBillsCount, completedToday, cancelledToday, collectedToday] = await Promise.all([
+      Order.countDocuments({ type: 'canteen', status: 'pending' }),
+      Order.countDocuments({ type: 'canteen', status: 'completed', updatedAt: { $gte: todayStart } }),
+      Order.countDocuments({ type: 'canteen', tabStatus: 'OPEN', paymentStatus: 'pending' }),
+      Order.countDocuments({ type: 'canteen', paymentStatus: 'pending', isTab: false }),
+      Order.countDocuments({ type: 'canteen', status: 'completed', updatedAt: { $gte: todayStart } }),
+      Order.countDocuments({ type: 'canteen', status: 'cancelled', updatedAt: { $gte: todayStart } }),
+      Payment.aggregate([
+        { $match: { type: 'CANTEEN', status: 'SUCCESS', createdAt: { $gte: todayStart } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
+    ]);
+
     const preparingCount = activeOrders.filter((o) => o.status === 'preparing').length;
     const readyCount = activeOrders.filter((o) => o.status === 'ready').length;
 
@@ -33,10 +46,17 @@ export const getCanteenOverview = async (req, res) => {
       success: true,
       data: {
         kpi: {
-          activeOrdersCount: activeOrders.length || 8,
-          preparingCount: preparingCount || 4,
-          readyCount: readyCount || 3,
-          occupiedTablesCount: occupiedTablesCount || 5,
+          activeOrdersCount: activeOrders.length,
+          preparingCount,
+          readyCount,
+          occupiedTablesCount,
+          newOrdersCount,
+          servedCount,
+          openTabsCount,
+          pendingBillsCount,
+          completedToday,
+          cancelledToday,
+          collectedToday: collectedToday[0]?.total || 0,
         },
         liveKitchenQueue: activeOrders,
       },
@@ -56,19 +76,7 @@ export const getCanteenOverview = async (req, res) => {
  */
 export const getDiningTables = async (req, res) => {
   try {
-    let tables = await DiningTable.find().sort({ tableNumber: 1 });
-
-    if (tables.length === 0) {
-      const defaultTables = [
-        { tableNumber: 'T1', capacity: 4, section: 'INDOOR_CAFE', status: 'AVAILABLE' },
-        { tableNumber: 'T2', capacity: 4, section: 'INDOOR_CAFE', status: 'OCCUPIED' },
-        { tableNumber: 'T3', capacity: 6, section: 'COURTSIDE_BAR', status: 'AVAILABLE' },
-        { tableNumber: 'T4', capacity: 2, section: 'OUTDOOR_TERRACE', status: 'RESERVED' },
-        { tableNumber: 'T5', capacity: 8, section: 'VIP_LOUNGE', status: 'AVAILABLE' },
-        { tableNumber: 'T6', capacity: 4, section: 'COURTSIDE_BAR', status: 'CLEANING' },
-      ];
-      tables = await DiningTable.insertMany(defaultTables);
-    }
+    const tables = await DiningTable.find().sort({ tableNumber: 1 });
 
     return res.status(200).json({
       success: true,
@@ -189,20 +197,35 @@ export const createCanteenOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No items in order' });
     }
 
+    const quantitiesByProduct = new Map();
+    for (const item of items) {
+      const quantity = Number(item.quantity);
+      if (!Number.isInteger(quantity) || quantity < 1) {
+        return res.status(400).json({ success: false, message: 'Enter a valid item quantity.' });
+      }
+      const productId = String(item.productId || item.product || '');
+      const itemTotal = (quantitiesByProduct.get(productId) || 0) + quantity;
+      if (itemTotal > 10) {
+        return res.status(400).json({ success: false, message: 'Maximum 10 quantities allowed for one item.' });
+      }
+      quantitiesByProduct.set(productId, itemTotal);
+    }
+
     let subtotal = 0;
     const orderItems = [];
 
     for (const it of items) {
       const prod = await Product.findById(it.productId);
-      if (prod) {
-        subtotal += prod.price * it.quantity;
-        orderItems.push({
-          product: prod._id,
-          name: prod.name,
-          quantity: it.quantity,
-          price: prod.price,
-        });
+      if (!prod || prod.type !== 'canteen' || !prod.isAvailable) {
+        return res.status(400).json({ success: false, message: 'One or more menu items are unavailable.' });
       }
+      subtotal += prod.price * Number(it.quantity);
+      orderItems.push({
+        product: prod._id,
+        name: prod.name,
+        quantity: Number(it.quantity),
+        price: prod.price,
+      });
     }
 
     let discountPercent = 0;
@@ -216,7 +239,11 @@ export const createCanteenOrder = async (req, res) => {
           status: 'ACTIVE',
         }).populate('plan');
 
-        discountPercent = activeMembership?.plan?.canteenDiscount || 0;
+        discountPercent = activeMembership?.plan?.benefits?.cafeDiscount
+          ?? activeMembership?.plan?.benefits?.canteenDiscount
+          ?? activeMembership?.plan?.cafeDiscount
+          ?? activeMembership?.plan?.canteenDiscount
+          ?? 0;
       }
     }
 
@@ -236,8 +263,8 @@ export const createCanteenOrder = async (req, res) => {
       tableNumber: tableNumber || '',
       isTab: Boolean(isTab),
       tabStatus: isTab ? 'OPEN' : 'CLOSED',
-      paymentMethod: isTab ? 'tab' : 'upi',
-      paymentStatus: isTab ? 'pending' : 'paid',
+      paymentMethod: 'tab',
+      paymentStatus: 'pending',
       status: 'pending',
     });
 
@@ -281,6 +308,15 @@ export const updateCanteenOrderStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
+    const transitions = {
+      pending: ['preparing', 'cancelled'],
+      confirmed: ['preparing', 'cancelled'],
+      preparing: ['ready', 'cancelled'],
+      ready: ['completed', 'cancelled'],
+    };
+    if (!transitions[order.status]?.includes(status)) {
+      return res.status(400).json({ success: false, message: 'This order status change is not allowed.' });
+    }
     order.status = status;
     await order.save();
 
@@ -305,29 +341,27 @@ export const updateCanteenOrderStatus = async (req, res) => {
 export const settleCanteenTab = async (req, res) => {
   try {
     const { orderId, tableNumber, paymentMethod = 'UPI' } = req.body;
+    const method = String(paymentMethod).toUpperCase();
+    if (!['UPI', 'CARD', 'CASH'].includes(method)) {
+      return res.status(400).json({ success: false, message: 'Choose Cash, Card, or UPI.' });
+    }
 
     const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order tab not found' });
     }
+    if (order.paymentStatus === 'paid') {
+      return res.status(400).json({ success: false, message: 'This order has already been paid.' });
+    }
 
     order.tabStatus = 'CLOSED';
     order.paymentStatus = 'paid';
-    order.paymentMethod = paymentMethod;
-    order.status = 'completed';
+    order.paymentMethod = method.toLowerCase();
     await order.save();
-
-    // Free table
-    if (tableNumber || order.tableNumber) {
-      await DiningTable.findOneAndUpdate(
-        { tableNumber: tableNumber || order.tableNumber },
-        { status: 'CLEANING', currentCustomer: { name: '', phone: '' }, activeOrderId: null }
-      );
-    }
 
     // Record invoice & payment
     const invoiceNumber = `INV-CAN-${Date.now().toString().slice(-6)}`;
-    await Invoice.create({
+    const invoice = await Invoice.create({
       invoiceNumber,
       user: order.member || null,
       customerName: order.customerName,
@@ -342,16 +376,16 @@ export const settleCanteenTab = async (req, res) => {
       discount: order.discount,
       totalAmount: order.total,
       paymentStatus: 'PAID',
-      paymentMethod,
+      paymentMethod: method,
     });
 
-    await Payment.create({
+    const payment = await Payment.create({
       paymentId: `PAY-CAN-${Date.now().toString().slice(-6)}`,
       user: order.member || null,
       customerName: order.customerName,
       type: 'CANTEEN',
       amount: order.total,
-      method: paymentMethod,
+      method,
       status: 'SUCCESS',
       referenceId: invoiceNumber,
       notes: `Canteen settlement for Table ${order.tableNumber || 'Counter'}`,
@@ -359,8 +393,8 @@ export const settleCanteenTab = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: `Bill of ₹${order.total} settled successfully! Table marked for cleaning.`,
-      data: order,
+      message: `Payment of ₹${order.total} received successfully.`,
+      data: { order, invoice, payment },
     });
   } catch (error) {
     console.error('settleCanteenTab error:', error);

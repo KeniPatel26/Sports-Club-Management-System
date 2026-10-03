@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticate } from '../middlewares/authMiddleware.js';
 import { requirePermission } from '../middlewares/authorizationMiddleware.js';
+import { hasPermission } from '../utils/permissions.js';
 
 import {
   getMyStaffProfile,
@@ -78,7 +79,12 @@ router.get(
 router.get(
   '/front-desk/members/search',
   authenticate,
-  requirePermission('MEMBER_VIEW'),
+  (req, res, next) => {
+    if (hasPermission(req.user, 'MEMBER_VIEW') || hasPermission(req.user, 'CANTEEN_ORDER_MANAGE')) {
+      return next();
+    }
+    return res.status(403).json({ success: false, message: 'You do not have permission to search members' });
+  },
   searchMembers
 );
 router.get(
