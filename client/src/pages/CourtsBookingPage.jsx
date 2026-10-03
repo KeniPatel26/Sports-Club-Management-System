@@ -75,7 +75,9 @@ export const CourtsBookingPage = () => {
   const visibleCourts = courts.filter((item) => sport === 'ALL' || item.type === sport);
   const categories = useMemo(() => ['ALL', ...new Set(courts.map((item) => item.type).filter(Boolean))], [courts]);
   const isMember = user?.role?.toUpperCase() === 'MEMBER';
-  const discount = isMember ? (membership?.plan?.fullCourtAccess ? 100 : Number(membership?.plan?.courtDiscount || 0)) : 0;
+  const discount = isMember
+    ? Number(membership?.plan?.benefits?.courtDiscount ?? membership?.plan?.courtDiscount ?? 0)
+    : 0;
   const membershipPlanName = membership?.plan?.name || 'Member';
   const rate = (isMember ? court?.hourlyRate : court?.walkInRate) || court?.hourlyRate || 0;
   const savings = rate * discount / 100;

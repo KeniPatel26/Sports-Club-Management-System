@@ -449,7 +449,7 @@ export const StaffOperationsPage = () => {
 
           {/* TAB 2: SHIFT ROSTER */}
           {activeTab === 'shifts' && (
-            <Card title="📅 Weekly Duty Roster (Front Desk, Pro Shop, Canteen)">
+            <Card title="Weekly Duty Roster (Front Desk, Pro Shop, Canteen)">
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                   <thead>

@@ -124,7 +124,7 @@ export const getMemberMembership = async (req, res, next) => {
     const userId = req.params.userId || req.user._id;
 
     const membership = await Membership.findOne({
-      member: userId,
+      $or: [{ member: userId }, { user: userId }],
       status: 'ACTIVE',
     }).populate('plan');
 

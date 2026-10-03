@@ -192,10 +192,9 @@ export const createBooking = async (req, res, next) => {
 
       if (activeMembership && activeMembership.plan) {
         const plan = activeMembership.plan;
-        if (plan.fullCourtAccess) {
-          discountApplied = basePrice; // 100% covered for Gold plan
-        } else if (plan.courtDiscount > 0) {
-          discountApplied = (basePrice * plan.courtDiscount) / 100;
+        const discountPct = plan.benefits?.courtDiscount ?? plan.courtDiscount ?? 0;
+        if (discountPct > 0) {
+          discountApplied = (basePrice * discountPct) / 100;
         }
       }
     }

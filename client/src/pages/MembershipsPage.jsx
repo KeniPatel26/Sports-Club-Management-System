@@ -1,22 +1,30 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Crown,
-  Shield,
   Sparkles,
   CheckCircle2,
   Calendar,
   CreditCard,
   Plus,
   RefreshCw,
-  Search,
-  Zap,
-  Tag,
   Clock,
   Award,
+  ShoppingBag,
+  Coffee,
+  Check,
+  X,
+  HelpCircle,
+  ArrowRight,
+  ArrowLeft,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import membershipService from '../services/membershipService';
+import DashboardLayout from '../components/layout/DashboardLayout';
+import PageHeader from '../components/layout/PageHeader';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -26,8 +34,9 @@ import Select from '../components/ui/Select';
 import Loader from '../components/ui/Loader';
 
 export const MembershipsPage = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const { showSuccess, showError } = useToast();
+  const { toastSuccess, toastError } = useToast();
 
   const [plans, setPlans] = useState([]);
   const [myMembership, setMyMembership] = useState(null);
@@ -39,21 +48,7 @@ export const MembershipsPage = () => {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('upi');
 
-  // Create Plan modal state (Owner only)
-  const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false);
-  const [newPlan, setNewPlan] = useState({
-    name: 'GOLD',
-    description: '',
-    price: 10000,
-    durationInDays: 365,
-    courtDiscount: 100,
-    shopDiscount: 20,
-    canteenDiscount: 15,
-    priorityBooking: true,
-    fullCourtAccess: true,
-  });
-
-  const isOwner = user?.role === 'OWNER' || user?.role === 'admin';
+  const isOwner = user?.role === 'CLUB_MANAGER' || user?.role === 'OWNER' || user?.role === 'ADMIN';
 
   const fetchData = async () => {
     setLoading(true);
@@ -67,11 +62,11 @@ export const MembershipsPage = () => {
         setPlans(plansRes.value.data || []);
       }
       if (myMemRes.status === 'fulfilled' && myMemRes.value.success) {
-        setMyMembership(myMemRes.value.data);
+        setMyMembership(myMemRes.value.data?.membership || myMemRes.value.data);
       }
     } catch (err) {
       console.error(err);
-      showError('Failed to load membership data');
+      toastError('Failed to load membership plans');
     } finally {
       setLoading(false);
     }
@@ -96,103 +91,59 @@ export const MembershipsPage = () => {
         paymentMethod,
       });
       if (res.success) {
-        showSuccess(`Successfully subscribed to ${selectedPlan.name} Membership! 🎉`);
+        toastSuccess(`Successfully subscribed to ${selectedPlan.name} Membership!`, 'Membership Active');
         setIsSubscribeOpen(false);
         fetchData();
       }
     } catch (err) {
-      showError(err.response?.data?.message || 'Failed to process subscription');
+      toastError(err.response?.data?.message || 'Failed to process subscription');
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleCreatePlanSubmit = async (e) => {
-    e.preventDefault();
-    setActionLoading(true);
-    try {
-      const res = await membershipService.createPlan({
-        ...newPlan,
-        price: Number(newPlan.price),
-        durationInDays: Number(newPlan.durationInDays),
-        courtDiscount: Number(newPlan.courtDiscount),
-        shopDiscount: Number(newPlan.shopDiscount),
-        canteenDiscount: Number(newPlan.canteenDiscount),
-      });
-      if (res.success) {
-        showSuccess('New membership plan published!');
-        setIsCreatePlanOpen(false);
-        fetchData();
-      }
-    } catch (err) {
-      showError(err.response?.data?.message || 'Failed to create plan');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const getPlanBadgeColor = (planName) => {
-    switch (planName?.toUpperCase()) {
-      case 'GOLD':
-        return 'var(--tier-gold-text)';
-      case 'SILVER':
-        return 'var(--tier-silver-text)';
-      case 'JUNIOR':
-        return 'var(--tier-junior-text)';
-      default:
-        return 'var(--primary)';
-    }
-  };
+  const comparisonRows = [
+    { label: 'Target User', gold: 'Regular / premium members', silver: 'Regular members', junior: 'Children / young players' },
+    { label: 'Court Booking', gold: 'Yes (All eligible courts)', silver: 'Yes (Standard courts)', junior: 'Yes (Junior-eligible courts)' },
+    { label: 'Booking Priority', gold: 'High Priority (48h advance)', silver: 'Standard (24h advance)', junior: 'Standard (24h advance)' },
+    { label: 'Daily Booking Limit', gold: '2 plays / day', silver: '2 plays / day', junior: '2 plays / day' },
+    { label: 'Court Booking Discount', gold: '20% OFF', silver: '10% OFF', junior: '15% OFF', highlight: true },
+    { label: 'Sports Shop Discount', gold: '15% OFF', silver: '10% OFF', junior: '10% OFF', highlight: true },
+    { label: 'Cafe & Canteen Discount', gold: '15% OFF', silver: '5% OFF', junior: '10% OFF', highlight: true },
+    { label: 'Online Shop Ordering', gold: 'Yes', silver: 'Yes', junior: 'Yes' },
+    { label: 'Club Pickup & Delivery', gold: 'Yes', silver: 'Yes', junior: 'Yes' },
+    { label: 'Member Events', gold: 'All Club Events', silver: 'Standard Events', junior: 'Junior & Youth Events' },
+    { label: 'Training / Coaching', gold: 'Premium VIP Access', silver: 'Standard Coaching', junior: 'Junior Programs' },
+    { label: 'Recommended For', gold: 'Frequent players & athletes', silver: 'Casual & regular players', junior: 'Young players under 18' },
+  ];
 
   return (
-    <div style={{ maxWidth: '1280px', margin: '0 auto', paddingBottom: '3rem' }}>
-      {/* Hero Header */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '1.5rem',
-          padding: '2rem',
-          borderRadius: 'var(--radius-lg)',
-          background: 'linear-gradient(135deg, rgba(53, 73, 98, 0.06) 0%, rgba(217, 142, 104, 0.08) 100%)',
-          border: '1px solid var(--border-color)',
-          marginBottom: '2rem',
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <Crown size={28} color="#f59e0b" />
-            <h1 style={{ margin: 0, fontSize: '1.85rem', fontWeight: 800 }}>
-              The Champions Club <span className="text-gradient">Membership Tiers</span>
-            </h1>
-          </div>
-          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '640px' }}>
-            Gold (Full Access & Priority), Silver (Standard Club Member), and Junior (Under 18 Youth).
-            Unlock court discounts, gear shop offers, and cafeteria lounge privileges.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <Button variant="outline" icon={RefreshCw} onClick={fetchData} loading={loading}>
-            Refresh
-          </Button>
-          {isOwner && (
-            <Button variant="primary" icon={Plus} onClick={() => setIsCreatePlanOpen(true)}>
-              Configure New Tier
+    <DashboardLayout>
+      <PageHeader
+        title="Membership Plans & Benefits"
+        subtitle="Automated access control, court discounts, sports shop privileges, and cafeteria savings."
+        breadcrumbs={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Memberships' }]}
+        action={
+          <div style={{ display: 'flex', gap: '0.65rem' }}>
+            <Button variant="outline" icon={ArrowLeft} onClick={() => navigate('/dashboard')}>
+              Back to Dashboard
             </Button>
-          )}
-        </div>
-      </div>
+            <Button variant="secondary" icon={RefreshCw} onClick={fetchData} loading={loading}>
+              Refresh
+            </Button>
+          </div>
+        }
+      />
 
-      {/* Active Membership Status Banner */}
-      {myMembership && (
+      <div style={{ maxWidth: '1240px', margin: '0 auto', paddingBottom: '3rem' }}>
+        {/* Active Membership Status Card */}
+        {myMembership && myMembership.plan && (
         <Card
           style={{
             marginBottom: '2.5rem',
-            border: '2px solid rgba(245, 158, 11, 0.4)',
-            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(99, 102, 241, 0.05) 100%)',
+            border: '2px solid #D98E68',
+            backgroundColor: '#FFFFFF',
+            boxShadow: '0 10px 30px rgba(217, 142, 104, 0.08)',
           }}
         >
           <div
@@ -207,33 +158,33 @@ export const MembershipsPage = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
               <div
                 style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                  width: '54px',
+                  height: '54px',
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(217, 142, 104, 0.15)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <Award size={32} color="#f59e0b" />
+                <Award size={30} color="#D98E68" />
               </div>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>
-                    Active Plan: {myMembership.plan?.name} Tier
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: '#17263B' }}>
+                    My Membership: {myMembership.plan?.name} Tier
                   </h3>
                   <Badge variant={myMembership.status === 'ACTIVE' ? 'success' : 'danger'}>
                     {myMembership.status}
                   </Badge>
                 </div>
-                <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: '#64748B' }}>
                   Valid until:{' '}
-                  <strong>{new Date(myMembership.expiryDate).toLocaleDateString()}</strong> (
+                  <strong>{new Date(myMembership.expiryDate || myMembership.endDate).toLocaleDateString()}</strong> (
                   {Math.max(
                     0,
                     Math.ceil(
-                      (new Date(myMembership.expiryDate) - new Date()) / (1000 * 60 * 60 * 24)
+                      (new Date(myMembership.expiryDate || myMembership.endDate) - new Date()) / (1000 * 60 * 60 * 24)
                     )
                   )}{' '}
                   days remaining)
@@ -241,29 +192,32 @@ export const MembershipsPage = () => {
               </div>
             </div>
 
+            {/* Active Plan Discount Metrics */}
             <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-              <div style={{ textAlign: 'center' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>
-                  Court Discount
+              <div style={{ textAlign: 'center', padding: '0.5rem 1rem', backgroundColor: '#F4F6FC', borderRadius: '10px' }}>
+                <span style={{ fontSize: '0.72rem', color: '#64748B', display: 'block', fontWeight: 700 }}>
+                  COURT DISCOUNT
                 </span>
-                <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary)' }}>
-                  {myMembership.plan?.courtDiscount}% OFF
-                </span>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>
-                  Shop Discount
-                </span>
-                <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#10b981' }}>
-                  {myMembership.plan?.shopDiscount}% OFF
+                <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#354962', fontFamily: "'JetBrains Mono', monospace" }}>
+                  {myMembership.plan?.benefits?.courtDiscount ?? myMembership.plan?.courtDiscount ?? 0}% OFF
                 </span>
               </div>
-              <div style={{ textAlign: 'center' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>
-                  Bar / Canteen
+
+              <div style={{ textAlign: 'center', padding: '0.5rem 1rem', backgroundColor: '#F4F6FC', borderRadius: '10px' }}>
+                <span style={{ fontSize: '0.72rem', color: '#64748B', display: 'block', fontWeight: 700 }}>
+                  SHOP DISCOUNT
                 </span>
-                <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#f59e0b' }}>
-                  {myMembership.plan?.canteenDiscount}% OFF
+                <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#D98E68', fontFamily: "'JetBrains Mono', monospace" }}>
+                  {myMembership.plan?.benefits?.shopDiscount ?? myMembership.plan?.shopDiscount ?? 0}% OFF
+                </span>
+              </div>
+
+              <div style={{ textAlign: 'center', padding: '0.5rem 1rem', backgroundColor: '#F4F6FC', borderRadius: '10px' }}>
+                <span style={{ fontSize: '0.72rem', color: '#64748B', display: 'block', fontWeight: 700 }}>
+                  CAFE DISCOUNT
+                </span>
+                <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#8FAF98', fontFamily: "'JetBrains Mono', monospace" }}>
+                  {myMembership.plan?.benefits?.cafeDiscount ?? myMembership.plan?.canteenDiscount ?? 0}% OFF
                 </span>
               </div>
             </div>
@@ -275,7 +229,7 @@ export const MembershipsPage = () => {
         <Loader text="Loading membership plans..." />
       ) : (
         <>
-          {/* Plan Cards Grid */}
+          {/* Plan Cards Grid: 🥇 Gold, 🥈 Silver, 🧒 Junior */}
           <div
             style={{
               display: 'grid',
@@ -285,133 +239,146 @@ export const MembershipsPage = () => {
             }}
           >
             {plans.map((plan) => {
+              const planName = (plan.name || '').toUpperCase();
               const isCurrent = myMembership?.plan?._id === plan._id;
-              const isGold = plan.name === 'GOLD';
+              const isGold = planName === 'GOLD';
+              const isJunior = planName === 'JUNIOR';
+
+              const courtDisc = plan.benefits?.courtDiscount ?? plan.courtDiscount ?? 0;
+              const shopDisc = plan.benefits?.shopDiscount ?? plan.shopDiscount ?? 0;
+              const cafeDisc = plan.benefits?.cafeDiscount ?? plan.benefits?.canteenDiscount ?? plan.canteenDiscount ?? 0;
 
               return (
                 <div
                   key={plan._id}
                   style={{
                     position: 'relative',
-                    borderRadius: 'var(--radius-lg)',
-                    padding: '2rem',
-                    backgroundColor: 'var(--bg-card)',
+                    borderRadius: '18px',
+                    padding: '2.25rem 2rem',
+                    backgroundColor: '#FFFFFF',
                     border: isGold
-                      ? '2px solid rgba(245, 158, 11, 0.6)'
-                      : '1px solid var(--border-color)',
+                      ? '2px solid #D98E68'
+                      : '1px solid #DDE2EC',
                     boxShadow: isGold
-                      ? '0 10px 25px -5px rgba(245, 158, 11, 0.15)'
-                      : 'var(--shadow-sm)',
+                      ? '0 12px 36px rgba(217, 142, 104, 0.15)'
+                      : '0 6px 20px rgba(53, 73, 98, 0.04)',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
-                    transition: 'var(--transition)',
+                    transition: 'all 0.2s ease',
                   }}
                 >
                   {isGold && (
                     <div
                       style={{
                         position: 'absolute',
-                        top: '-12px',
+                        top: '-13px',
                         right: '24px',
-                        background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                        color: '#ffffff',
-                        padding: '3px 12px',
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: '0.75rem',
+                        backgroundColor: '#D98E68',
+                        color: '#FFFFFF',
+                        padding: '4px 14px',
+                        borderRadius: '999px',
+                        fontSize: '0.72rem',
                         fontWeight: 800,
-                        letterSpacing: '0.05em',
+                        letterSpacing: '0.04em',
                       }}
                     >
-                      👑 MOST POPULAR
+                      RECOMMENDED
                     </div>
                   )}
 
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                      <Crown size={22} color={getPlanBadgeColor(plan.name)} />
-                      <h3 style={{ margin: 0, fontSize: '1.45rem', fontWeight: 800 }}>
-                        {plan.name} PLAN
+                      <Crown size={22} color={isGold ? '#D98E68' : isJunior ? '#8FAF98' : '#354962'} />
+                      <h3 style={{ margin: 0, fontSize: '1.45rem', fontWeight: 800, color: '#17263B' }}>
+                        {planName} TIER
                       </h3>
                     </div>
 
-                    <p style={{ margin: '0 0 1.25rem 0', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+                    <p style={{ margin: '0 0 1.25rem 0', color: '#64748B', fontSize: '0.88rem', lineHeight: 1.5, minHeight: '42px' }}>
                       {plan.description ||
                         (isGold
-                          ? 'Premium tier with zero court booking fees, 48h priority slots & VIP perks.'
-                          : plan.name === 'SILVER'
-                          ? 'Standard club membership with discounted courts and member pricing.'
-                          : 'Under 18 youth athlete plan with special training rates.')}
+                          ? 'Full club experience for regular athletes & frequent players.'
+                          : isJunior
+                          ? 'Young athlete tier (under 18) with youth coaching and junior courts.'
+                          : 'Standard membership with discounted courts and member pricing.')}
                     </p>
 
-                    <div style={{ marginBottom: '1.75rem' }}>
-                      <span style={{ fontSize: '2.25rem', fontWeight: 900 }}>₹{plan.price}</span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                        {' '}
-                        / {plan.durationInDays} days
+                    <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
+                      <span style={{ fontSize: '2.4rem', fontWeight: 800, color: '#17263B', fontFamily: "'JetBrains Mono', monospace" }}>
+                        ₹{plan.price.toLocaleString()}
+                      </span>
+                      <span style={{ color: '#64748B', fontSize: '0.88rem' }}>
+                        / {plan.durationInDays || plan.duration || 365} days
                       </span>
                     </div>
 
+                    {/* Benefit Checklist */}
                     <div
                       style={{
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '0.75rem',
-                        borderTop: '1px solid var(--border-color)',
+                        borderTop: '1px solid #DDE2EC',
                         paddingTop: '1.25rem',
                         marginBottom: '1.75rem',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem' }}>
-                        <CheckCircle2 size={16} color="#10b981" />
-                        <span>
-                          <strong>{plan.courtDiscount}% Court Fee Discount</strong>{' '}
-                          {plan.courtDiscount === 100 && '(100% Free Sessions)'}
-                        </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', color: '#17263B' }}>
+                        <CheckCircle2 size={16} color="#8FAF98" />
+                        <span><strong>{courtDisc}% Court Booking Discount</strong></span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem' }}>
-                        <CheckCircle2 size={16} color="#10b981" />
-                        <span>
-                          <strong>{plan.shopDiscount}% OFF</strong> at Pro Gear Shop
-                        </span>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', color: '#17263B' }}>
+                        <CheckCircle2 size={16} color="#8FAF98" />
+                        <span><strong>{shopDisc}% OFF</strong> Pro Gear Shop</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem' }}>
-                        <CheckCircle2 size={16} color="#10b981" />
-                        <span>
-                          <strong>{plan.canteenDiscount}% OFF</strong> at Bar Lounge & Canteen
-                        </span>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', color: '#17263B' }}>
+                        <CheckCircle2 size={16} color="#8FAF98" />
+                        <span><strong>{cafeDisc}% OFF</strong> Sports Cafe & Lounge</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem' }}>
-                        <CheckCircle2
-                          size={16}
-                          color={plan.priorityBooking ? '#10b981' : 'var(--text-subtle)'}
-                        />
-                        <span style={{ color: plan.priorityBooking ? 'inherit' : 'var(--text-subtle)' }}>
-                          {plan.priorityBooking ? 'Priority 48-Hour Advanced Booking' : 'Standard 24-Hour Booking'}
-                        </span>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', color: '#17263B' }}>
+                        <CheckCircle2 size={16} color="#8FAF98" />
+                        <span><strong>2 Bookings / Day</strong> Max Allocation</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem' }}>
-                        <CheckCircle2
-                          size={16}
-                          color={plan.fullCourtAccess ? '#10b981' : 'var(--text-subtle)'}
-                        />
-                        <span style={{ color: plan.fullCourtAccess ? 'inherit' : 'var(--text-subtle)' }}>
-                          {plan.fullCourtAccess ? 'Full Multi-Court Access (Tennis + Turf + Padel)' : 'Restricted Court Access'}
-                        </span>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', color: '#17263B' }}>
+                        <CheckCircle2 size={16} color="#8FAF98" />
+                        <span>{isGold ? 'High Booking Priority (48h advance)' : 'Standard Booking Priority (24h)'}</span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', color: '#17263B' }}>
+                        <CheckCircle2 size={16} color="#8FAF98" />
+                        <span>{isGold ? 'Premium VIP Training & Clinics' : isJunior ? 'Junior Coaching Academy' : 'Regular Club Events'}</span>
                       </div>
                     </div>
                   </div>
 
                   <div>
                     {isCurrent ? (
-                      <Button variant="outline" fullWidth disabled>
-                        ✓ Current Active Plan
+                      <Button
+                        variant="outline"
+                        fullWidth
+                        disabled
+                        style={{ height: '44px', fontWeight: 700, borderRadius: '10px' }}
+                      >
+                        Current Active Plan
                       </Button>
                     ) : (
                       <Button
                         variant={isGold ? 'primary' : 'outline'}
                         fullWidth
                         onClick={() => handleSubscribeClick(plan)}
+                        style={{
+                          backgroundColor: isGold ? '#D98E68' : '#FFFFFF',
+                          borderColor: isGold ? '#D98E68' : '#DDE2EC',
+                          color: isGold ? '#FFFFFF' : '#17263B',
+                          height: '44px',
+                          fontWeight: 700,
+                          borderRadius: '10px',
+                        }}
                       >
                         {myMembership ? 'Switch to this Plan' : 'Subscribe Now'}
                       </Button>
@@ -422,37 +389,82 @@ export const MembershipsPage = () => {
             })}
           </div>
 
-          {/* Operational FAQ / Problem Statement Highlights */}
-          <Card title="🏆 Membership Policy & Automated Lifecycle">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
-              <div>
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', fontWeight: 700 }}>
-                  📅 Automatic Expiry & WhatsApp Removal
-                </h4>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Expiry dates are calculated down to the exact second. Front desk and online booking systems automatically check validity at checkout, preventing unauthorized reservations.
-                </p>
-              </div>
-
-              <div>
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', fontWeight: 700 }}>
-                  🏸 Integrated Multi-Department Perks
-                </h4>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Discounts automatically apply across the Pro Gear Shop, Court Reservations, and Canteen Tabs without members having to present physical receipts or cards.
-                </p>
-              </div>
-
-              <div>
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', fontWeight: 700 }}>
-                  ⚡ Anti-Conflict 2-Booking Ceiling
-                </h4>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Every member is restricted to maximum 2 booking slots per day to ensure fair court distribution across all Champions Club athletes during peak evening hours.
-                </p>
-              </div>
+          {/* Complete Feature Comparison Table */}
+          <Card title="Detailed Membership Feature Comparison">
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #DDE2EC', textAlign: 'left' }}>
+                    <th style={{ padding: '1rem 0.75rem', color: '#64748B', fontWeight: 700 }}>Feature / Privilege</th>
+                    <th style={{ padding: '1rem 0.75rem', color: '#D98E68', fontWeight: 800 }}>🥇 Gold Tier</th>
+                    <th style={{ padding: '1rem 0.75rem', color: '#354962', fontWeight: 800 }}>🥈 Silver Tier</th>
+                    <th style={{ padding: '1rem 0.75rem', color: '#8FAF98', fontWeight: 800 }}>🧒 Junior Tier</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparisonRows.map((row, idx) => (
+                    <tr
+                      key={row.label}
+                      style={{
+                        borderBottom: '1px solid #DDE2EC',
+                        backgroundColor: row.highlight ? 'rgba(217, 142, 104, 0.05)' : idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC',
+                      }}
+                    >
+                      <td style={{ padding: '0.85rem 0.75rem', fontWeight: row.highlight ? 700 : 600, color: '#17263B' }}>
+                        {row.label}
+                      </td>
+                      <td style={{ padding: '0.85rem 0.75rem', fontWeight: row.highlight ? 800 : 500, color: row.highlight ? '#D98E68' : '#2D4159' }}>
+                        {row.gold}
+                      </td>
+                      <td style={{ padding: '0.85rem 0.75rem', fontWeight: row.highlight ? 800 : 500, color: row.highlight ? '#354962' : '#2D4159' }}>
+                        {row.silver}
+                      </td>
+                      <td style={{ padding: '0.85rem 0.75rem', fontWeight: row.highlight ? 800 : 500, color: row.highlight ? '#8FAF98' : '#2D4159' }}>
+                        {row.junior}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </Card>
+
+          {/* Pricing & Access Workflow Diagram */}
+          <div style={{ marginTop: '2.5rem' }}>
+            <Card title="How Membership Automatically Powers the System">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                <div style={{ padding: '1.25rem', backgroundColor: '#F4F6FC', borderRadius: '12px', border: '1px solid #DDE2EC' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: '#354962', fontWeight: 800 }}>
+                    <Calendar size={18} color="#354962" />
+                    <span>1. Court Bookings</span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.84rem', color: '#64748B', lineHeight: 1.5 }}>
+                    Court slots automatically apply the member discount (20% Gold, 10% Silver, 15% Junior) and enforce the daily maximum 2-booking ceiling.
+                  </p>
+                </div>
+
+                <div style={{ padding: '1.25rem', backgroundColor: '#F4F6FC', borderRadius: '12px', border: '1px solid #DDE2EC' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: '#D98E68', fontWeight: 800 }}>
+                    <ShoppingBag size={18} color="#D98E68" />
+                    <span>2. Sports Pro Shop</span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.84rem', color: '#64748B', lineHeight: 1.5 }}>
+                    Gear purchases apply member discount at checkout (15% Gold, 10% Silver, 10% Junior). Original inventory prices stay intact.
+                  </p>
+                </div>
+
+                <div style={{ padding: '1.25rem', backgroundColor: '#F4F6FC', borderRadius: '12px', border: '1px solid #DDE2EC' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: '#8FAF98', fontWeight: 800 }}>
+                    <Coffee size={18} color="#8FAF98" />
+                    <span>3. Cafe & Canteen</span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.84rem', color: '#64748B', lineHeight: 1.5 }}>
+                    Food, shakes, and dining tabs automatically calculate member discounts (15% Gold, 5% Silver, 10% Junior) on invoice generation.
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </div>
         </>
       )}
 
@@ -460,24 +472,24 @@ export const MembershipsPage = () => {
       <Modal
         isOpen={isSubscribeOpen}
         onClose={() => setIsSubscribeOpen(false)}
-        title={`Subscribe: ${selectedPlan?.name} Tier`}
+        title={`Subscribe to ${selectedPlan?.name} Tier`}
       >
         <form onSubmit={handleSubscribeSubmit}>
           <div style={{ marginBottom: '1.25rem' }}>
-            <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-              You are subscribing to <strong>{selectedPlan?.name}</strong> at <strong>₹{selectedPlan?.price}</strong> for{' '}
-              {selectedPlan?.durationInDays} days.
+            <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: '#64748B' }}>
+              You are subscribing to <strong>{selectedPlan?.name} Membership</strong> at <strong>₹{selectedPlan?.price?.toLocaleString()}</strong> for{' '}
+              {selectedPlan?.durationInDays || selectedPlan?.duration || 365} days.
             </p>
 
             <Select
-              label="Select Payment Method"
+              label="Payment Method"
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
               options={[
-                { value: 'upi', label: 'UPI / Google Pay / PhonePe' },
+                { value: 'upi', label: 'UPI (Google Pay / PhonePe / Paytm)' },
                 { value: 'card', label: 'Credit / Debit Card' },
                 { value: 'cash', label: 'Cash at Front Desk' },
-                { value: 'online', label: 'Net Banking' },
+                { value: 'netbanking', label: 'Net Banking' },
               ]}
               required
             />
@@ -487,98 +499,19 @@ export const MembershipsPage = () => {
             <Button variant="ghost" type="button" onClick={() => setIsSubscribeOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit" loading={actionLoading}>
-              Pay ₹{selectedPlan?.price} & Activate
+            <Button
+              variant="primary"
+              type="submit"
+              loading={actionLoading}
+              style={{ backgroundColor: '#D98E68', borderColor: '#D98E68', color: '#FFFFFF', fontWeight: 700 }}
+            >
+              Pay ₹{selectedPlan?.price?.toLocaleString()} & Activate
             </Button>
           </div>
         </form>
       </Modal>
-
-      {/* Owner Create Plan Modal */}
-      <Modal
-        isOpen={isCreatePlanOpen}
-        onClose={() => setIsCreatePlanOpen(false)}
-        title="Configure New Membership Tier"
-      >
-        <form onSubmit={handleCreatePlanSubmit}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <Select
-              label="Plan Tier Name"
-              value={newPlan.name}
-              onChange={(e) => setNewPlan({ ...newPlan, name: e.target.value })}
-              options={[
-                { value: 'GOLD', label: 'GOLD' },
-                { value: 'SILVER', label: 'SILVER' },
-                { value: 'JUNIOR', label: 'JUNIOR' },
-              ]}
-              required
-            />
-
-            <Input
-              label="Description"
-              placeholder="e.g. Premium access with all court fees waived"
-              value={newPlan.description}
-              onChange={(e) => setNewPlan({ ...newPlan, description: e.target.value })}
-            />
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <Input
-                label="Price (₹)"
-                type="number"
-                min="0"
-                value={newPlan.price}
-                onChange={(e) => setNewPlan({ ...newPlan, price: e.target.value })}
-                required
-              />
-              <Input
-                label="Duration (Days)"
-                type="number"
-                min="1"
-                value={newPlan.durationInDays}
-                onChange={(e) => setNewPlan({ ...newPlan, durationInDays: e.target.value })}
-                required
-              />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
-              <Input
-                label="Court Disc (%)"
-                type="number"
-                min="0"
-                max="100"
-                value={newPlan.courtDiscount}
-                onChange={(e) => setNewPlan({ ...newPlan, courtDiscount: e.target.value })}
-              />
-              <Input
-                label="Shop Disc (%)"
-                type="number"
-                min="0"
-                max="100"
-                value={newPlan.shopDiscount}
-                onChange={(e) => setNewPlan({ ...newPlan, shopDiscount: e.target.value })}
-              />
-              <Input
-                label="Canteen (%)"
-                type="number"
-                min="0"
-                max="100"
-                value={newPlan.canteenDiscount}
-                onChange={(e) => setNewPlan({ ...newPlan, canteenDiscount: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
-            <Button variant="ghost" type="button" onClick={() => setIsCreatePlanOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit" loading={actionLoading}>
-              Save Plan
-            </Button>
-          </div>
-        </form>
-      </Modal>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 };
 

@@ -12,6 +12,7 @@ import {
   TrendingUp,
   BarChart3,
   User,
+  UserCheck,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -20,6 +21,8 @@ import {
   Package,
   UtensilsCrossed,
   SlidersHorizontal,
+  CheckCircle2,
+  Building2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -35,19 +38,19 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
 
   // Determine Nav Items based on Role (Member, Owner/Manager, Staff)
   const getNavItems = () => {
-    // 1. Owner / Club Manager View
+    // 1. Owner / Club Manager View (Business level: Members, Memberships, Employees, Courts, Shop, Settings)
     if (isManager || isOwner) {
       return [
-        { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-        { label: 'Members', path: '/users', icon: Users },
-        { label: 'Courts', path: '/courts', icon: Calendar },
-        { label: 'Booking History', path: '/booking-history', icon: History },
-        { label: 'Shop', path: '/shop', icon: ShoppingBag },
-        { label: 'Canteen', path: '/canteen', icon: Coffee },
-        { label: 'Finance', path: '/finance-analytics', icon: TrendingUp },
-        { label: 'Reports', path: '/finance-analytics', icon: BarChart3 },
-        { label: 'Staff', path: '/staff-roster', icon: Briefcase },
-        { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
+        { label: 'Dashboard', path: '/manager/dashboard', icon: LayoutDashboard },
+        { label: 'Members', path: '/manager/members', icon: Users },
+        { label: 'Memberships', path: '/manager/memberships', icon: Crown },
+        { label: 'Employees', path: '/manager/employees', icon: Briefcase },
+        { label: 'Courts', path: '/manager/courts', icon: Calendar },
+        { label: 'Sports Shop', path: '/manager/shop', icon: ShoppingBag },
+        { label: 'Canteen & Bar', path: '/manager/canteen', icon: Coffee },
+        { label: 'Finance', path: '/manager/finance', icon: TrendingUp },
+        { label: 'Reports', path: '/manager/reports', icon: BarChart3 },
+        { label: 'Settings', path: '/manager/settings', icon: SlidersHorizontal },
       ];
     }
 
@@ -55,42 +58,41 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
     if (isStaff && !isMember) {
       if (isFrontDesk) {
         return [
-          { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-          { label: 'Courts', path: '/courts', icon: Calendar },
-          { label: 'Booking History', path: '/booking-history', icon: History },
-          { label: 'Members', path: '/users', icon: Users },
-          { label: 'Staff Roster', path: '/staff-roster', icon: Briefcase },
-          { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
+          { label: 'Dashboard', path: '/staff/front-desk', icon: LayoutDashboard },
+          { label: 'Member Lookup', path: '/staff/front-desk?tab=members', icon: Users },
+          { label: 'Court Schedule', path: '/staff/front-desk?tab=courts', icon: Calendar },
+          { label: 'Bookings & Walk-ins', path: '/staff/front-desk?tab=bookings', icon: CheckCircle2 },
+          { label: 'Front Desk Payments', path: '/staff/front-desk?tab=payments', icon: Receipt },
+          { label: 'My Profile & Shift', path: '/staff/profile', icon: User },
         ];
       }
       if (isShopStaff) {
         return [
-          { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-          { label: 'Products', path: '/shop', icon: Package },
-          { label: 'Orders', path: '/shop', icon: ShoppingBag },
-          { label: 'Staff Roster', path: '/staff-roster', icon: Briefcase },
-          { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
+          { label: 'Dashboard', path: '/staff/shop', icon: LayoutDashboard },
+          { label: 'Products', path: '/staff/shop?tab=products', icon: ShoppingBag },
+          { label: 'Inventory & Stock', path: '/staff/shop?tab=inventory', icon: Package },
+          { label: 'Counter POS Sales', path: '/staff/shop?tab=sales', icon: Receipt },
+          { label: 'Online Orders', path: '/staff/shop?tab=orders', icon: Package },
+          { label: 'Shop Payments', path: '/staff/shop?tab=payments', icon: Receipt },
+          { label: 'My Profile & Shift', path: '/staff/profile', icon: User },
         ];
       }
       if (isCanteenStaff) {
         return [
-          { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-          { label: 'Canteen Menu', path: '/canteen', icon: UtensilsCrossed },
-          { label: 'Canteen Orders', path: '/canteen', icon: Coffee },
-          { label: 'Staff Roster', path: '/staff-roster', icon: Briefcase },
-          { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
+          { label: 'Dashboard', path: '/staff/canteen', icon: LayoutDashboard },
+          { label: 'Menu Items', path: '/staff/canteen?tab=menu', icon: UtensilsCrossed },
+          { label: 'Table Layout', path: '/staff/canteen?tab=tables', icon: Building2 },
+          { label: 'Kitchen Queue', path: '/staff/canteen?tab=orders', icon: Coffee },
+          { label: 'Table Tabs & Bills', path: '/staff/canteen?tab=tabs', icon: Receipt },
+          { label: 'Canteen Payments', path: '/staff/canteen?tab=payments', icon: Receipt },
+          { label: 'My Profile & Shift', path: '/staff/profile', icon: User },
         ];
       }
 
       // Generic Staff fallback
       return [
-        { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-        { label: 'Courts', path: '/courts', icon: Calendar },
-        { label: 'Booking History', path: '/booking-history', icon: History },
-        { label: 'Shop Operations', path: '/shop', icon: ShoppingBag },
-        { label: 'Canteen & Bar', path: '/canteen', icon: Coffee },
-        { label: 'Staff Roster', path: '/staff-roster', icon: Briefcase },
-        { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
+        { label: 'Staff Terminal', path: '/staff/front-desk', icon: LayoutDashboard },
+        { label: 'My Profile & Shift', path: '/staff/profile', icon: User },
       ];
     }
 
@@ -100,8 +102,8 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
       { label: 'Book Court', path: '/courts', icon: Calendar },
       { label: 'Booking History', path: '/booking-history', icon: History },
       { label: 'Shop', path: '/shop', icon: ShoppingBag },
-      { label: 'Canteen', path: '/canteen', icon: Coffee },
       { label: 'My Orders', path: '/shop?view=orders', icon: Receipt },
+      { label: 'Canteen & Bar', path: '/canteen', icon: Coffee },
       { label: 'Membership', path: '/memberships', icon: Crown },
       { label: 'Profile', path: '/profile', icon: User },
     ];
@@ -182,19 +184,24 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           {navItems.map((item) => {
             const Icon = item.icon;
+            const isShopPage = location.pathname === '/shop';
+            const isOrdersView = isShopPage && location.search.includes('view=orders');
+            const isMyOrdersItem = item.label === 'My Orders' || item.path === '/shop?view=orders';
+            const isShopItem = (item.label === 'Shop' || item.label === 'Sports Shop') && item.path === '/shop';
+
+            const isActiveItem = isMyOrdersItem
+              ? isOrdersView
+              : isShopItem
+                ? isShopPage && !isOrdersView
+                : location.pathname === item.path.split('?')[0];
+
             return (
               <NavLink
                 key={item.label + item.path}
                 to={item.path}
                 title={collapsed ? item.label : undefined}
-                style={({ isActive }) => {
-                  const isShopPage = location.pathname === '/shop';
-                  const isActiveItem = item.label === 'My Orders'
-                    ? isShopPage && location.search.includes('view=orders')
-                    : item.label === 'Shop'
-                      ? isShopPage && !location.search.includes('view=orders')
-                      : isActive;
-                  return ({
+                className={isActiveItem ? 'sidebar-item-active' : ''}
+                style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: collapsed ? 'center' : 'space-between',
@@ -202,16 +209,15 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
                   borderRadius: 'var(--radius-md)',
                   fontSize: '0.875rem',
                   fontWeight: isActiveItem ? 600 : 500,
-                  color: isActiveItem ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)',
-                  backgroundColor: isActiveItem ? 'var(--sidebar-active-bg)' : 'transparent',
+                  color: isActiveItem ? 'var(--sidebar-active-text, #ffffff)' : 'var(--sidebar-text)',
+                  backgroundColor: isActiveItem ? 'var(--sidebar-active-bg, rgba(217, 142, 104, 0.22))' : 'transparent',
                   transition: 'var(--transition)',
                   textDecoration: 'none',
                   fontFamily: 'var(--font-family-body)',
-                  });
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <Icon size={17} style={{ flexShrink: 0 }} />
+                  <Icon size={17} style={{ flexShrink: 0, color: isActiveItem ? 'var(--primary)' : 'inherit' }} />
                   {!collapsed && <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>}
                 </div>
 

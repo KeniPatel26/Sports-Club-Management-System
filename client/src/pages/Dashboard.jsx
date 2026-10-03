@@ -41,7 +41,6 @@ const MemberDashboardView = ({ user, menuItems, bookings, loading, navigate }) =
         title={`Welcome back, ${user?.firstName || user?.name || 'Member'}`}
         subtitle="Book a court, browse the cafe menu, and keep track of your upcoming sessions."
         breadcrumbs={[{ label: 'Club', path: '/' }, { label: 'Member dashboard' }]}
-        action={<div className="member-dashboard-header-actions"><Button variant="outline" icon={Calendar} onClick={() => navigate('/courts')}>Book a court</Button><Button variant="primary" icon={UtensilsCrossed} onClick={() => navigate('/canteen')}>Canteen menu</Button></div>}
       />
 
       <div className="member-dashboard-content">
@@ -141,7 +140,7 @@ export const Dashboard = () => {
   return (
     <DashboardLayout>
       <PageHeader
-        title={`Welcome to The Champions Club, ${user?.firstName || user?.name || 'Athlete'}! 🏆`}
+        title={`Welcome to The Champions Club, ${user?.firstName || user?.name || 'Athlete'}`}
         subtitle="Digital backbone for Court Reservations, Pro Gear Shop, Bar Lounge Tabs, and Multi-Tier Memberships."
         breadcrumbs={[{ label: 'Club OS', path: '/' }, { label: 'Operations Hub' }]}
         action={
@@ -248,7 +247,7 @@ export const Dashboard = () => {
         <Card>
           <Card.Header>
             <div>
-              <Card.Title>🏸 Courts & Turfs Status</Card.Title>
+              <Card.Title>Courts & Turfs Status</Card.Title>
               <Card.Description>Live facilities at The Champions Club</Card.Description>
             </div>
             <Button
@@ -308,7 +307,7 @@ export const Dashboard = () => {
         <Card>
           <Card.Header>
             <div>
-              <Card.Title>🍸 Active Bar Tabs & Low Stock</Card.Title>
+              <Card.Title>Active Bar Tabs & Low Stock</Card.Title>
               <Card.Description>Real-time lounge reconciliation & shelf alert</Card.Description>
             </div>
             <Button
@@ -395,7 +394,7 @@ export const Dashboard = () => {
       </div>
 
       {/* Problem Statement Solutions Walkthrough */}
-      <Card title="🎯 Problem Statement Digital Solutions Matrix">
+      <Card title="Problem Statement Digital Solutions Matrix">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>

@@ -19,20 +19,20 @@ export const NotificationDropdown = () => {
         setUnreadCount(res.data.unreadCount || 0);
       }
     } catch (e) {
-      // Fallback mock notifications if backend is offline
+      // Fallback notifications if backend is offline
       setNotifications([
         {
           _id: 'n1',
-          title: 'Starter Kit Initialized',
-          message: 'Your MERN hackathon template is ready with rich starter features.',
+          title: 'Court Reservation Confirmed',
+          message: 'Court 2 (Synthetic) booked for 6:00 PM – 7:00 PM today.',
           type: 'success',
           read: false,
           createdAt: new Date(),
         },
         {
           _id: 'n2',
-          title: 'Demo Credentials Active',
-          message: 'Use 1-click login for Admin or Member accounts.',
+          title: 'Pro Shop Spring Collection',
+          message: 'New tournament racquets & stringing sets now in stock.',
           type: 'info',
           read: false,
           createdAt: new Date(Date.now() - 3600000),
