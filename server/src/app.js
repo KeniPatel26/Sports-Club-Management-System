@@ -14,6 +14,7 @@ import shopCanteenRoutes from './routes/shopCanteenRoutes.js';
 import staffRoutes from './routes/staffRoutes.js';
 import financeReportsRoutes from './routes/financeReportsRoutes.js';
 import leadRoutes from './routes/leadRoutes.js';
+import managerRoutes from './routes/managerRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import projectRoutes from './routes/projectRoutes.js';
 import taskRoutes from './routes/taskRoutes.js';
@@ -71,6 +72,7 @@ app.use('/api', shopCanteenRoutes);  // /api/products, /api/orders
 app.use('/api/staff', staffRoutes);
 app.use('/api/finance', financeReportsRoutes);
 app.use('/api/leads', leadRoutes);
+app.use('/api/manager', managerRoutes);
 
 // User & Utility API Routes
 app.use('/api/users', userRoutes);

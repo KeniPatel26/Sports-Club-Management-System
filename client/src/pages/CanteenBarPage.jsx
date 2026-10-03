@@ -116,7 +116,7 @@ export const CanteenBarPage = () => {
     return cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   };
 
-  const discountRate = userMembership?.plan?.canteenDiscount || 0;
+  const discountRate = userMembership?.plan?.benefits?.cafeDiscount ?? userMembership?.plan?.benefits?.canteenDiscount ?? userMembership?.plan?.canteenDiscount ?? 0;
   const subtotal = calculateSubtotal();
   const discountAmount = (subtotal * discountRate) / 100;
   const totalAmount = Math.max(0, subtotal - discountAmount);
@@ -320,7 +320,7 @@ export const CanteenBarPage = () => {
                   transition: 'var(--transition)',
                 }}
               >
-                {cat === 'ALL' ? '🍕 All Menu' : cat}
+                {cat === 'ALL' ? 'All Menu' : cat}
               </button>
             ))}
           </div>

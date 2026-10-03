@@ -143,10 +143,18 @@ export const createOrder = async (req, res, next) => {
     let discount = 0;
 
     if (targetUserId) {
-      const membership = await Membership.findOne({ member: targetUserId, status: 'ACTIVE' }).populate('plan');
+      const membership = await Membership.findOne({
+        $or: [{ member: targetUserId }, { user: targetUserId }],
+        status: 'ACTIVE',
+      }).populate('plan');
+
       if (membership?.plan) {
         const plan = membership.plan;
-        const discountRate = type === 'sports' ? plan.shopDiscount : plan.canteenDiscount;
+        const discountRate =
+          type === 'sports'
+            ? (plan.benefits?.shopDiscount ?? plan.shopDiscount ?? 0)
+            : (plan.benefits?.cafeDiscount ?? plan.benefits?.canteenDiscount ?? plan.canteenDiscount ?? 0);
+
         if (discountRate > 0) {
           discount = (subtotal * discountRate) / 100;
         }

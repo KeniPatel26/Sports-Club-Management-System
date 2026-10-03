@@ -2,8 +2,9 @@ import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Loader from '../components/ui/Loader';
+import DashboardLayout from '../components/layout/DashboardLayout';
 
-// Pages
+// Public & General Pages
 import Home from '../pages/Home';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
@@ -23,6 +24,25 @@ import UsersManagement from '../pages/UsersManagement';
 import Profile from '../pages/Profile';
 import NotFound from '../pages/NotFound';
 
+// Manager Dedicated Module Pages
+import ManagerDashboard from '../pages/manager/Dashboard';
+import Members from '../pages/manager/members/Members';
+import Memberships from '../pages/manager/memberships/Memberships';
+import Employees from '../pages/manager/employees/Employees';
+import Courts from '../pages/manager/courts/Courts';
+import ShopManagement from '../pages/manager/shop/Products';
+import CanteenManagement from '../pages/manager/canteen/Menu';
+import FinanceManagement from '../pages/manager/finance/Finance';
+import Reports from '../pages/manager/reports/Reports';
+import LeadsManagement from '../pages/manager/leads/Leads';
+import Settings from '../pages/manager/settings/Settings';
+
+// Staff Department Dedicated Portals
+import FrontDeskDashboard from '../pages/staff/frontdesk/FrontDeskDashboard';
+import ShopStaffDashboard from '../pages/staff/shop/ShopStaffDashboard';
+import CanteenStaffDashboard from '../pages/staff/canteen/CanteenStaffDashboard';
+import StaffProfileAttendance from '../pages/staff/common/StaffProfileAttendance';
+
 // Protected Route Guard
 export const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -41,18 +61,18 @@ export const ProtectedRoute = ({ children }) => {
 
 // Admin-Only Role Guard
 export const AdminRoute = ({ children }) => {
-  const { isAuthenticated, isOwner, isAdmin, loading } = useAuth();
+  const { isAuthenticated, isOwner, isAdmin, isManager, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
-    return <Loader fullPage text="Checking owner permissions..." />;
+    return <Loader fullPage text="Checking owner/manager permissions..." />;
   }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (!isOwner && !isAdmin) {
+  if (!isOwner && !isAdmin && !isManager) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -67,7 +87,7 @@ export const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* Core Sports Club Management Pages */}
+      {/* Main Shared Pages */}
       <Route
         path="/dashboard"
         element={
@@ -125,12 +145,120 @@ export const AppRoutes = () => {
         }
       />
 
-      {/* Owner Financial Analytics Hub */}
+      {/* ==================================================== */}
+      {/* STAFF DEDICATED DEPARTMENT PORTALS                   */}
+      {/* ==================================================== */}
       <Route
-        path="/finance-analytics"
+        path="/staff/front-desk"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <FrontDeskDashboard />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/staff/shop"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <ShopStaffDashboard />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/staff/canteen"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <CanteenStaffDashboard />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/staff/profile"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <StaffProfileAttendance />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* ==================================================== */}
+      {/* MANAGER DEDICATED ERP ROUTES (ALL 12 MODULES)         */}
+      {/* ==================================================== */}
+      <Route
+        path="/manager/dashboard"
         element={
           <AdminRoute>
-            <OwnerAnalyticsPage />
+            <DashboardLayout>
+              <ManagerDashboard />
+            </DashboardLayout>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/manager/members"
+        element={
+          <AdminRoute>
+            <DashboardLayout>
+              <Members />
+            </DashboardLayout>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/manager/memberships"
+        element={
+          <AdminRoute>
+            <DashboardLayout>
+              <Memberships />
+            </DashboardLayout>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/manager/employees"
+        element={
+          <AdminRoute>
+            <DashboardLayout>
+              <Employees />
+            </DashboardLayout>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/manager/courts"
+        element={
+          <AdminRoute>
+            <DashboardLayout>
+              <Courts />
+            </DashboardLayout>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/manager/shop"
+        element={
+          <AdminRoute>
+            <DashboardLayout>
+              <ShopManagement />
+            </DashboardLayout>
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/manager/settings"
+        element={
+          <AdminRoute>
+            <DashboardLayout>
+              <Settings />
+            </DashboardLayout>
           </AdminRoute>
         }
       />
@@ -176,8 +304,6 @@ export const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
-
-      {/* Admin / Owner User Directory */}
       <Route
         path="/users"
         element={

@@ -215,7 +215,7 @@ export const OwnerAnalyticsPage = () => {
       {/* Revenue Stream Breakdown & Payment Method Channels */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.75rem', marginBottom: '2rem' }}>
         {/* Stream Breakdown */}
-        <Card title="📊 Revenue Channels Breakdown">
+        <Card title="Revenue Channels Breakdown">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.875rem' }}>
@@ -308,7 +308,7 @@ export const OwnerAnalyticsPage = () => {
         </Card>
 
         {/* Payment Channels (UPI, Card, Cash, Online) */}
-        <Card title="💳 Payment Methods Distribution">
+        <Card title="Payment Methods Distribution">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
             <div style={{ padding: '1rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)' }}>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>
@@ -345,13 +345,13 @@ export const OwnerAnalyticsPage = () => {
           </div>
 
           <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            💡 Eliminates lost bar tabs and paper receipt discrepancies by verifying daily end-of-shift drawer tallies against digital logs.
+            Eliminates lost bar tabs and paper receipt discrepancies by verifying daily end-of-shift drawer tallies against digital logs.
           </p>
         </Card>
       </div>
 
       {/* Operational Highlights for Owner */}
-      <Card title="⚡ Business Control Center & Audit Checklist">
+      <Card title="Business Control Center & Audit Checklist">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
             <div style={{ padding: '10px', borderRadius: 'var(--radius-md)', background: 'rgba(16, 185, 129, 0.12)', color: '#10b981' }}>

@@ -1,27 +1,258 @@
 import express from 'express';
+import { authenticate } from '../middlewares/authMiddleware.js';
+import { requirePermission } from '../middlewares/authorizationMiddleware.js';
+
 import {
-  getStaff,
-  createStaff,
-  getShifts,
-  createShift,
-  requestLeave,
-  updateLeaveStatus,
-  getLeaves,
-} from '../controllers/staffController.js';
-import { protect, authorize } from '../middlewares/authMiddleware.js';
+  getMyStaffProfile,
+  staffCheckIn,
+  staffCheckOut,
+  getStaffNotifications,
+} from '../controllers/staff/staffCommonController.js';
+import {
+  getFrontDeskOverview,
+  searchMembers,
+  createFrontDeskBooking,
+  updateBookingStatus,
+  getCourtAvailability,
+  rescheduleBooking,
+  cancelBooking,
+  getMemberHistory,
+  getFrontDeskPayments,
+  getDailyClosingSummary,
+} from '../controllers/staff/frontDeskController.js';
+import {
+  getShopOverview,
+  getShopProducts,
+  receiveStock,
+  reportDamage,
+  getInventoryHistory,
+  processCounterSale,
+  getShopOrders,
+  getShopPayments,
+  updateShopOrderStatus,
+  reportLowStock,
+} from '../controllers/staff/sportsShopController.js';
+import {
+  getCanteenOverview,
+  getDiningTables,
+  updateTableStatus,
+  getCanteenMenu,
+  toggleItemAvailability,
+  createCanteenOrder,
+  updateCanteenOrderStatus,
+  settleCanteenTab,
+  getCanteenOrders,
+  getOpenTabs,
+  getCanteenPayments,
+} from '../controllers/staff/canteenStaffController.js';
 
 const router = express.Router();
 
-router.use(protect);
+// ============================================
+// COMMON STAFF (ALL DEPARTMENTS)
+// ============================================
+router.get('/profile', authenticate, getMyStaffProfile);
+router.post('/check-in', authenticate, staffCheckIn);
+router.post('/check-out', authenticate, staffCheckOut);
+router.get('/notifications', authenticate, getStaffNotifications);
 
-router.get('/', authorize('OWNER'), getStaff);
-router.post('/', authorize('OWNER'), createStaff);
+// ============================================
+// 1. FRONT DESK STAFF
+// ============================================
+router.get(
+  '/front-desk/overview',
+  authenticate,
+  requirePermission('BOOKING_VIEW'),
+  getFrontDeskOverview
+);
+router.get(
+  '/front-desk/courts/availability',
+  authenticate,
+  requirePermission('COURT_VIEW'),
+  getCourtAvailability
+);
+router.get(
+  '/front-desk/members/search',
+  authenticate,
+  requirePermission('MEMBER_VIEW'),
+  searchMembers
+);
+router.get(
+  '/front-desk/members/:id/history',
+  authenticate,
+  requirePermission('MEMBER_VIEW'),
+  getMemberHistory
+);
+router.post(
+  '/front-desk/bookings',
+  authenticate,
+  requirePermission('BOOKING_CREATE'),
+  createFrontDeskBooking
+);
+router.patch(
+  '/front-desk/bookings/:id/status',
+  authenticate,
+  requirePermission('BOOKING_UPDATE'),
+  updateBookingStatus
+);
+router.patch(
+  '/front-desk/bookings/:id/reschedule',
+  authenticate,
+  requirePermission('BOOKING_UPDATE'),
+  rescheduleBooking
+);
+router.post(
+  '/front-desk/bookings/:id/cancel',
+  authenticate,
+  requirePermission('BOOKING_CANCEL'),
+  cancelBooking
+);
+router.get(
+  '/front-desk/payments',
+  authenticate,
+  requirePermission('PAYMENT_CREATE'),
+  getFrontDeskPayments
+);
+router.get(
+  '/front-desk/daily-closing',
+  authenticate,
+  requirePermission('BOOKING_VIEW'),
+  getDailyClosingSummary
+);
 
-router.get('/shifts', getShifts);
-router.post('/shifts', authorize('OWNER'), createShift);
+// ============================================
+// 2. SPORTS SHOP STAFF
+// ============================================
+router.get(
+  '/sports-shop/overview',
+  authenticate,
+  requirePermission('PRODUCT_VIEW'),
+  getShopOverview
+);
+router.get(
+  '/sports-shop/products',
+  authenticate,
+  requirePermission('PRODUCT_VIEW'),
+  getShopProducts
+);
+router.post(
+  '/sports-shop/inventory/receive',
+  authenticate,
+  requirePermission('INVENTORY_MANAGE'),
+  receiveStock
+);
+router.post(
+  '/sports-shop/inventory/damage',
+  authenticate,
+  requirePermission('INVENTORY_MANAGE'),
+  reportDamage
+);
+router.get(
+  '/sports-shop/inventory/history',
+  authenticate,
+  requirePermission('INVENTORY_VIEW'),
+  getInventoryHistory
+);
+router.post(
+  '/sports-shop/pos/checkout',
+  authenticate,
+  requirePermission('SHOP_ORDER_MANAGE'),
+  processCounterSale
+);
+router.get(
+  '/sports-shop/orders',
+  authenticate,
+  requirePermission('SHOP_ORDER_VIEW'),
+  getShopOrders
+);
+router.patch(
+  '/sports-shop/orders/:id/status',
+  authenticate,
+  requirePermission('SHOP_ORDER_MANAGE'),
+  updateShopOrderStatus
+);
+router.get(
+  '/sports-shop/payments',
+  authenticate,
+  requirePermission('PAYMENT_CREATE'),
+  getShopPayments
+);
+router.post(
+  '/sports-shop/report-low-stock',
+  authenticate,
+  requirePermission('INVENTORY_VIEW'),
+  reportLowStock
+);
 
-router.get('/leaves', getLeaves);
-router.post('/leaves', requestLeave);
-router.patch('/leaves/:id/status', authorize('OWNER'), updateLeaveStatus);
+// ============================================
+// 3. CANTEEN & BAR STAFF
+// ============================================
+router.get(
+  '/canteen/overview',
+  authenticate,
+  requirePermission('CANTEEN_ORDER_VIEW'),
+  getCanteenOverview
+);
+router.get(
+  '/canteen/tables',
+  authenticate,
+  requirePermission('TABLE_VIEW'),
+  getDiningTables
+);
+router.patch(
+  '/canteen/tables/:id/status',
+  authenticate,
+  requirePermission('TABLE_MANAGE'),
+  updateTableStatus
+);
+router.get(
+  '/canteen/menu',
+  authenticate,
+  requirePermission('MENU_VIEW'),
+  getCanteenMenu
+);
+router.patch(
+  '/canteen/menu/:id/toggle-availability',
+  authenticate,
+  requirePermission('MENU_MANAGE'),
+  toggleItemAvailability
+);
+router.post(
+  '/canteen/orders',
+  authenticate,
+  requirePermission('CANTEEN_ORDER_MANAGE'),
+  createCanteenOrder
+);
+router.get(
+  '/canteen/orders',
+  authenticate,
+  requirePermission('CANTEEN_ORDER_VIEW'),
+  getCanteenOrders
+);
+router.patch(
+  '/canteen/orders/:id/status',
+  authenticate,
+  requirePermission('CANTEEN_ORDER_MANAGE'),
+  updateCanteenOrderStatus
+);
+router.get(
+  '/canteen/tabs/open',
+  authenticate,
+  requirePermission('BILL_MANAGE'),
+  getOpenTabs
+);
+router.post(
+  '/canteen/tabs/settle',
+  authenticate,
+  requirePermission('BILL_MANAGE'),
+  settleCanteenTab
+);
+router.get(
+  '/canteen/payments',
+  authenticate,
+  requirePermission('PAYMENT_CREATE'),
+  getCanteenPayments
+);
 
 export default router;
+

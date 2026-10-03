@@ -338,7 +338,7 @@ export const DashboardPreview = () => {
                     14ms
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--french-blue)', fontWeight: 600 }}>
-                    ⚡ Ultra-fast JWT crypto
+                    Ultra-fast JWT crypto
                   </div>
                 </div>
 
@@ -364,7 +364,7 @@ export const DashboardPreview = () => {
                     100%
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>
-                    ✓ All replicas in sync
+                    All replicas in sync
                   </div>
                 </div>
               </div>
