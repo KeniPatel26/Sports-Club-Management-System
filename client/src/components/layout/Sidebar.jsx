@@ -18,11 +18,12 @@ import {
   ChevronRight,
   Dumbbell,
   Receipt,
+  FileText,
+  CreditCard,
   Package,
   UtensilsCrossed,
   SlidersHorizontal,
   CheckCircle2,
-  Building2,
   Bell,
   X,
 } from 'lucide-react';
@@ -285,24 +286,19 @@ export const Sidebar = ({
             icon: UtensilsCrossed,
           },
           {
-            label: 'Table Layout',
-            path: '/staff/canteen?tab=tables',
-            icon: Building2,
-          },
-          {
             label: 'Kitchen Queue',
             path: '/staff/canteen?tab=orders',
             icon: Coffee,
           },
           {
-            label: 'Table Tabs & Bills',
+            label: 'Bills',
             path: '/staff/canteen?tab=tabs',
-            icon: Receipt,
+            icon: FileText,
           },
           {
             label: 'Canteen Payments',
             path: '/staff/canteen?tab=payments',
-            icon: Receipt,
+            icon: CreditCard,
           },
           {
             label: 'My Profile & Shift',
@@ -386,9 +382,8 @@ export const Sidebar = ({
 
   return (
     <aside
-      className={`sidebar-wrapper ${
-        collapsed ? 'collapsed' : ''
-      } ${mobileOpen ? 'mobile-open' : ''}`}
+      className={`sidebar-wrapper ${collapsed ? 'collapsed' : ''
+        } ${mobileOpen ? 'mobile-open' : ''}`}
     >
       {/* =====================================================
           BRAND HEADER

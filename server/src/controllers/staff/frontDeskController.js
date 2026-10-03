@@ -131,14 +131,19 @@ export const searchMembers = async (req, res) => {
       return res.status(200).json({ success: true, data: [] });
     }
 
-    const q = query.trim();
+    const queryParts = query.trim().split(/\s+/).filter(Boolean);
+    const nameConditions = queryParts.map((part) => ({
+      $or: [
+        { firstName: { $regex: part, $options: 'i' } },
+        { lastName: { $regex: part, $options: 'i' } },
+      ],
+    }));
     const users = await User.find({
       role: 'MEMBER',
       $or: [
-        { firstName: { $regex: q, $options: 'i' } },
-        { lastName: { $regex: q, $options: 'i' } },
-        { email: { $regex: q, $options: 'i' } },
-        { phone: { $regex: q, $options: 'i' } },
+        { $and: nameConditions },
+        { email: { $regex: query.trim(), $options: 'i' } },
+        { phone: { $regex: query.trim(), $options: 'i' } },
       ],
     }).limit(10).lean().maxTimeMS(2500);
 
@@ -165,13 +170,20 @@ export const searchMembers = async (req, res) => {
           email: u.email,
           phone: u.phone,
           memberId: profile?.memberId || `MEM${u._id.toString().slice(-4).toUpperCase()}`,
-          planName: activeMembership?.plan?.name || 'Gold Membership',
-          membershipTier: activeMembership?.plan?.name || 'Gold Membership',
+          planName: activeMembership?.plan?.name || 'No active membership',
+          membershipTier: activeMembership?.plan?.name || 'No active membership',
           courtDiscount: activeMembership?.plan?.courtDiscount || 20,
           shopDiscount: activeMembership?.plan?.shopDiscount || 15,
-          cafeDiscount: activeMembership?.plan?.canteenDiscount || 15,
+          cafeDiscount: activeMembership?.plan?.benefits?.cafeDiscount
+            ?? activeMembership?.plan?.benefits?.canteenDiscount
+            ?? activeMembership?.plan?.cafeDiscount
+            ?? activeMembership?.plan?.canteenDiscount
+            ?? 0,
+          hasActiveMembership: Boolean(activeMembership),
+          membershipStartDate: activeMembership?.startDate || null,
+          membershipEndDate: activeMembership?.endDate || activeMembership?.expiryDate || null,
           status: u.status || 'ACTIVE',
-          expiryDate: activeMembership?.endDate || new Date(Date.now() + 90 * 86400000),
+          expiryDate: activeMembership?.endDate || activeMembership?.expiryDate || null,
           todayBookingsCount,
           maxDailyPlays: 2,
         };

@@ -12,8 +12,8 @@ import { protect, authorize } from '../middlewares/authMiddleware.js';
 const router = express.Router();
 
 router.get('/products', getProducts);
-router.post('/products', protect, authorize('OWNER', 'SHOP_STAFF', 'CANTEEN_STAFF'), createProduct);
-router.put('/products/:id', protect, authorize('OWNER', 'SHOP_STAFF', 'CANTEEN_STAFF'), updateProduct);
+router.post('/products', protect, authorize('OWNER', 'SHOP_STAFF'), createProduct);
+router.put('/products/:id', protect, authorize('OWNER', 'SHOP_STAFF'), updateProduct);
 
 router.post('/orders', protect, createOrder);
 router.get('/orders', protect, getOrders);

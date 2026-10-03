@@ -20,29 +20,44 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
+import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Loader from '../components/ui/Loader';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import shopCanteenService from '../services/shopCanteenService';
 import membershipService from '../services/membershipService';
-import { readSavedCart, saveCart } from '../utils/cartStorage';
+import managerService from '../services/managerService';
 
-const money = (amount) => `₹${Number(amount || 0).toLocaleString('en-IN')}`;
+const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
 export const CanteenBarPage = () => {
+  const { user } = useAuth();
   const { toastSuccess, toastError } = useToast();
   const [menuItems, setMenuItems] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [category, setCategory] = useState('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [cart, setCart] = useState(() => readSavedCart('club-canteen-cart'));
+  const [activeTabs, setActiveTabs] = useState([]);
+  const [tables, setTables] = useState([]);
+  const [selectedTable, setSelectedTable] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [cart, setCart] = useState([]);
+  const [orderModalOpen, setOrderModalOpen] = useState(false);
+  const [isTab, setIsTab] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('upi');
-  const [cartOpen, setCartOpen] = useState(false);
+  const [customerName, setCustomerName] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingTables, setLoadingTables] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [userMembership, setUserMembership] = useState(null);
 
-  const loadData = async () => {
+  const isStaffOrOwner = ['OWNER', 'ADMIN', 'CANTEEN_STAFF', 'STAFF'].includes(user?.role?.toUpperCase());
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const fetchMenu = async () => {
     try {
       setLoading(true);
       const [menuRes, orderRes, memRes] = await Promise.all([
@@ -62,29 +77,44 @@ export const CanteenBarPage = () => {
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const loadData = async () => {
+    await Promise.all([fetchMenu(), fetchTabs(), fetchTables()]);
+  };
 
-  useEffect(() => {
-    saveCart('club-canteen-cart', cart);
-  }, [cart]);
+  const fetchTabs = async () => {
+    try {
+      const res = await shopCanteenService.getOrders({ type: 'canteen', isTab: true, status: 'ALL' });
+      if (res.success) {
+        setActiveTabs(res.data?.filter((o) => o.tabStatus === 'OPEN') || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
-  const categories = useMemo(
-    () => ['ALL', ...new Set(menuItems.map((item) => item.category).filter(Boolean))],
-    [menuItems]
-  );
-
-  const visibleItems = menuItems.filter(
-    (item) =>
-      (category === 'ALL' || item.category === category) &&
-      (!searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const fetchTables = async () => {
+    try {
+      setLoadingTables(true);
+      const res = await managerService.getTables();
+      if (res.success) {
+        const rows = res.data || [];
+        setTables(rows);
+        setSelectedTable((current) => rows.some((table) => table.tableNumber === current)
+          ? current
+          : (rows.find((table) => table.status === 'AVAILABLE') || rows[0])?.tableNumber || '');
+      }
+    } catch (error) {
+      console.error('Failed to load canteen tables:', error);
+      toastError('Could not load dining tables from the database.');
+    } finally {
+      setLoadingTables(false);
+    }
+  };
 
   const itemCount = cart.reduce((total, item) => total + item.quantity, 0);
   const subtotal = cart.reduce((total, item) => total + (item.product.price || 0) * item.quantity, 0);
 
-  const discountRate = userMembership?.plan?.benefits?.canteenDiscount ?? userMembership?.plan?.canteenDiscount ?? 0;
+  const discountRate = userMembership?.plan?.benefits?.cafeDiscount ?? userMembership?.plan?.benefits?.canteenDiscount ?? userMembership?.plan?.canteenDiscount ?? 0;
   const discountAmount = (subtotal * discountRate) / 100;
   const totalAmount = Math.max(0, subtotal - discountAmount);
   const userPlanName = userMembership?.plan?.name || 'Club Member';
@@ -111,35 +141,48 @@ export const CanteenBarPage = () => {
   };
 
   const changeQuantity = (productId, delta) => {
-    setCart((current) =>
-      current
-        .map((item) => (item.product._id === productId ? { ...item, quantity: item.quantity + delta } : item))
-        .filter((item) => item.quantity > 0)
-    );
+    setCart((current) => current
+      .map((entry) => {
+        if (entry.product._id !== productId) return entry;
+        const quantity = entry.quantity + delta;
+        return quantity > 0 ? { ...entry, quantity: Math.min(quantity, entry.product.stock) } : null;
+      })
+      .filter(Boolean));
   };
 
   const removeItem = (productId) => {
-    setCart((current) => current.filter((item) => item.product._id !== productId));
+    setCart((current) => current.filter((entry) => entry.product._id !== productId));
   };
 
-  const placeOrder = async () => {
-    if (!cart.length) return;
+  const handlePlaceOrder = async (e) => {
+    e?.preventDefault?.();
+    if (cart.length === 0) return;
+    if (!selectedTable) {
+      toastError('Select a dining table before placing the order.');
+      return;
+    }
+
     try {
       setSubmitting(true);
-      await shopCanteenService.createOrder({
-        type: 'canteen',
-        fulfillment: 'pickup',
-        paymentMethod,
+      const payload = {
         items: cart.map(({ product, quantity }) => ({
           product: product._id,
           name: product.name,
           quantity,
           price: product.price,
         })),
-      });
-      toastSuccess('Order placed successfully! Collect at the cafe counter.');
+        type: 'canteen',
+        fulfillment: 'table',
+        tableNumber: selectedTable,
+        isTab,
+        customerName: customerName || user?.name || 'Guest',
+        paymentMethod: isTab ? 'tab' : paymentMethod,
+      };
+
+      await shopCanteenService.createOrder(payload);
+      toastSuccess(isTab ? `Tab opened for ${selectedTable}!` : `Kitchen order placed for ${selectedTable}!`);
       setCart([]);
-      setCartOpen(false);
+      setOrderModalOpen(false);
       await loadData();
     } catch (error) {
       toastError(error.response?.data?.message || 'Could not place your order. Please try again.');
@@ -149,6 +192,24 @@ export const CanteenBarPage = () => {
     }
   };
 
+  const handleSettleTab = async (tabId) => {
+    try {
+      await shopCanteenService.settleTab(tabId);
+      toastSuccess('Bar tab settled and marked paid!');
+      fetchTabs();
+    } catch (e) {
+      toastError('Failed to settle tab');
+    }
+  };
+
+  const filteredMenu = menuItems.filter(
+    (item) => selectedCategory === 'ALL' || item.category === selectedCategory
+  );
+  const menuCategories = ['ALL', ...new Set(menuItems.map((item) => item.category).filter(Boolean))];
+  const visibleItems = useMemo(() => filteredMenu.filter((item) =>
+    `${item.name || ''} ${item.description || ''} ${item.category || ''}`.toLowerCase().includes(searchQuery.trim().toLowerCase())
+  ), [filteredMenu, searchQuery]);
+
   return (
     <DashboardLayout>
       <PageHeader
@@ -156,40 +217,95 @@ export const CanteenBarPage = () => {
         subtitle="Fresh meals, energizing drinks, and quick snacks ready for counter pickup."
         breadcrumbs={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Cafe & Bar' }]}
         action={
-          <Button variant="primary" icon={ShoppingBag} onClick={() => setCartOpen(true)}>
-            View Cart ({itemCount})
-          </Button>
+          <div style={{ display: 'flex', gap: '0.6rem' }}>
+            <Button
+              variant="primary"
+              icon={Utensils}
+              disabled={loadingTables || !selectedTable}
+              onClick={() => setOrderModalOpen(true)}
+            >
+              {selectedTable ? `Order for ${selectedTable}` : 'No Table Available'} ({cart.reduce((sum, i) => sum + i.quantity, 0)})
+            </Button>
+          </div>
         }
       />
 
-      <div className="commerce-page canteen-page">
-        {/* Overview Stats Header */}
-        <section className="canteen-dashboard-overview">
-          <div className="canteen-overview-heading">
-            <div className="canteen-overview-icon">
-              <Coffee size={24} />
-            </div>
-            <div>
-              <span className="canteen-eyebrow">Club Cafe</span>
-              <h2>Menu & Live Queue</h2>
-              <p>Hand-crafted snacks, shakes & meals for members.</p>
-            </div>
-          </div>
-          <div className="canteen-overview-stats">
-            <div className="canteen-overview-stat">
-              <Utensils size={18} />
-              <div>
-                <span>Menu Items</span>
-                <strong>{menuItems.length}</strong>
+      <div className="grid-cols-3" style={{ alignItems: 'start' }}>
+        {/* Left: Table Status & Active Tabs (1 col) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Table Selector */}
+          <Card>
+            <Card.Header>
+              <Card.Title>Select Active Table</Card.Title>
+            </Card.Header>
+            <Card.Content>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '0.5rem' }}>
+                {tables.map((table) => {
+                  const tableNumber = table.tableNumber;
+                  const isSelected = selectedTable === tableNumber;
+                  const status = String(table.status || 'AVAILABLE').toUpperCase();
+                  const hasTab = activeTabs.some((tab) => tab.tableNumber === tableNumber);
+
+                  let bg = 'var(--table-available-bg)';
+                  let color = 'var(--table-available-text)';
+                  let border = '1px solid var(--border-color)';
+
+                  if (hasTab || status === 'OCCUPIED') {
+                    bg = 'var(--table-occupied-bg)';
+                    color = 'var(--table-occupied-text)';
+                    border = '1px solid var(--border-color)';
+                  } else if (status !== 'AVAILABLE') {
+                    bg = 'var(--bg-subtle)';
+                    color = 'var(--text-muted)';
+                    border = '1px solid var(--border-color)';
+                  }
+                  if (isSelected) {
+                    bg = 'var(--court-selected)';
+                    color = 'var(--court-selected-text)';
+                    border = '1px solid var(--court-selected)';
+                  }
+
+                  return (
+                    <button
+                      key={table._id}
+                      type="button"
+                      onClick={() => setSelectedTable(tableNumber)}
+                      style={{
+                        padding: '0.65rem 0.35rem',
+                        borderRadius: 'var(--radius-md)',
+                        border,
+                        background: bg,
+                        color,
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        position: 'relative',
+                        transition: 'var(--transition)',
+                      }}
+                    >
+                      {tableNumber}
+                      <span style={{ display: 'block', fontSize: '0.65rem', fontWeight: 600, opacity: 0.9 }}>
+                        {hasTab ? 'Occupied' : status.charAt(0) + status.slice(1).toLowerCase()}
+                      </span>
+                    </button>
+                  );
+                })}
+                {!loadingTables && tables.length === 0 && (
+                  <p style={{ gridColumn: '1 / -1', margin: 0, padding: '1rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                    No dining tables are configured in the database.
+                  </p>
+                )}
+                {loadingTables && <p style={{ gridColumn: '1 / -1', margin: 0, padding: '1rem', color: 'var(--text-muted)', textAlign: 'center' }}>Loading tables…</p>}
               </div>
-            </div>
-            <div className="canteen-overview-stat">
-              <ShoppingBag size={18} />
-              <div>
-                <span>In Cart</span>
-                <strong>{itemCount}</strong>
-              </div>
-            </div>
+            </Card.Content>
+          </Card>
+
+          <Card>
+            <Card.Header>
+              <Card.Title>Active Orders</Card.Title>
+            </Card.Header>
+            <Card.Content>
             <div className="canteen-overview-stat">
               <Clock3 size={18} />
               <div>
@@ -197,65 +313,73 @@ export const CanteenBarPage = () => {
                 <strong>{activeOrderCount}</strong>
               </div>
             </div>
-          </div>
-        </section>
+            </Card.Content>
+          </Card>
 
-        {/* Member Discount Banner */}
-        {discountRate > 0 && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0.85rem 1.25rem',
-              marginBottom: '1.25rem',
-              borderRadius: 'var(--radius-md)',
-              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.04))',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              color: 'var(--text-main)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <div
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  background: 'var(--color-success-bg, rgba(16, 185, 129, 0.2))',
-                  color: 'var(--color-success-text, #10b981)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Percent size={16} />
-              </div>
-              <div>
-                <strong style={{ display: 'block', fontSize: '0.92rem' }}>{userPlanName} Privilege</strong>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  {discountRate}% membership discount is automatically applied to your orders.
-                </span>
-              </div>
-            </div>
-            <Badge variant="success">{discountRate}% OFF</Badge>
-          </div>
-        )}
+          <Card>
+            <Card.Header>
+              <Card.Title>Open Bar Tabs</Card.Title>
+              <Card.Description>{activeTabs.length} active running bill(s)</Card.Description>
+            </Card.Header>
+            <Card.Content>
+              {activeTabs.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '1rem' }}>
+                  No open bar tabs currently.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {activeTabs.map((tab) => (
+                    <div
+                      key={tab._id}
+                      style={{
+                        padding: '0.75rem',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--bg-subtle)',
+                        border: '1px solid var(--border-color)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 800 }}>{tab.tableNumber}</span>
+                        <Badge variant="warning">₹{tab.total}</Badge>
+                      </div>
+                      <p style={{ margin: '0.2rem 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        Guest: {tab.customerName} &bull; {tab.items?.length} item(s)
+                      </p>
+                      {isStaffOrOwner && (
+                        <Button
+                          variant="success"
+                          size="sm"
+                          fullWidth
+                          onClick={() => handleSettleTab(tab._id)}
+                          style={{ marginTop: '0.4rem', fontSize: '0.75rem' }}
+                        >
+                          Settle Bill & Close Tab
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card.Content>
+          </Card>
+        </div>
 
-        {/* Search & Category Filter Section */}
-        <div className="commerce-toolbar">
-          <div className="commerce-category-list">
-            {categories.map((cat) => (
+        {/* Right: Menu Grid & Quick Add (2 cols) */}
+        <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Category Filter Pills */}
+          <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: '0.2rem' }}>
+            {menuCategories.map((cat) => (
               <button
                 key={cat}
                 type="button"
-                className={`court-filter ${category === cat ? 'is-active' : ''}`}
-                onClick={() => setCategory(cat)}
+                className={`court-filter ${selectedCategory === cat ? 'is-active' : ''}`}
+                onClick={() => setSelectedCategory(cat)}
                 style={{
                   padding: '0.45rem 0.95rem',
                   borderRadius: 'var(--radius-full)',
-                  border: category === cat ? '1px solid var(--primary)' : '1px solid var(--border-color)',
-                  background: category === cat ? 'var(--primary)' : 'var(--bg-card)',
-                  color: category === cat ? '#ffffff' : 'var(--text-main)',
+                  border: selectedCategory === cat ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                  background: selectedCategory === cat ? 'var(--primary)' : 'var(--bg-card)',
+                  color: selectedCategory === cat ? 'var(--primary-text)' : 'var(--text-main)',
                   fontWeight: 600,
                   fontSize: '0.85rem',
                   cursor: 'pointer',
@@ -309,10 +433,10 @@ export const CanteenBarPage = () => {
                     <div className="commerce-card-meta">
                       <span className="commerce-stock">
                         {isOutOfStock ? (
-                          <span style={{ color: 'var(--color-danger, #ef4444)' }}>Out of stock</span>
+                          <span style={{ color: 'var(--color-danger)' }}>Out of stock</span>
                         ) : (
                           <>
-                            <CheckCircle2 size={13} color="var(--color-success-text, #10b981)" /> {item.stock} ready
+                            <CheckCircle2 size={13} color="var(--color-success-text)" /> {item.stock} ready
                           </>
                         )}
                       </span>
@@ -418,18 +542,18 @@ export const CanteenBarPage = () => {
 
       {/* Cart Modal */}
       <Modal
-        isOpen={cartOpen}
-        onClose={() => setCartOpen(false)}
-        title="Your Cafe Order"
-        subtitle={`${itemCount} item(s) · Counter pickup`}
+        isOpen={orderModalOpen}
+        onClose={() => setOrderModalOpen(false)}
+        title={`Order for ${selectedTable || 'dining table'}`}
+        subtitle={`${cart.length} item(s) selected`}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setCartOpen(false)}>
+            <Button variant="secondary" onClick={() => setOrderModalOpen(false)}>
               Continue Browsing
             </Button>
             <Button
               variant="primary"
-              onClick={placeOrder}
+              onClick={handlePlaceOrder}
               disabled={!cart.length}
               loading={submitting}
             >
@@ -487,7 +611,7 @@ export const CanteenBarPage = () => {
                       type="button"
                       aria-label="Remove item"
                       className="cart-qty-btn"
-                      style={{ marginLeft: '0.35rem', color: 'var(--color-danger, #ef4444)' }}
+                      style={{ marginLeft: '0.35rem', color: 'var(--color-danger)' }}
                       onClick={() => removeItem(product._id)}
                     >
                       <Trash2 size={13} />
@@ -497,11 +621,18 @@ export const CanteenBarPage = () => {
               ))}
             </div>
 
-            {/* Pricing Summary */}
-            <div className="cart-summary-box">
-              <div className="cart-summary-row">
-                <span>Subtotal ({itemCount} items)</span>
-                <strong>{money(subtotal)}</strong>
+            <Input
+              label="Customer / Guest Name"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="Customer name"
+            />
+
+            {/* Price Calculations */}
+            <div style={{ padding: '0.85rem 1rem', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
+                <span>Subtotal:</span>
+                <span>₹{subtotal}</span>
               </div>
               {discountRate > 0 && (
                 <div className="cart-summary-row cart-summary-discount">
