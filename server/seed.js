@@ -62,6 +62,14 @@ const seedChampionsClub = async () => {
       AuditLog.deleteMany(),
     ]);
 
+    // Drop any legacy/stale indexes (e.g. emailId_1) to ensure clean schema indexes
+    try {
+      await User.collection.dropIndexes();
+      console.log('Legacy User collection indexes dropped.');
+    } catch (e) {
+      // Ignored if collection is newly initialized
+    }
+
     console.log('1. Creating Users & Password Hashes...');
     const salt = await bcrypt.genSalt(10);
     const ownerPassword = await bcrypt.hash('Owner@123', salt);
@@ -69,14 +77,15 @@ const seedChampionsClub = async () => {
     const memberPassword = await bcrypt.hash('Member@123', salt);
 
     const users = await User.create([
-      // Owner
+      // Club Manager
       {
         firstName: 'Amit',
         lastName: 'Patel',
         email: 'owner@championsclub.com',
         phone: '+91-9898000001',
         password: ownerPassword,
-        role: 'OWNER',
+        role: 'CLUB_MANAGER',
+        department: null,
         status: 'ACTIVE',
         profileImage: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       },
@@ -87,7 +96,8 @@ const seedChampionsClub = async () => {
         email: 'frontdesk@championsclub.com',
         phone: '+91-9898000002',
         password: staffPassword,
-        role: 'FRONT_DESK',
+        role: 'STAFF',
+        department: 'FRONT_DESK',
         status: 'ACTIVE',
         profileImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
       },
@@ -98,7 +108,8 @@ const seedChampionsClub = async () => {
         email: 'shop@championsclub.com',
         phone: '+91-9898000003',
         password: staffPassword,
-        role: 'SHOP_STAFF',
+        role: 'STAFF',
+        department: 'SPORTS_SHOP',
         status: 'ACTIVE',
         profileImage: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
       },
@@ -109,7 +120,8 @@ const seedChampionsClub = async () => {
         email: 'canteen@championsclub.com',
         phone: '+91-9898000004',
         password: staffPassword,
-        role: 'CANTEEN_STAFF',
+        role: 'STAFF',
+        department: 'CANTEEN',
         status: 'ACTIVE',
         profileImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
       },
@@ -121,6 +133,7 @@ const seedChampionsClub = async () => {
         phone: '+91-9898000011',
         password: memberPassword,
         role: 'MEMBER',
+        department: null,
         status: 'ACTIVE',
         profileImage: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
       },
@@ -131,6 +144,7 @@ const seedChampionsClub = async () => {
         phone: '+91-9898000012',
         password: memberPassword,
         role: 'MEMBER',
+        department: null,
         status: 'ACTIVE',
         profileImage: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
       },
@@ -141,6 +155,7 @@ const seedChampionsClub = async () => {
         phone: '+91-9898000013',
         password: memberPassword,
         role: 'MEMBER',
+        department: null,
         status: 'ACTIVE',
         profileImage: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
       },
@@ -560,13 +575,13 @@ const seedChampionsClub = async () => {
     console.log('🏆 THE CHAMPIONS CLUB DATABASE SEEDED SUCCESSFULLY!');
     console.log('=======================================================');
     console.log('🔑 Credentials for All Operational Roles:');
-    console.log('👑 Owner / Admin:   owner@championsclub.com     | Owner@123');
-    console.log('🎾 Front Desk:       frontdesk@championsclub.com | Staff@123');
-    console.log('🛍️ Shop Staff:       shop@championsclub.com      | Staff@123');
-    console.log('☕ Canteen / Bar:    canteen@championsclub.com   | Staff@123');
-    console.log('🥇 Member (Gold):   keni@championsclub.com      | Member@123');
-    console.log('🥈 Member (Silver): alex@championsclub.com      | Member@123');
-    console.log('🥉 Member (Junior): junior@championsclub.com    | Member@123');
+    console.log('👑 Club Manager:       owner@championsclub.com     | Owner@123');
+    console.log('🎾 Front Desk (Staff): frontdesk@championsclub.com | Staff@123');
+    console.log('🛍️ Shop (Staff):       shop@championsclub.com      | Staff@123');
+    console.log('☕ Canteen (Staff):    canteen@championsclub.com   | Staff@123');
+    console.log('🥇 Member (Gold):      keni@championsclub.com      | Member@123');
+    console.log('🥈 Member (Silver):    alex@championsclub.com      | Member@123');
+    console.log('🥉 Member (Junior):    junior@championsclub.com    | Member@123');
     console.log('=======================================================');
 
     process.exit(0);

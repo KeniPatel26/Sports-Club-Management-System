@@ -1,56 +1,73 @@
 import User from '../models/User.js';
 import MemberProfile from '../models/MemberProfile.js';
 import StaffProfile from '../models/StaffProfile.js';
-import { generateToken } from '../utils/generateToken.js';
-import { sendSuccess, sendError } from '../utils/apiResponse.js';
+import { hashPassword, comparePassword } from '../utils/password.js';
+import generateToken from '../utils/generateToken.js';
 import { logActivity, logAudit } from '../services/activityService.js';
 
-/**
- * @desc    Register a new user / member
- * @route   POST /api/auth/register
- * @access  Public
- */
-export const registerUser = async (req, res, next) => {
+// ============================================
+// REGISTER MEMBER (Public Registration)
+// ============================================
+export const registerMember = async (req, res) => {
   try {
-    const { firstName, lastName, name, emailId, email, phone, password, role = 'MEMBER' } = req.body;
+    const {
+      firstName,
+      lastName = '',
+      name,
+      email,
+      emailId,
+      phone,
+      password,
+    } = req.body;
+
     const resolvedEmail = (email || emailId || '').toLowerCase().trim();
-
-    if (!resolvedEmail || !password) {
-      return sendError(res, {
-        statusCode: 400,
-        message: 'Email and password are required',
-      });
-    }
-
-    const existingUser = await User.findOne({ email: resolvedEmail });
-    if (existingUser) {
-      return sendError(res, {
-        statusCode: 400,
-        message: 'User with this email already exists',
-      });
-    }
-
-    // Split name if firstName not provided
     let fName = firstName;
-    let lName = lastName || '';
+    let lName = lastName;
+
+    // Split compound name if firstName not provided
     if (!fName && name) {
       const parts = name.trim().split(' ');
       fName = parts[0];
       lName = parts.slice(1).join(' ');
     }
 
+    if (!fName || !resolvedEmail || !phone || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'All required fields must be provided',
+      });
+    }
+
+    const existingUser = await User.findOne({
+      $or: [
+        { email: resolvedEmail },
+        { phone: phone.trim() },
+      ],
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'A user with this email or phone already exists',
+      });
+    }
+
+    const hashedPassword = await hashPassword(password);
+
+    // Enforce role = MEMBER for public registration
     const user = await User.create({
-      firstName: fName || 'Member',
-      lastName: lName,
+      firstName: fName.trim(),
+      lastName: lName.trim(),
       email: resolvedEmail,
-      phone: phone || `+91-${Date.now().toString().slice(-10)}`,
-      password,
-      role: role.toUpperCase(),
+      phone: phone.trim(),
+      password: hashedPassword,
+      role: 'MEMBER',
+      department: null,
       status: 'ACTIVE',
     });
 
-    // If member, automatically initialize MemberProfile
-    if (user.role === 'MEMBER' || user.role === 'USER') {
+    // Auto-create initial MemberProfile
+    try {
       const memberCount = await MemberProfile.countDocuments();
       const memberId = `MEM${(memberCount + 1001).toString()}`;
       await MemberProfile.create({
@@ -58,30 +75,30 @@ export const registerUser = async (req, res, next) => {
         memberId,
         joinedAt: new Date(),
       });
+    } catch (profileErr) {
+      console.warn('MemberProfile auto-creation warning:', profileErr.message);
     }
 
     const token = generateToken(user);
 
-    await logActivity({
-      userId: user._id,
-      action: `Registered as ${user.role}`,
-      entity: 'User',
-      entityId: user._id,
-    });
+    // Optional audit logging
+    try {
+      await logActivity({
+        userId: user._id,
+        action: 'Member registered for Champions Club',
+        entity: 'User',
+        entityId: user._id,
+      });
+    } catch (e) {
+      // ignore
+    }
 
-    await logAudit({
-      userId: user._id,
-      action: 'USER_REGISTER',
-      entity: 'User',
-      entityId: user._id.toString(),
-      ipAddress: req.ip || req.connection.remoteAddress,
-      userAgent: req.headers['user-agent'],
-    });
-
-    return sendSuccess(res, {
-      statusCode: 201,
-      message: 'Account registered successfully',
-      data: {
+    return res.status(201).json({
+      success: true,
+      message: 'Member registered successfully',
+      token,
+      user: {
+        id: user._id,
         _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -89,54 +106,73 @@ export const registerUser = async (req, res, next) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
-        profileImage: user.profileImage,
-        avatar: user.avatar,
+        department: user.department,
         status: user.status,
+      },
+      data: {
         token,
+        user: {
+          id: user._id,
+          _id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+          department: user.department,
+          status: user.status,
+        },
       },
     });
   } catch (error) {
-    next(error);
+    console.error('Register error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Registration failed',
+      error: error.message,
+    });
   }
 };
 
-/**
- * @desc    Authenticate user & get token
- * @route   POST /api/auth/login
- * @access  Public
- */
-export const loginUser = async (req, res, next) => {
+// ============================================
+// LOGIN
+// ============================================
+export const login = async (req, res) => {
   try {
-    const { emailId, email, password } = req.body;
+    const { email, emailId, password } = req.body;
     const resolvedEmail = (email || emailId || '').toLowerCase().trim();
 
     if (!resolvedEmail || !password) {
-      return sendError(res, {
-        statusCode: 400,
+      return res.status(400).json({
+        success: false,
         message: 'Email and password are required',
       });
     }
 
-    const user = await User.findOne({ email: resolvedEmail }).select('+password');
+    const user = await User.findOne({
+      email: resolvedEmail,
+    }).select('+password');
 
     if (!user) {
-      return sendError(res, {
-        statusCode: 401,
-        message: 'Invalid credentials. User not found.',
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid email or password',
       });
     }
 
-    if (user.status === 'SUSPENDED' || user.status === 'INACTIVE') {
-      return sendError(res, {
-        statusCode: 403,
-        message: `Your account is ${user.status}. Please contact the club manager.`,
+    if (user.status !== 'ACTIVE') {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account is not active',
       });
     }
 
-    const isMatch = await user.matchPassword(password);
-    if (!isMatch) {
-      return sendError(res, {
-        statusCode: 401,
+    const isPasswordCorrect = await comparePassword(password, user.password);
+
+    if (!isPasswordCorrect) {
+      return res.status(401).json({
+        success: false,
         message: 'Invalid email or password',
       });
     }
@@ -146,26 +182,24 @@ export const loginUser = async (req, res, next) => {
 
     const token = generateToken(user);
 
-    await logActivity({
-      userId: user._id,
-      action: 'Signed in to Champions Club workspace',
-      entity: 'User',
-      entityId: user._id,
-    });
+    // Optional audit log
+    try {
+      await logActivity({
+        userId: user._id,
+        action: `Signed in as ${user.role}${user.department ? ` (${user.department})` : ''}`,
+        entity: 'User',
+        entityId: user._id,
+      });
+    } catch (e) {
+      // ignore
+    }
 
-    await logAudit({
-      userId: user._id,
-      action: 'USER_LOGIN',
-      entity: 'User',
-      entityId: user._id.toString(),
-      ipAddress: req.ip || req.connection.remoteAddress,
-      userAgent: req.headers['user-agent'],
-    });
-
-    return sendSuccess(res, {
-      statusCode: 200,
-      message: 'Logged in successfully',
-      data: {
+    return res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      token,
+      user: {
+        id: user._id,
         _id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -173,40 +207,71 @@ export const loginUser = async (req, res, next) => {
         email: user.email,
         phone: user.phone,
         role: user.role,
-        profileImage: user.profileImage,
-        avatar: user.avatar,
+        department: user.department,
         status: user.status,
+      },
+      data: {
         token,
+        user: {
+          id: user._id,
+          _id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+          department: user.department,
+          status: user.status,
+        },
       },
     });
   } catch (error) {
-    next(error);
+    console.error('Login error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Login failed',
+      error: error.message,
+    });
   }
 };
 
-/**
- * @desc    Get current user profile with Member or Staff profile info
- * @route   GET /api/auth/me
- * @access  Private
- */
-export const getMe = async (req, res, next) => {
+// ============================================
+// GET CURRENT USER
+// ============================================
+export const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-    if (!user) {
-      return sendError(res, { statusCode: 404, message: 'User not found' });
-    }
+    const user = req.user;
 
     let memberProfile = null;
     let staffProfile = null;
 
-    if (user.role === 'MEMBER' || user.role === 'USER') {
+    if (user.role === 'MEMBER') {
       memberProfile = await MemberProfile.findOne({ user: user._id });
-    } else if (['STAFF', 'FRONT_DESK', 'SHOP_STAFF', 'CANTEEN_STAFF'].includes(user.role)) {
+    } else if (user.role === 'STAFF') {
       staffProfile = await StaffProfile.findOne({ user: user._id });
     }
 
-    return sendSuccess(res, {
-      message: 'Profile fetched successfully',
+    return res.status(200).json({
+      success: true,
+      user: {
+        id: user._id,
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        department: user.department,
+        status: user.status,
+        profileImage: user.profileImage,
+        avatar: user.avatar,
+        lastLogin: user.lastLogin,
+        isEmailVerified: user.isEmailVerified,
+        memberProfile,
+        staffProfile,
+      },
       data: {
         ...user.toObject(),
         memberProfile,
@@ -214,78 +279,106 @@ export const getMe = async (req, res, next) => {
       },
     });
   } catch (error) {
-    next(error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to get user',
+      error: error.message,
+    });
   }
 };
 
-/**
- * @desc    Update profile
- * @route   PUT /api/auth/profile
- * @access  Private
- */
-export const updateProfile = async (req, res, next) => {
+// ============================================
+// UPDATE PROFILE
+// ============================================
+export const updateProfile = async (req, res) => {
   try {
-    const { firstName, lastName, name, phone, profileImage, avatar } = req.body;
+    const { firstName, lastName, phone, profileImage, avatar } = req.body;
     const user = await User.findById(req.user._id);
 
     if (!user) {
-      return sendError(res, { statusCode: 404, message: 'User not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
     }
 
-    if (firstName) user.firstName = firstName;
-    if (lastName !== undefined) user.lastName = lastName;
-    if (!firstName && name) {
-      const parts = name.trim().split(' ');
-      user.firstName = parts[0];
-      user.lastName = parts.slice(1).join(' ');
-    }
-    if (phone) user.phone = phone;
+    if (firstName) user.firstName = firstName.trim();
+    if (lastName !== undefined) user.lastName = lastName.trim();
+    if (phone) user.phone = phone.trim();
     if (profileImage || avatar) user.profileImage = profileImage || avatar;
 
     const updatedUser = await user.save();
 
-    return sendSuccess(res, {
+    return res.status(200).json({
+      success: true,
       message: 'Profile updated successfully',
+      user: updatedUser,
       data: updatedUser,
     });
   } catch (error) {
-    next(error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update profile',
+      error: error.message,
+    });
   }
 };
 
-/**
- * @desc    Change password
- * @route   PUT /api/auth/change-password
- * @access  Private
- */
-export const changePassword = async (req, res, next) => {
+// ============================================
+// CHANGE PASSWORD
+// ============================================
+export const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
-      return sendError(res, { statusCode: 400, message: 'Current and new password are required' });
+      return res.status(400).json({
+        success: false,
+        message: 'Current and new password are required',
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long',
+      });
     }
 
     const user = await User.findById(req.user._id).select('+password');
-    const isMatch = await user.matchPassword(currentPassword);
+    const isMatch = await comparePassword(currentPassword, user.password);
 
     if (!isMatch) {
-      return sendError(res, { statusCode: 400, message: 'Current password is incorrect' });
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect',
+      });
     }
 
-    user.password = newPassword;
+    user.password = await hashPassword(newPassword);
     await user.save();
 
-    return sendSuccess(res, {
+    return res.status(200).json({
+      success: true,
       message: 'Password changed successfully',
     });
   } catch (error) {
-    next(error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to change password',
+      error: error.message,
+    });
   }
 };
 
+// Backward-compatible alias exports
+export const registerUser = registerMember;
+export const loginUser = login;
+
 export default {
+  registerMember,
   registerUser,
+  login,
   loginUser,
   getMe,
   updateProfile,

@@ -134,11 +134,11 @@ export const MembershipsPage = () => {
   const getPlanBadgeColor = (planName) => {
     switch (planName?.toUpperCase()) {
       case 'GOLD':
-        return '#f59e0b';
+        return 'var(--tier-gold-text)';
       case 'SILVER':
-        return '#94a3b8';
+        return 'var(--tier-silver-text)';
       case 'JUNIOR':
-        return '#10b981';
+        return 'var(--tier-junior-text)';
       default:
         return 'var(--primary)';
     }
@@ -156,7 +156,7 @@ export const MembershipsPage = () => {
           gap: '1.5rem',
           padding: '2rem',
           borderRadius: 'var(--radius-lg)',
-          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(168, 85, 247, 0.12) 100%)',
+          background: 'linear-gradient(135deg, rgba(53, 73, 98, 0.06) 0%, rgba(217, 142, 104, 0.08) 100%)',
           border: '1px solid var(--border-color)',
           marginBottom: '2rem',
         }}

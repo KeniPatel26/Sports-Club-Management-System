@@ -2,20 +2,20 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Mail, Lock, User, UserPlus, Briefcase } from 'lucide-react';
+import { Mail, Lock, User, UserPlus, Phone, ShieldCheck } from 'lucide-react';
 import Input from '../components/ui/Input';
-import Select from '../components/ui/Select';
 import Button from '../components/ui/Button';
 import AuthLayout from '../components/layout/AuthLayout';
 import { isValidEmail, isValidPassword } from '../utils/validators';
 
 export const Register = () => {
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
+    phone: '',
     password: '',
     confirmPassword: '',
-    role: 'user',
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -33,9 +33,10 @@ export const Register = () => {
 
   const validate = () => {
     const errs = {};
-    if (!formData.name.trim()) errs.name = 'Full name is required';
+    if (!formData.firstName.trim()) errs.firstName = 'First name is required';
     if (!formData.email) errs.email = 'Email address is required';
     else if (!isValidEmail(formData.email)) errs.email = 'Please enter a valid email address';
+    if (!formData.phone.trim()) errs.phone = 'Phone number is required';
     if (!formData.password) errs.password = 'Password is required';
     else if (!isValidPassword(formData.password)) errs.password = 'Password must be at least 6 characters';
     if (formData.password !== formData.confirmPassword) errs.confirmPassword = 'Passwords do not match';
@@ -51,13 +52,16 @@ export const Register = () => {
     try {
       setLoading(true);
       await register({
-        name: formData.name,
-        email: formData.email,
-        emailId: formData.email,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
+        email: formData.email.trim(),
+        emailId: formData.email.trim(),
+        phone: formData.phone.trim(),
         password: formData.password,
-        role: formData.role,
+        role: 'MEMBER',
       });
-      toastSuccess('Account created successfully!', 'Welcome');
+      toastSuccess('Welcome to Champions Club! Your Member account is ready.', 'Account Created');
       navigate('/dashboard');
     } catch (err) {
       console.error(err);
@@ -69,21 +73,55 @@ export const Register = () => {
 
   return (
     <AuthLayout
-      title="Create Account"
-      subtitle="Get started with your MERN hackathon project"
+      title="Member Registration"
+      subtitle="Join Champions Club for exclusive court access & sports privileges"
     >
+      {/* Role Notice */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.6rem',
+          backgroundColor: 'rgba(143, 175, 152, 0.15)',
+          border: '1px solid #DCE9DE',
+          borderRadius: '10px',
+          padding: '0.65rem 0.85rem',
+          marginBottom: '1.25rem',
+          fontSize: '0.8rem',
+          color: '#2D4159',
+        }}
+      >
+        <ShieldCheck size={18} color="#8FAF98" style={{ flexShrink: 0 }} />
+        <span>
+          Public signup creates an active <strong>Club Member</strong> account. Staff accounts are provisioned by Management.
+        </span>
+      </div>
+
       <form onSubmit={handleSubmit}>
-        <Input
-          label="Full Name"
-          type="text"
-          name="name"
-          value={formData.name}
-          onChange={handleChange}
-          placeholder="e.g. Alex Morgan"
-          icon={User}
-          error={errors.name}
-          required
-        />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <Input
+            label="First Name"
+            type="text"
+            name="firstName"
+            value={formData.firstName}
+            onChange={handleChange}
+            placeholder="e.g. Keni"
+            icon={User}
+            error={errors.firstName}
+            required
+          />
+
+          <Input
+            label="Last Name"
+            type="text"
+            name="lastName"
+            value={formData.lastName}
+            onChange={handleChange}
+            placeholder="e.g. Patel"
+            icon={User}
+            error={errors.lastName}
+          />
+        </div>
 
         <Input
           label="Email Address"
@@ -91,23 +129,22 @@ export const Register = () => {
           name="email"
           value={formData.email}
           onChange={handleChange}
-          placeholder="e.g. alex@example.com"
+          placeholder="e.g. keni@gmail.com"
           icon={Mail}
           error={errors.email}
           required
         />
 
-        <Select
-          label="Role"
-          name="role"
-          value={formData.role}
+        <Input
+          label="Phone Number"
+          type="tel"
+          name="phone"
+          value={formData.phone}
           onChange={handleChange}
-          options={[
-            { value: 'user', label: 'Team Member (User)' },
-            { value: 'admin', label: 'Administrator (Admin)' },
-            { value: 'manager', label: 'Project Manager' },
-          ]}
-          placeholder=""
+          placeholder="e.g. 9876543210"
+          icon={Phone}
+          error={errors.phone}
+          required
         />
 
         <Input
@@ -141,15 +178,23 @@ export const Register = () => {
           fullWidth
           loading={loading}
           icon={UserPlus}
-          style={{ marginTop: '0.5rem' }}
+          style={{
+            marginTop: '0.75rem',
+            backgroundColor: '#D98E68',
+            borderColor: '#D98E68',
+            color: '#FFFFFF',
+            fontWeight: 700,
+            height: '44px',
+            borderRadius: '10px',
+          }}
         >
-          Create Account
+          Create Member Account
         </Button>
       </form>
 
-      <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+      <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.875rem', color: '#64748B' }}>
         Already have an account?{' '}
-        <Link to="/login" style={{ color: 'var(--primary)', fontWeight: 600 }}>
+        <Link to="/login" style={{ color: '#D98E68', fontWeight: 700, textDecoration: 'none' }}>
           Sign in
         </Link>
       </div>

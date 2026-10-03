@@ -1,23 +1,27 @@
 import jwt from 'jsonwebtoken';
 
 /**
- * Generate JSON Web Token (JWT)
- * @param {string|object} userOrId - User ID string or User document object
- * @returns {string} - Signed JWT Token
+ * Generate JSON Web Token (JWT) containing minimal authorization data
+ * @param {object} user - User document or object with _id, role, and department
+ * @returns {string} - Signed JWT string
  */
-export const generateToken = (userOrId) => {
-  const payload =
-    typeof userOrId === 'object' && userOrId !== null
-      ? {
-          id: userOrId._id || userOrId.id,
-          emailId: userOrId.emailId || userOrId.email,
-          role: userOrId.role || 'user',
-        }
-      : { id: userOrId };
+export const generateToken = (user) => {
+  const userId = (user._id || user.id || user.userId || user).toString();
+  const role = user.role || 'MEMBER';
+  const department = user.department || null;
 
-  return jwt.sign(payload, process.env.JWT_SECRET || 'super_secret_jwt_key_change_in_production_2026', {
-    expiresIn: process.env.JWT_EXPIRE || '30d',
-  });
+  return jwt.sign(
+    {
+      userId,
+      id: userId, // legacy fallback support
+      role,
+      department,
+    },
+    process.env.JWT_SECRET || 'super_secret_jwt_key_change_this',
+    {
+      expiresIn: process.env.JWT_EXPIRES_IN || process.env.JWT_EXPIRE || '1d',
+    }
+  );
 };
 
 export default generateToken;

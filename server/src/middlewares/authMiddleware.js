@@ -1,64 +1,79 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-import { hasPermission } from '../config/permissions.js';
 
 /**
- * Protect routes - Verify JWT token from Authorization header (Bearer <token>)
+ * Authentication Middleware
+ * Validates the JWT Bearer token and attaches the authenticated User document to req.user
  */
-export const protect = async (req, res, next) => {
-  let token;
+export const authenticate = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
 
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
-  ) {
-    try {
-      token = req.headers.authorization.split(' ')[1];
-
-      // Verify token signature with JWT_SECRET
-      const decoded = jwt.verify(
-        token,
-        process.env.JWT_SECRET || 'super_secret_jwt_key_change_in_production_2026'
-      );
-
-      // Get user from token ID (excluding hashed password)
-      req.user = await User.findById(decoded.id).select('-password');
-
-      if (!req.user) {
-        return res.status(401).json({
-          success: false,
-          message: 'User belonging to this session token no longer exists',
-        });
-      }
-
-      if (req.user.status === 'SUSPENDED' || req.user.status === 'INACTIVE') {
-        return res.status(403).json({
-          success: false,
-          message: `Your account is currently ${req.user.status}. Please contact the club manager.`,
-        });
-      }
-
-      return next();
-    } catch (error) {
-      console.error('JWT Verification Error:', error.message);
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
-        message: 'Not authorized, invalid or expired token',
+        message: 'Authentication required',
       });
     }
-  }
 
-  if (!token) {
+    const token = authHeader.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid authentication token',
+      });
+    }
+
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || 'super_secret_jwt_key_change_this'
+    );
+
+    const userId = decoded.userId || decoded.id;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'User no longer exists',
+      });
+    }
+
+    if (user.status !== 'ACTIVE') {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account is not active',
+      });
+    }
+
+    // Attach authenticated user to request
+    req.user = user;
+
+    next();
+  } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token expired. Please login again.',
+      });
+    }
+
     return res.status(401).json({
       success: false,
-      message: 'Not authorized, no bearer token provided',
+      message: 'Invalid authentication token',
     });
   }
 };
 
 /**
- * Role-based authorization middleware
- * @param  {...string} roles Allowed roles ('OWNER', 'FRONT_DESK', 'SHOP_STAFF', 'CANTEEN_STAFF', 'MEMBER', etc.)
+ * Backward compatibility alias for routes using protect
+ */
+export const protect = authenticate;
+
+/**
+ * Role-based authorization middleware helper
+ * @param  {...string} roles Allowed roles or departments
  */
 export const authorize = (...roles) => {
   return (req, res, next) => {
@@ -70,49 +85,27 @@ export const authorize = (...roles) => {
     }
 
     const userRole = req.user.role?.toUpperCase();
-    const allowedRoles = roles.map((r) => r.toUpperCase());
+    const userDept = req.user.department?.toUpperCase();
+    const allowed = roles.map((r) => r.toUpperCase());
 
-    // OWNER and ADMIN always have access
-    if (userRole === 'OWNER' || userRole === 'ADMIN') {
+    // Club Manager / Owner / Admin always has full bypass
+    if (userRole === 'CLUB_MANAGER' || userRole === 'OWNER' || userRole === 'ADMIN') {
       return next();
     }
 
-    if (!allowedRoles.includes(userRole)) {
-      return res.status(403).json({
-        success: false,
-        message: `Role '${req.user.role}' is not authorized to access this resource`,
-      });
-    }
-    next();
-  };
-};
-
-/**
- * Granular Permission-based authorization middleware
- * @param {string} permission Operational permission token (e.g. 'BOOKING_MANAGE', 'INVENTORY_MANAGE')
- */
-export const requirePermission = (permission) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required',
-      });
+    if (allowed.includes(userRole) || (userDept && allowed.includes(userDept))) {
+      return next();
     }
 
-    if (!hasPermission(req.user.role, permission)) {
-      return res.status(403).json({
-        success: false,
-        message: `Missing required permission: ${permission}`,
-      });
-    }
-
-    next();
+    return res.status(403).json({
+      success: false,
+      message: 'You do not have permission to perform this action',
+    });
   };
 };
 
 export default {
+  authenticate,
   protect,
   authorize,
-  requirePermission,
 };

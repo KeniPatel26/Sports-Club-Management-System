@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Calendar,
@@ -9,54 +9,109 @@ import {
   Users,
   Briefcase,
   TrendingUp,
-  Sparkles,
+  BarChart3,
+  User,
+  LogOut,
   ChevronLeft,
   ChevronRight,
-  Trophy,
-  User,
-  MessageSquare,
+  Dumbbell,
+  Receipt,
+  Package,
+  UtensilsCrossed,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
-  const { user, isOwner, isAdmin, isStaff } = useAuth();
+  const { user, isManager, isOwner, isStaff, isFrontDesk, isShopStaff, isCanteenStaff, isMember, logout } = useAuth();
+  const navigate = useNavigate();
 
-  const navItems = [
-    {
-      section: 'CLUB OPERATIONS',
-      items: [
-        { label: 'Operations Hub', path: '/dashboard', icon: LayoutDashboard },
-        { label: 'Courts & Bookings', path: '/courts', icon: Calendar, badge: 'Live' },
-        { label: 'Pro Gear Shop', path: '/shop', icon: ShoppingBag },
-        { label: 'Bar & Canteen', path: '/canteen', icon: Coffee },
-      ],
-    },
-    {
-      section: 'MEMBERSHIPS & CRM',
-      items: [
-        { label: 'Membership Plans', path: '/memberships', icon: Crown },
-        { label: 'Website Leads & CRM', path: '/leads', icon: MessageSquare },
-      ],
-    },
-    {
-      section: 'MANAGEMENT & AUDIT',
-      items: [
-        { label: 'Staff Roster & Leaves', path: '/staff-roster', icon: Briefcase },
-        { label: 'Revenue & Financials', path: '/finance-analytics', icon: TrendingUp, adminOnly: true },
-        { label: 'Member Directory', path: '/users', icon: Users, adminOnly: true },
-        { label: 'AI Operations Co-Pilot', path: '/ai-hub', icon: Sparkles, badge: 'AI' },
-        { label: 'My Profile', path: '/profile', icon: User },
-      ],
-    },
-  ];
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  // Determine Nav Items based on Role (Member, Owner/Manager, Staff)
+  const getNavItems = () => {
+    // 1. Owner / Club Manager View
+    if (isManager || isOwner) {
+      return [
+        { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+        { label: 'Members', path: '/users', icon: Users },
+        { label: 'Courts', path: '/courts', icon: Calendar },
+        { label: 'Bookings', path: '/courts', icon: Calendar, badge: 'Live' },
+        { label: 'Shop', path: '/shop', icon: ShoppingBag },
+        { label: 'Canteen', path: '/canteen', icon: Coffee },
+        { label: 'Finance', path: '/finance-analytics', icon: TrendingUp },
+        { label: 'Reports', path: '/finance-analytics', icon: BarChart3 },
+        { label: 'Staff', path: '/staff-roster', icon: Briefcase },
+        { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
+      ];
+    }
+
+    // 2. Staff View (Department Specific)
+    if (isStaff && !isMember) {
+      if (isFrontDesk) {
+        return [
+          { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+          { label: 'Courts', path: '/courts', icon: Calendar },
+          { label: 'Bookings', path: '/courts', icon: Calendar, badge: 'Live' },
+          { label: 'Members', path: '/users', icon: Users },
+          { label: 'Staff Roster', path: '/staff-roster', icon: Briefcase },
+          { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
+        ];
+      }
+      if (isShopStaff) {
+        return [
+          { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+          { label: 'Products', path: '/shop', icon: Package },
+          { label: 'Orders', path: '/shop', icon: ShoppingBag },
+          { label: 'Staff Roster', path: '/staff-roster', icon: Briefcase },
+          { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
+        ];
+      }
+      if (isCanteenStaff) {
+        return [
+          { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+          { label: 'Menu & Tables', path: '/canteen', icon: UtensilsCrossed },
+          { label: 'Orders & Tabs', path: '/canteen', icon: Coffee },
+          { label: 'Staff Roster', path: '/staff-roster', icon: Briefcase },
+          { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
+        ];
+      }
+
+      // Generic Staff fallback
+      return [
+        { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+        { label: 'Courts & Bookings', path: '/courts', icon: Calendar },
+        { label: 'Shop Operations', path: '/shop', icon: ShoppingBag },
+        { label: 'Canteen & Bar', path: '/canteen', icon: Coffee },
+        { label: 'Staff Roster', path: '/staff-roster', icon: Briefcase },
+        { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
+      ];
+    }
+
+    // 3. Member View (Default)
+    return [
+      { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+      { label: 'Book Court', path: '/courts', icon: Calendar },
+      { label: 'Shop', path: '/shop', icon: ShoppingBag },
+      { label: 'Canteen', path: '/canteen', icon: Coffee },
+      { label: 'My Orders', path: '/shop', icon: Receipt },
+      { label: 'Membership', path: '/memberships', icon: Crown },
+      { label: 'Profile', path: '/profile', icon: User },
+    ];
+  };
+
+  const navItems = getNavItems();
 
   return (
     <aside className={`sidebar-wrapper ${collapsed ? 'collapsed' : ''}`}>
-      {/* Brand / Header */}
+      {/* Brand Header */}
       <div
         style={{
-          padding: '1.25rem',
-          borderBottom: '1px solid var(--border-color)',
+          padding: '1.25rem 1.15rem',
+          borderBottom: '1px solid var(--sidebar-border)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: collapsed ? 'center' : 'space-between',
@@ -64,24 +119,33 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
         }}
       >
         {!collapsed && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
             <div
               style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: 'var(--radius-sm)',
-                background: 'linear-gradient(135deg, #f59e0b 0%, #10b981 100%)',
-                color: '#ffffff',
+                width: '30px',
+                height: '30px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                color: '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: 800,
               }}
             >
-              <Trophy size={18} />
+              <Dumbbell size={17} />
             </div>
-            <span style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.02em' }}>
-              Champions<span className="text-gradient">Club</span>
+            <span
+              style={{
+                fontWeight: 700,
+                fontSize: '0.95rem',
+                letterSpacing: '0.04em',
+                color: '#FFFFFF',
+                fontFamily: 'var(--font-family-display)',
+                textTransform: 'uppercase',
+              }}
+            >
+              SPORTS CLUB
             </span>
           </div>
         )}
@@ -91,132 +155,118 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
             type="button"
             onClick={onToggleCollapse}
             style={{
-              background: 'var(--bg-subtle)',
-              border: '1px solid var(--border-color)',
-              color: 'var(--text-muted)',
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: 'none',
+              color: 'var(--sidebar-text)',
               borderRadius: 'var(--radius-sm)',
-              width: '28px',
-              height: '28px',
+              width: '26px',
+              height: '26px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
+              transition: 'var(--transition)',
             }}
           >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
           </button>
         )}
       </div>
 
       {/* Navigation Links */}
-      <div style={{ flex: 1, padding: '1rem 0.75rem', overflowY: 'auto' }}>
-        {navItems.map((sec, secIdx) => (
-          <div key={sec.section} style={{ marginBottom: '1.25rem' }}>
-            {!collapsed && (
-              <p
-                style={{
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  color: 'var(--text-subtle)',
-                  letterSpacing: '0.06em',
-                  padding: '0 0.6rem 0.4rem 0.6rem',
-                }}
+      <div style={{ flex: 1, padding: '0.85rem 0.65rem', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.label + item.path}
+                to={item.path}
+                title={collapsed ? item.label : undefined}
+                style={({ isActive }) => ({
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: collapsed ? 'center' : 'space-between',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.875rem',
+                  fontWeight: isActive ? 600 : 500,
+                  color: isActive ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)',
+                  backgroundColor: isActive ? 'var(--sidebar-active-bg)' : 'transparent',
+                  transition: 'var(--transition)',
+                  textDecoration: 'none',
+                  fontFamily: 'var(--font-family-body)',
+                })}
               >
-                {sec.section}
-              </p>
-            )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <Icon size={17} style={{ flexShrink: 0 }} />
+                  {!collapsed && <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>}
+                </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              {sec.items.map((item) => {
-                if (item.adminOnly && !isOwner && !isAdmin) return null;
-                const Icon = item.icon;
-
-                return (
-                  <NavLink
-                    key={item.path + item.label}
-                    to={item.path}
-                    title={collapsed ? item.label : undefined}
-                    style={({ isActive }) => ({
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: collapsed ? 'center' : 'space-between',
-                      padding: '0.6rem 0.75rem',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '0.875rem',
-                      fontWeight: isActive ? 600 : 500,
-                      color: isActive ? 'var(--primary)' : 'var(--text-muted)',
-                      backgroundColor: isActive ? 'var(--primary-light)' : 'transparent',
-                      transition: 'var(--transition)',
-                      textDecoration: 'none',
-                    })}
+                {!collapsed && item.badge && (
+                  <span
+                    style={{
+                      fontSize: '0.625rem',
+                      fontWeight: 700,
+                      backgroundColor: 'var(--primary)',
+                      color: '#FFFFFF',
+                      padding: '1px 6px',
+                      borderRadius: 'var(--radius-full)',
+                    }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <Icon size={18} />
-                      {!collapsed && <span>{item.label}</span>}
-                    </div>
-
-                    {!collapsed && item.badge && (
-                      <span
-                        style={{
-                          fontSize: '0.65rem',
-                          fontWeight: 800,
-                          backgroundColor: item.badge === 'Live' ? '#10b981' : 'var(--accent)',
-                          color: '#ffffff',
-                          padding: '1px 5px',
-                          borderRadius: 'var(--radius-full)',
-                        }}
-                      >
-                        {item.badge}
-                      </span>
-                    )}
-                  </NavLink>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+                    {item.badge}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
+        </div>
       </div>
 
-      {/* User Info footer in Sidebar */}
-      {!collapsed && user && (
-        <div
+      {/* Bottom User / Logout Section */}
+      <div
+        style={{
+          padding: '0.85rem 0.85rem',
+          borderTop: '1px solid var(--sidebar-border)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.5rem',
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleLogout}
           style={{
-            padding: '0.85rem 1rem',
-            borderTop: '1px solid var(--border-color)',
             display: 'flex',
             alignItems: 'center',
             gap: '0.75rem',
-            backgroundColor: 'var(--bg-subtle)',
+            width: '100%',
+            padding: '0.6rem 0.85rem',
+            borderRadius: 'var(--radius-md)',
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--sidebar-text)',
+            fontSize: '0.85rem',
+            fontWeight: 500,
+            cursor: 'pointer',
+            textAlign: 'left',
+            transition: 'var(--transition)',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            fontFamily: 'var(--font-family-body)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--sidebar-hover-bg)';
+            e.currentTarget.style.color = '#FFFFFF';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = 'var(--sidebar-text)';
           }}
         >
-          <img
-            src={
-              user.profileImage ||
-              user.avatar ||
-              `https://api.dicebear.com/7.x/initials/svg?seed=${user.firstName || user.name || 'User'}`
-            }
-            alt={user.firstName || user.name}
-            style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'cover' }}
-          />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {user.firstName ? `${user.firstName} ${user.lastName || ''}` : user.name}
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span
-                style={{
-                  fontSize: '0.7rem',
-                  color: user.role === 'OWNER' ? '#f59e0b' : 'var(--primary)',
-                  textTransform: 'capitalize',
-                  fontWeight: 700,
-                }}
-              >
-                {user.role}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
+          <LogOut size={16} />
+          {!collapsed && <span>Log out</span>}
+        </button>
+      </div>
     </aside>
   );
 };

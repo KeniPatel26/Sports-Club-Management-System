@@ -220,7 +220,7 @@ export const OwnerAnalyticsPage = () => {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.875rem' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Award size={16} color="#f59e0b" /> Memberships Subscriptions
+                  <Award size={16} color="#D9A65D" /> Memberships Subscriptions
                 </span>
                 <strong>
                   ₹{membershipRevenue.toLocaleString()} (
@@ -232,7 +232,7 @@ export const OwnerAnalyticsPage = () => {
                   style={{
                     width: `${totalRevenue ? (membershipRevenue / totalRevenue) * 100 : 0}%`,
                     height: '100%',
-                    backgroundColor: '#f59e0b',
+                    backgroundColor: '#D9A65D',
                     borderRadius: 'var(--radius-full)',
                   }}
                 />
@@ -242,7 +242,7 @@ export const OwnerAnalyticsPage = () => {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.875rem' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Calendar size={16} color="var(--primary)" /> Court Booking & Walk-ins
+                  <Calendar size={16} color="var(--chart-court)" /> Court Booking & Walk-ins
                 </span>
                 <strong>
                   ₹{courtRevenue.toLocaleString()} (
@@ -254,7 +254,7 @@ export const OwnerAnalyticsPage = () => {
                   style={{
                     width: `${totalRevenue ? (courtRevenue / totalRevenue) * 100 : 0}%`,
                     height: '100%',
-                    backgroundColor: 'var(--primary)',
+                    backgroundColor: 'var(--chart-court)',
                     borderRadius: 'var(--radius-full)',
                   }}
                 />
@@ -264,7 +264,7 @@ export const OwnerAnalyticsPage = () => {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.875rem' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <ShoppingBag size={16} color="#10b981" /> Pro Gear Pro Shop
+                  <ShoppingBag size={16} color="var(--chart-shop)" /> Pro Gear Pro Shop
                 </span>
                 <strong>
                   ₹{shopRevenue.toLocaleString()} (
@@ -276,7 +276,7 @@ export const OwnerAnalyticsPage = () => {
                   style={{
                     width: `${totalRevenue ? (shopRevenue / totalRevenue) * 100 : 0}%`,
                     height: '100%',
-                    backgroundColor: '#10b981',
+                    backgroundColor: 'var(--chart-shop)',
                     borderRadius: 'var(--radius-full)',
                   }}
                 />
@@ -286,7 +286,7 @@ export const OwnerAnalyticsPage = () => {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.875rem' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Coffee size={16} color="#ec4899" /> Bar Lounge & Canteen Tabs
+                  <Coffee size={16} color="var(--chart-canteen)" /> Bar Lounge & Canteen Tabs
                 </span>
                 <strong>
                   ₹{canteenRevenue.toLocaleString()} (
@@ -298,7 +298,7 @@ export const OwnerAnalyticsPage = () => {
                   style={{
                     width: `${totalRevenue ? (canteenRevenue / totalRevenue) * 100 : 0}%`,
                     height: '100%',
-                    backgroundColor: '#ec4899',
+                    backgroundColor: 'var(--chart-canteen)',
                     borderRadius: 'var(--radius-full)',
                   }}
                 />

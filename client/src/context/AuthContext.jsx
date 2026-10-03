@@ -41,35 +41,53 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const res = await authService.login({ email, emailId: email, password });
-    if (res.success && res.data) {
-      setUser(res.data);
-      setToken(res.data.token);
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data));
+    const userData = res.user || res.data?.user || res.data;
+    const tokenData = res.token || res.data?.token;
+    if (userData && tokenData) {
+      setUser(userData);
+      setToken(tokenData);
+      localStorage.setItem('token', tokenData);
+      localStorage.setItem('user', JSON.stringify(userData));
     }
     return res;
   };
 
-  const register = async (userData) => {
-    const res = await authService.register(userData);
-    if (res.success && res.data) {
-      setUser(res.data);
-      setToken(res.data.token);
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data));
+  const register = async (userDataInput) => {
+    const res = await authService.register(userDataInput);
+    const userData = res.user || res.data?.user || res.data;
+    const tokenData = res.token || res.data?.token;
+    if (userData && tokenData) {
+      setUser(userData);
+      setToken(tokenData);
+      localStorage.setItem('token', tokenData);
+      localStorage.setItem('user', JSON.stringify(userData));
     }
     return res;
   };
 
   const loginDemoAdmin = async () => {
-    return await login('owner@championsclub.com', 'Champions@123');
+    return await login('owner@championsclub.com', 'Owner@123');
   };
 
-  const loginDemoUser = async () => {
-    return await login('gold.member@championsclub.com', 'Champions@123');
+  const loginDemoMember = async () => {
+    return await login('keni@championsclub.com', 'Member@123');
   };
 
-  const loginDemoRole = async (email, password = 'Champions@123') => {
+  const loginDemoFrontDesk = async () => {
+    return await login('frontdesk@championsclub.com', 'Staff@123');
+  };
+
+  const loginDemoShop = async () => {
+    return await login('shop@championsclub.com', 'Staff@123');
+  };
+
+  const loginDemoCanteen = async () => {
+    return await login('canteen@championsclub.com', 'Staff@123');
+  };
+
+  const loginDemoUser = loginDemoMember;
+
+  const loginDemoRole = async (email, password = 'Staff@123') => {
     return await login(email, password);
   };
 
@@ -87,12 +105,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const role = user?.role?.toUpperCase();
-  const isOwner = role === 'OWNER' || role === 'ADMIN';
-  const isFrontDesk = role === 'FRONT_DESK';
-  const isShopStaff = role === 'SHOP_STAFF';
-  const isCanteenStaff = role === 'CANTEEN_STAFF';
-  const isMember = role === 'MEMBER';
-  const isStaff = isOwner || isFrontDesk || isShopStaff || isCanteenStaff;
+  const department = user?.department?.toUpperCase();
+  const isManager = role === 'CLUB_MANAGER' || role === 'OWNER' || role === 'ADMIN';
+  const isOwner = isManager;
+  const isFrontDesk = department === 'FRONT_DESK' || role === 'FRONT_DESK';
+  const isShopStaff = department === 'SPORTS_SHOP' || role === 'SHOP_STAFF';
+  const isCanteenStaff = department === 'CANTEEN' || role === 'CANTEEN_STAFF';
+  const isMember = role === 'MEMBER' || role === 'USER';
+  const isStaff = role === 'STAFF' || isManager || isFrontDesk || isShopStaff || isCanteenStaff;
 
   return (
     <AuthContext.Provider
@@ -113,6 +133,10 @@ export const AuthProvider = ({ children }) => {
         register,
         loginDemoAdmin,
         loginDemoUser,
+        loginDemoMember,
+        loginDemoFrontDesk,
+        loginDemoShop,
+        loginDemoCanteen,
         loginDemoRole,
         updateUser,
         logout,

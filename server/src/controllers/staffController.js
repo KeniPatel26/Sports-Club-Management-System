@@ -3,6 +3,7 @@ import StaffProfile from '../models/StaffProfile.js';
 import Shift from '../models/Shift.js';
 import Leave from '../models/Leave.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
+import { hashPassword } from '../utils/password.js';
 import { logActivity, logAudit } from '../services/activityService.js';
 
 /**
@@ -63,19 +64,16 @@ export const createStaff = async (req, res, next) => {
       return sendError(res, { statusCode: 400, message: 'User with this email already exists' });
     }
 
-    // Map department to specific role
-    let role = 'STAFF';
-    if (department === 'FRONT_DESK') role = 'FRONT_DESK';
-    else if (department === 'SPORTS_SHOP') role = 'SHOP_STAFF';
-    else if (department === 'CANTEEN') role = 'CANTEEN_STAFF';
+    const hashedPassword = await hashPassword(password);
 
     const user = await User.create({
       firstName,
       lastName: lastName || '',
       email: email.toLowerCase(),
       phone,
-      password,
-      role,
+      password: hashedPassword,
+      role: 'STAFF',
+      department: department,
       status: 'ACTIVE',
     });
 

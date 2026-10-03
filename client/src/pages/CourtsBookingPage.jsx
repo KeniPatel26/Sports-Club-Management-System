@@ -278,50 +278,68 @@ export const CourtsBookingPage = () => {
                   <Loader text="Checking court timetable availability..." />
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.75rem' }}>
-                  {slotsData.map((slot) => {
-                    const isAvail = slot.available;
-                    return (
-                      <div
-                        key={slot.time}
-                        style={{
-                          padding: '0.85rem 0.5rem',
-                          borderRadius: 'var(--radius-md)',
-                          border: isAvail ? '1px solid var(--border-color)' : '1px solid var(--danger-light)',
-                          background: isAvail ? 'var(--bg-subtle)' : 'var(--danger-light)',
-                          textAlign: 'center',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '0.4rem',
-                        }}
-                      >
-                        <span style={{ fontWeight: 800, fontSize: '0.95rem', color: isAvail ? 'var(--text-main)' : 'var(--danger-text)' }}>
-                          {slot.time}
-                        </span>
+                <div>
+                  {/* Legend */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600 }}>
+                      <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: 'var(--court-available-bg)', border: '1px solid var(--court-available)' }} />
+                      <span style={{ color: 'var(--color-text-secondary)' }}>Available</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600 }}>
+                      <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: 'var(--court-booked-bg)', border: '1px solid var(--court-booked)' }} />
+                      <span style={{ color: 'var(--color-text-secondary)' }}>Booked</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600 }}>
+                      <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: 'var(--court-selected)' }} />
+                      <span style={{ color: 'var(--color-text-secondary)' }}>Selected</span>
+                    </div>
+                  </div>
 
-                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isAvail ? 'var(--success-text)' : 'var(--danger-text)' }}>
-                          {isAvail ? 'Available' : 'Booked'}
-                        </span>
-
-                        {isAvail ? (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => handleOpenBooking(slot.time)}
-                            style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', width: '100%' }}
-                          >
-                            Book Slot
-                          </Button>
-                        ) : (
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                            {slot.booking?.bookingType === 'WALK_IN' ? 'Walk-in' : 'Member'}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.75rem' }}>
+                    {slotsData.map((slot) => {
+                      const isAvail = slot.available;
+                      return (
+                        <div
+                          key={slot.time}
+                          style={{
+                            padding: '0.85rem 0.5rem',
+                            borderRadius: 'var(--radius-md)',
+                            border: isAvail ? '1px solid rgba(168, 192, 172, 0.4)' : '1px solid rgba(217, 154, 117, 0.4)',
+                            background: isAvail ? 'var(--court-available-bg)' : 'var(--court-booked-bg)',
+                            textAlign: 'center',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '0.4rem',
+                          }}
+                        >
+                          <span style={{ fontWeight: 800, fontSize: '0.95rem', color: isAvail ? 'var(--court-available-text)' : 'var(--court-booked-text)' }}>
+                            {slot.time}
                           </span>
-                        )}
-                      </div>
-                    );
-                  })}
+
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isAvail ? 'var(--court-available-text)' : 'var(--court-booked-text)' }}>
+                            {isAvail ? 'Available' : 'Booked'}
+                          </span>
+
+                          {isAvail ? (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => handleOpenBooking(slot.time)}
+                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', width: '100%', borderRadius: 'var(--radius-md)' }}
+                            >
+                              Book Slot
+                            </Button>
+                          ) : (
+                            <span style={{ fontSize: '0.7rem', color: 'var(--court-booked-text)', opacity: 0.85 }}>
+                              {slot.booking?.bookingType === 'WALK_IN' ? 'Walk-in' : 'Member'}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </Card.Content>

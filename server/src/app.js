@@ -3,8 +3,11 @@ import cors from 'cors';
 import morgan from 'morgan';
 import path from 'path';
 
+import cookieParser from 'cookie-parser';
+
 // Route imports
 import authRoutes from './routes/authRoutes.js';
+import testRoutes from './routes/testRoutes.js';
 import membershipRoutes from './routes/membershipRoutes.js';
 import courtBookingRoutes from './routes/courtBookingRoutes.js';
 import shopCanteenRoutes from './routes/shopCanteenRoutes.js';
@@ -27,6 +30,7 @@ const app = express();
 // Body parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
 
 // CORS configuration
 const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
@@ -60,6 +64,7 @@ app.get('/api/health', (req, res) => {
 
 // Sports Club Management System API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/test', testRoutes);
 app.use('/api/memberships', membershipRoutes);
 app.use('/api', courtBookingRoutes); // /api/courts, /api/bookings
 app.use('/api', shopCanteenRoutes);  // /api/products, /api/orders

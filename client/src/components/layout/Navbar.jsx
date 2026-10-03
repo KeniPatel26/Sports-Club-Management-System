@@ -113,34 +113,34 @@ export const Navbar = ({ onToggleSidebar }) => {
                 width: '36px',
                 height: '36px',
                 borderRadius: 'var(--radius-md)',
-                background: 'linear-gradient(135deg, #f59e0b 0%, #10b981 100%)',
+                background: 'linear-gradient(135deg, #354962 0%, #D98E68 100%)',
                 color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: 800,
                 fontSize: '1.1rem',
-                boxShadow: 'var(--shadow-glow)',
+                boxShadow: 'var(--shadow-sm)',
               }}
             >
-              <Trophy size={20} />
+              <Trophy size={19} />
             </div>
             <div>
-              <span style={{ fontWeight: 800, fontSize: '1.1rem', letterSpacing: '-0.02em' }}>
-                Champions<span className="text-gradient">Club</span>
+              <span style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.02em', color: 'var(--text-main)', fontFamily: 'var(--font-family-display)' }}>
+                Sports<span style={{ color: 'var(--primary)' }}>Club</span>
               </span>
               <span
                 style={{
                   marginLeft: '6px',
                   fontSize: '0.65rem',
                   fontWeight: 700,
-                  backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                  color: '#f59e0b',
+                  backgroundColor: 'var(--color-success-bg)',
+                  color: 'var(--color-success-text)',
                   padding: '2px 6px',
                   borderRadius: 'var(--radius-full)',
                 }}
               >
-                SPORTS OS
+                LIVE OS
               </span>
             </div>
           </Link>

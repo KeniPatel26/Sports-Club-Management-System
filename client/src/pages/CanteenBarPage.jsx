@@ -203,30 +203,44 @@ export const CanteenBarPage = () => {
                   const isSelected = selectedTable === tbl;
                   const hasTab = activeTabs.some((t) => t.tableNumber === tbl);
 
+                  let bg = 'var(--table-available-bg)';
+                  let color = 'var(--table-available-text)';
+                  let border = '1px solid rgba(168, 192, 172, 0.4)';
+
+                  if (hasTab) {
+                    bg = 'var(--table-occupied-bg)';
+                    color = 'var(--table-occupied-text)';
+                    border = '1px solid rgba(217, 154, 117, 0.4)';
+                  }
+                  if (isSelected) {
+                    bg = 'var(--court-selected)';
+                    color = 'var(--court-selected-text)';
+                    border = '1px solid var(--court-selected)';
+                  }
+
                   return (
                     <button
                       key={tbl}
                       type="button"
                       onClick={() => setSelectedTable(tbl)}
                       style={{
-                        padding: '0.6rem 0.3rem',
+                        padding: '0.65rem 0.35rem',
                         borderRadius: 'var(--radius-md)',
-                        border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                        background: hasTab ? 'var(--warning-light)' : isSelected ? 'var(--primary-light)' : 'var(--bg-subtle)',
-                        color: 'var(--text-main)',
+                        border,
+                        background: bg,
+                        color,
                         fontWeight: 700,
                         fontSize: '0.8rem',
                         cursor: 'pointer',
                         textAlign: 'center',
                         position: 'relative',
+                        transition: 'var(--transition)',
                       }}
                     >
                       {tbl}
-                      {hasTab && (
-                        <span style={{ display: 'block', fontSize: '0.65rem', color: 'var(--warning-text)', fontWeight: 800 }}>
-                          TAB OPEN
-                        </span>
-                      )}
+                      <span style={{ display: 'block', fontSize: '0.65rem', fontWeight: 600, opacity: 0.9 }}>
+                        {hasTab ? 'Occupied' : 'Available'}
+                      </span>
                     </button>
                   );
                 })}

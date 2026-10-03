@@ -152,105 +152,42 @@ export const Dashboard = () => {
         />
       </div>
 
-      {/* Quick Launchpad Operations Row */}
+      {/* Quick Action Tiles matching UI reference */}
       <div style={{ marginBottom: '2rem' }}>
-        <Card title="⚡ Operational Quick-Action Launchers">
+        <h4 style={{ margin: '0 0 0.85rem 0', fontWeight: 700, color: 'var(--text-main)' }}>Quick Actions</h4>
+        <div className="quick-action-grid">
           <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '1rem',
-            }}
+            className="quick-action-card quick-action-court"
+            onClick={() => navigate('/courts')}
           >
-            <div
-              onClick={() => navigate('/courts')}
-              style={{
-                padding: '1.25rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(99, 102, 241, 0.08)',
-                border: '1px solid rgba(99, 102, 241, 0.25)',
-                cursor: 'pointer',
-                transition: 'var(--transition)',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = 'none')}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <Calendar size={20} color="var(--primary)" />
-                <strong style={{ fontSize: '1rem' }}>Court Timetable</strong>
-              </div>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                30-min slot openings, live conflict prevention & walk-in bookings.
-              </p>
-            </div>
-
-            <div
-              onClick={() => navigate('/shop')}
-              style={{
-                padding: '1.25rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                cursor: 'pointer',
-                transition: 'var(--transition)',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = 'none')}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <ShoppingBag size={20} color="#10b981" />
-                <strong style={{ fontSize: '1rem' }}>Pro Gear Shop</strong>
-              </div>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Unified stock for in-person racket repair/sales & online orders.
-              </p>
-            </div>
-
-            <div
-              onClick={() => navigate('/canteen')}
-              style={{
-                padding: '1.25rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(245, 158, 11, 0.08)',
-                border: '1px solid rgba(245, 158, 11, 0.25)',
-                cursor: 'pointer',
-                transition: 'var(--transition)',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = 'none')}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <Coffee size={20} color="#f59e0b" />
-                <strong style={{ fontSize: '1rem' }}>Bar & Cafeteria</strong>
-              </div>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Table 1–8 management, running member tabs, and UPI/Cash settling.
-              </p>
-            </div>
-
-            <div
-              onClick={() => navigate('/staff-roster')}
-              style={{
-                padding: '1.25rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(139, 92, 246, 0.08)',
-                border: '1px solid rgba(139, 92, 246, 0.25)',
-                cursor: 'pointer',
-                transition: 'var(--transition)',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = 'none')}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <Briefcase size={20} color="#8b5cf6" />
-                <strong style={{ fontSize: '1rem' }}>Staff Roster & Leave</strong>
-              </div>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Front Desk, Shop, and Canteen shift assignments & approvals.
-              </p>
-            </div>
+            <Calendar size={26} />
+            <span>Book a Court</span>
           </div>
-        </Card>
+
+          <div
+            className="quick-action-card quick-action-shop"
+            onClick={() => navigate('/shop')}
+          >
+            <ShoppingBag size={26} />
+            <span>Shop Now</span>
+          </div>
+
+          <div
+            className="quick-action-card quick-action-food"
+            onClick={() => navigate('/canteen')}
+          >
+            <Coffee size={26} />
+            <span>Order Food</span>
+          </div>
+
+          <div
+            className="quick-action-card quick-action-member"
+            onClick={() => navigate('/memberships')}
+          >
+            <Crown size={26} />
+            <span>View Membership</span>
+          </div>
+        </div>
       </div>
 
       {/* Main Grid: Court Status & Live Open Bar Tabs */}
