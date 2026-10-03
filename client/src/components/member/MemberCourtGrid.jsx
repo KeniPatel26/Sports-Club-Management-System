@@ -199,14 +199,14 @@ export const MemberCourtGrid = ({
                       Member Hourly Rate
                     </span>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
-                      <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary)' }}>
-                        {memberRate === 0 ? 'Free (Included)' : `₹${memberRate}/hr`}
-                      </span>
                       {userDiscount > 0 && memberRate < baseRate && (
-                        <span style={{ fontSize: '0.8rem', textDecoration: 'line-through', color: 'var(--text-subtle)' }}>
+                        <span style={{ fontSize: '0.9rem', textDecoration: 'line-through', color: 'var(--text-muted)' }}>
                           ₹{baseRate}
                         </span>
                       )}
+                      <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary)' }}>
+                        {memberRate === 0 ? 'Included' : `₹${memberRate}/hr`}
+                      </span>
                     </div>
                   </div>
 

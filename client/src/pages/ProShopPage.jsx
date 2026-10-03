@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import {
@@ -12,6 +13,12 @@ import {
   Package,
   CreditCard,
   Truck,
+  History,
+  CalendarDays,
+  Clock3,
+  RefreshCw,
+  ArrowLeft,
+  PackageCheck,
 } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import PageHeader from '../components/layout/PageHeader';
@@ -28,6 +35,7 @@ import membershipService from '../services/membershipService';
 export const ProShopPage = () => {
   const { user } = useAuth();
   const { toastSuccess, toastError } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [products, setProducts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -36,6 +44,10 @@ export const ProShopPage = () => {
   const [cartOpen, setCartOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const isMember = user?.role?.toUpperCase() === 'MEMBER';
+  const showOrders = isMember && searchParams.get('view') === 'orders';
 
   // Fulfillment & payment options
   const [fulfillment, setFulfillment] = useState('counter');
@@ -60,7 +72,20 @@ export const ProShopPage = () => {
   useEffect(() => {
     fetchProducts();
     fetchMembership();
+    if (isMember) fetchOrders();
   }, []);
+
+  const fetchOrders = async () => {
+    try {
+      setOrdersLoading(true);
+      const res = await shopCanteenService.getOrders({ type: 'sports' });
+      if (res.success) setOrders(res.data || []);
+    } catch (error) {
+      toastError(error.response?.data?.message || 'Could not load your shop orders.');
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -156,6 +181,7 @@ export const ProShopPage = () => {
       setCart([]);
       setCartOpen(false);
       fetchProducts();
+      if (isMember) fetchOrders();
     } catch (err) {
       toastError(err.response?.data?.message || 'Checkout failed. Please try again.');
     } finally {
@@ -190,30 +216,46 @@ export const ProShopPage = () => {
   return (
     <DashboardLayout>
       <PageHeader
-        title="Champions Pro Gear Shop"
-        subtitle="Rackets, extra duty balls, court shoes, apparel, and accessories. Unified inventory for counter & online orders."
-        breadcrumbs={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Sports Shop' }]}
+        title={showOrders ? 'My Shop Orders' : 'Champions Pro Gear Shop'}
+        subtitle={showOrders ? 'Review your sports shop purchases, order status, and member savings.' : 'Rackets, extra duty balls, court shoes, apparel, and accessories. Unified inventory for counter & online orders.'}
+        breadcrumbs={[{ label: 'Dashboard', path: '/dashboard' }, { label: showOrders ? 'My Orders' : 'Sports Shop' }]}
         action={
           <div style={{ display: 'flex', gap: '0.6rem' }}>
+            {isMember && <Button variant={showOrders ? 'outline' : 'secondary'} icon={showOrders ? ArrowLeft : History} onClick={() => setSearchParams(showOrders ? {} : { view: 'orders' })}>{showOrders ? 'Back to shop' : `My Orders${orders.length ? ` (${orders.length})` : ''}`}</Button>}
             {isStaffOrOwner && (
               <Button variant="outline" icon={Plus} onClick={() => setAddProductModal(true)}>
                 Add Gear Stock
               </Button>
             )}
-            <Button
+            {!showOrders && <Button
               variant="primary"
               icon={ShoppingCart}
               onClick={() => setCartOpen(true)}
             >
               Cart ({cart.reduce((sum, i) => sum + i.quantity, 0)})
-            </Button>
+            </Button>}
           </div>
         }
       />
 
+      {showOrders ? (
+        <section className="shop-orders-page">
+          <div className="shop-orders-heading"><div><span className="shop-orders-eyebrow">Order history</span><h2>Your shop orders</h2><p>Track gear orders placed from the sports shop.</p></div><Button variant="outline" size="sm" icon={RefreshCw} onClick={fetchOrders}>Refresh</Button></div>
+          {ordersLoading ? <Loader text="Loading your orders..." /> : orders.length ? <div className="shop-orders-list">{orders.map((order) => {
+            const status = String(order.status || 'pending').toLowerCase();
+            const statusVariant = status === 'completed' || status === 'ready' ? 'success' : status === 'cancelled' ? 'danger' : 'warning';
+            return <Card key={order._id} className="shop-order-card"><Card.Content>
+              <div className="shop-order-topline"><div><span className="shop-order-number">Order #{String(order._id).slice(-6).toUpperCase()}</span><span className="shop-order-date"><CalendarDays size={14} />{new Date(order.createdAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span></div><Badge variant={statusVariant}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge></div>
+              <div className="shop-order-items">{(order.items || []).map((item, index) => <div className="shop-order-item" key={`${item.product?._id || item.product || item.name}-${index}`}><span className="shop-order-item-icon">{item.product?.image ? <img src={item.product.image} alt="" loading="lazy" /> : <PackageCheck size={17} />}</span><div><strong>{item.name || item.product?.name || 'Sports gear'}</strong><small>Quantity {item.quantity}</small></div><span className="shop-order-item-price">₹{Number(item.price * item.quantity || 0).toLocaleString('en-IN')}</span></div>)}</div>
+              <div className="shop-order-bottom"><div className="shop-order-fulfillment"><span><Truck size={15} />{String(order.fulfillment || 'counter').replace('-', ' ')}</span><span><Clock3 size={15} />Payment {order.paymentStatus || 'pending'}</span></div><div className="shop-order-total"><small>{Number(order.discount || 0) > 0 ? `Includes ₹${Number(order.discount).toLocaleString('en-IN')} member savings` : 'Order total'}</small><strong>₹{Number(order.total || 0).toLocaleString('en-IN')}</strong></div></div>
+            </Card.Content></Card>;
+          })}</div> : <Card className="shop-orders-empty"><Card.Content><span><History size={26} /></span><h3>No shop orders yet</h3><p>Orders you place from the sports shop will appear here.</p><Button variant="primary" onClick={() => setSearchParams({})}>Browse shop</Button></Card.Content></Card>}
+        </section>
+      ) : <div className="commerce-page shop-page">
+
       {/* Category Pills & Search */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: '0.2rem' }}>
+      <div className="commerce-toolbar shop-toolbar">
+        <div className="commerce-category-list">
           {['ALL', 'Rackets', 'Balls', 'Shoes', 'Accessories', 'Apparel'].map((cat) => (
             <button
               key={cat}
@@ -231,27 +273,19 @@ export const ProShopPage = () => {
                 transition: 'var(--transition)',
               }}
             >
-              {cat === 'ALL' ? '📦 All Gear' : cat}
+              {cat === 'ALL' ? 'All Gear' : cat}
             </button>
           ))}
         </div>
 
-        <div style={{ position: 'relative', width: '260px' }}>
-          <Search size={16} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
+        <div className="shop-search">
+          <Search size={17} />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search rackets, shoes..."
-            style={{
-              width: '100%',
-              padding: '0.45rem 0.75rem 0.45rem 2rem',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-color)',
-              background: 'var(--bg-input)',
-              color: 'var(--text-main)',
-              fontSize: '0.85rem',
-            }}
+            aria-label="Search shop products"
           />
         </div>
       </div>
@@ -260,55 +294,62 @@ export const ProShopPage = () => {
       {loading ? (
         <Loader text="Loading shelf inventory..." />
       ) : (
-        <div className="grid-cols-4">
+        <div className="commerce-grid">
           {filteredProducts.map((prod) => {
             const isLowStock = prod.stock <= prod.lowStockThreshold && prod.stock > 0;
             const isOutOfStock = prod.stock <= 0;
 
             return (
-              <Card key={prod._id} hoverable>
-                {prod.image ? (
-                  <img
-                    src={prod.image}
-                    alt={prod.name}
-                    style={{ width: '100%', height: '170px', objectFit: 'cover', borderTopLeftRadius: 'var(--radius-lg)', borderTopRightRadius: 'var(--radius-lg)' }}
-                  />
-                ) : (
-                  <div style={{ height: '140px', background: 'var(--bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Package size={40} color="var(--text-muted)" />
-                  </div>
-                )}
+              <Card key={prod._id} hoverable className="commerce-card">
+                <div className="commerce-card-media">{prod.image ? <img src={prod.image} alt={prod.name} loading="lazy" /> : <div className="commerce-image-placeholder"><Package size={38} /><span>Sports gear</span></div>}<Badge variant="primary">{prod.category}</Badge></div>
 
-                <Card.Content>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
-                    <Badge variant="primary">{prod.category}</Badge>
+                <Card.Content className="commerce-card-content">
+                  <div className="commerce-card-meta">
                     {isOutOfStock ? (
                       <Badge variant="danger">Out of Stock</Badge>
                     ) : isLowStock ? (
                       <Badge variant="warning">Low ({prod.stock} left)</Badge>
                     ) : (
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Stock: {prod.stock}</span>
+                      <span className="commerce-stock"><CheckCircle size={14} /> In stock · {prod.stock} units</span>
                     )}
                   </div>
 
-                  <Card.Title style={{ fontSize: '1rem', minHeight: '44px' }}>{prod.name}</Card.Title>
-                  <h4 style={{ margin: '0.5rem 0', color: 'var(--primary)', fontWeight: 800 }}>₹{prod.price.toLocaleString()}</h4>
+                  <Card.Title className="commerce-product-title">{prod.name}</Card.Title>
+                  <div className="commerce-product-footer">
+                    <div className="commerce-price">
+                    {discountRate > 0 ? (
+                      <>
+                        <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                          ₹{prod.price.toLocaleString()}
+                        </span>
+                        <strong className="commerce-price-current">
+                          ₹{(prod.price - (prod.price * discountRate / 100)).toLocaleString()}
+                        </strong>
+                      </>
+                    ) : (
+                      <strong className="commerce-price-current">
+                        ₹{prod.price.toLocaleString()}
+                      </strong>
+                    )}
+                  </div>
 
                   <Button
                     variant="primary"
                     size="sm"
-                    fullWidth
                     disabled={isOutOfStock}
+                    icon={ShoppingBag}
                     onClick={() => addToCart(prod)}
                   >
                     {isOutOfStock ? 'Sold Out' : 'Add to Cart'}
                   </Button>
+                  </div>
                 </Card.Content>
               </Card>
             );
           })}
         </div>
       )}
+      </div>}
 
       {/* Shopping Cart Drawer / Modal */}
       <Modal

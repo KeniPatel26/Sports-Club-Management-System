@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Calendar,
@@ -26,6 +26,7 @@ import { useAuth } from '../../context/AuthContext';
 export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
   const { user, isManager, isOwner, isStaff, isFrontDesk, isShopStaff, isCanteenStaff, isMember, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
@@ -100,7 +101,7 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
       { label: 'Booking History', path: '/booking-history', icon: History },
       { label: 'Shop', path: '/shop', icon: ShoppingBag },
       { label: 'Canteen', path: '/canteen', icon: Coffee },
-      { label: 'My Orders', path: '/shop', icon: Receipt },
+      { label: 'My Orders', path: '/shop?view=orders', icon: Receipt },
       { label: 'Membership', path: '/memberships', icon: Crown },
       { label: 'Profile', path: '/profile', icon: User },
     ];
@@ -186,20 +187,28 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
                 key={item.label + item.path}
                 to={item.path}
                 title={collapsed ? item.label : undefined}
-                style={({ isActive }) => ({
+                style={({ isActive }) => {
+                  const isShopPage = location.pathname === '/shop';
+                  const isActiveItem = item.label === 'My Orders'
+                    ? isShopPage && location.search.includes('view=orders')
+                    : item.label === 'Shop'
+                      ? isShopPage && !location.search.includes('view=orders')
+                      : isActive;
+                  return ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: collapsed ? 'center' : 'space-between',
                   padding: '0.65rem 0.85rem',
                   borderRadius: 'var(--radius-md)',
                   fontSize: '0.875rem',
-                  fontWeight: isActive ? 600 : 500,
-                  color: isActive ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)',
-                  backgroundColor: isActive ? 'var(--sidebar-active-bg)' : 'transparent',
+                  fontWeight: isActiveItem ? 600 : 500,
+                  color: isActiveItem ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)',
+                  backgroundColor: isActiveItem ? 'var(--sidebar-active-bg)' : 'transparent',
                   transition: 'var(--transition)',
                   textDecoration: 'none',
                   fontFamily: 'var(--font-family-body)',
-                })}
+                  });
+                }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <Icon size={17} style={{ flexShrink: 0 }} />

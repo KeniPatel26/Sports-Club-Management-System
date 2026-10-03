@@ -7,17 +7,12 @@ import {
   Coffee,
   Crown,
   TrendingUp,
-  Users,
-  Briefcase,
-  Trophy,
   ArrowRight,
-  Plus,
-  Sparkles,
   AlertTriangle,
-  Clock,
-  ShieldCheck,
-  Tag,
-  Zap,
+  Clock3,
+  History,
+  MapPin,
+  UtensilsCrossed,
 } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import PageHeader from '../components/layout/PageHeader';
@@ -28,30 +23,91 @@ import Badge from '../components/ui/Badge';
 import courtBookingService from '../services/courtBookingService';
 import shopCanteenService from '../services/shopCanteenService';
 import financeService from '../services/financeService';
-import membershipService from '../services/membershipService';
-import staffService from '../services/staffService';
+
+const getLocalDay = (date) => {
+  const value = new Date(date);
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+};
+
+const MemberDashboardView = ({ user, menuItems, bookings, loading, navigate }) => {
+  const upcomingBookings = bookings
+    .filter((booking) => booking.status === 'CONFIRMED' && getLocalDay(booking.date) >= getLocalDay(new Date()))
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .slice(0, 3);
+
+  return (
+    <DashboardLayout>
+      <PageHeader
+        title={`Welcome back, ${user?.firstName || user?.name || 'Member'}`}
+        subtitle="Book a court, browse the cafe menu, and keep track of your upcoming sessions."
+        breadcrumbs={[{ label: 'Club', path: '/' }, { label: 'Member dashboard' }]}
+        action={<div className="member-dashboard-header-actions"><Button variant="outline" icon={Calendar} onClick={() => navigate('/courts')}>Book a court</Button><Button variant="primary" icon={UtensilsCrossed} onClick={() => navigate('/canteen')}>Canteen menu</Button></div>}
+      />
+
+      <div className="member-dashboard-content">
+        <nav className="member-dashboard-shortcuts" aria-label="Member shortcuts">
+          <button type="button" className="quick-action-card quick-action-court" onClick={() => navigate('/courts')}><Calendar size={25} /><strong>Book a court</strong><small>Choose a court and available time</small><span className="member-shortcut-link">Explore courts <ArrowRight size={15} /></span></button>
+          <button type="button" className="quick-action-card quick-action-food" onClick={() => navigate('/canteen')}><Coffee size={25} /><strong>Canteen menu</strong><small>Order available food and drinks</small><span className="member-shortcut-link">View menu <ArrowRight size={15} /></span></button>
+          <button type="button" className="quick-action-card quick-action-shop" onClick={() => navigate('/shop')}><ShoppingBag size={25} /><strong>Club shop</strong><small>Sports gear and accessories</small><span className="member-shortcut-link">Browse shop <ArrowRight size={15} /></span></button>
+          <button type="button" className="quick-action-card quick-action-member" onClick={() => navigate('/booking-history')}><History size={25} /><strong>Booking history</strong><small>Review your upcoming and past sessions</small><span className="member-shortcut-link">View bookings <ArrowRight size={15} /></span></button>
+        </nav>
+
+        <section className="member-dashboard-section">
+          <div className="member-dashboard-section-heading">
+            <div><span className="member-dashboard-eyebrow">Club cafe</span><h2>Available canteen menu</h2><p>Order for counter pickup from the current menu.</p></div>
+            <Button variant="outline" icon={ArrowRight} iconPosition="right" onClick={() => navigate('/canteen')}>View full menu</Button>
+          </div>
+          {loading ? <div className="member-dashboard-empty">Loading the available menu…</div> : menuItems.filter((item) => item.stock == null || item.stock > 0).length ? (
+            <div className="member-dashboard-menu-grid">{menuItems.filter((item) => item.stock == null || item.stock > 0).slice(0, 4).map((item) => <Card key={item._id} className="member-dashboard-menu-card">
+              <div className="member-menu-image">{item.image ? <img src={item.image} alt={item.name} loading="lazy" /> : <div className="member-menu-placeholder"><Coffee size={34} /><span>Club cafe</span></div>}<span className="member-menu-category">{item.category || 'Menu item'}</span></div>
+              <Card.Content><div className="member-menu-availability"><span className="member-menu-dot" />Available now</div><Card.Title className="member-menu-title">{item.name}</Card.Title>{item.description && <p className="member-menu-description">{item.description}</p>}<div className="member-menu-footer"><div><small>Price</small><strong>₹{Number(item.price).toLocaleString('en-IN')}</strong></div><Button variant="primary" size="sm" icon={ArrowRight} iconPosition="right" onClick={() => navigate('/canteen')}>Order</Button></div></Card.Content>
+            </Card>)}</div>
+          ) : <div className="member-dashboard-empty"><UtensilsCrossed size={22} /><span>No canteen items are available right now.</span></div>}
+        </section>
+
+        <section className="member-dashboard-section member-upcoming-section">
+          <div className="member-dashboard-section-heading">
+            <div><span className="member-dashboard-eyebrow">Your schedule</span><h2>Upcoming court bookings</h2><p>Your next confirmed sessions.</p></div>
+            <Button variant="outline" icon={History} onClick={() => navigate('/booking-history')}>Booking history</Button>
+          </div>
+          {loading ? <div className="member-dashboard-empty">Loading your bookings…</div> : upcomingBookings.length ? <div className="member-upcoming-list">{upcomingBookings.map((booking) => <Card key={booking._id} className="member-upcoming-card"><Card.Content><div className="member-upcoming-court"><span className="member-booking-icon"><MapPin size={18} /></span><div><strong>{booking.court?.name || 'Court session'}</strong><span>{booking.court?.type || 'Sports court'}</span></div></div><div className="member-upcoming-time"><Calendar size={16} /><span>{new Date(booking.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span><Clock3 size={16} /><span>{booking.startTime}–{booking.endTime}</span></div></Card.Content></Card>)}</div> : <div className="member-dashboard-empty"><Calendar size={22} /><span>You have no upcoming court bookings.</span><Button variant="primary" size="sm" onClick={() => navigate('/courts')}>Book a court</Button></div>}
+        </section>
+      </div>
+    </DashboardLayout>
+  );
+};
 
 export const Dashboard = () => {
-  const { user, isOwner, isStaff } = useAuth();
+  const { user, isMember } = useAuth();
   const navigate = useNavigate();
 
   const [courts, setCourts] = useState([]);
   const [openTabs, setOpenTabs] = useState([]);
   const [lowStockProducts, setLowStockProducts] = useState([]);
   const [financeOverview, setFinanceOverview] = useState(null);
-  const [plans, setPlans] = useState([]);
+  const [canteenItems, setCanteenItems] = useState([]);
+  const [memberBookings, setMemberBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        const [courtsRes, tabsRes, productsRes, financeRes, plansRes] = await Promise.allSettled([
+        if (isMember) {
+          const [menuRes, bookingsRes] = await Promise.allSettled([
+            shopCanteenService.getProducts({ type: 'canteen' }),
+            courtBookingService.getBookings(),
+          ]);
+          if (menuRes.status === 'fulfilled' && menuRes.value.success) setCanteenItems(menuRes.value.data || []);
+          if (bookingsRes.status === 'fulfilled' && bookingsRes.value.success) setMemberBookings(bookingsRes.value.data || []);
+          return;
+        }
+
+        const [courtsRes, tabsRes, productsRes, financeRes] = await Promise.allSettled([
           courtBookingService.getCourts(),
           shopCanteenService.getOpenTabs(),
           shopCanteenService.getProducts({ type: 'sports' }),
           financeService.getOverview(),
-          membershipService.getPlans(),
         ]);
 
         if (courtsRes.status === 'fulfilled' && courtsRes.value.success) {
@@ -67,9 +123,6 @@ export const Dashboard = () => {
         if (financeRes.status === 'fulfilled' && financeRes.value.success) {
           setFinanceOverview(financeRes.value.data);
         }
-        if (plansRes.status === 'fulfilled' && plansRes.value.success) {
-          setPlans(plansRes.value.data || []);
-        }
       } catch (err) {
         console.error('Error loading club dashboard data:', err);
       } finally {
@@ -78,13 +131,12 @@ export const Dashboard = () => {
     };
 
     fetchDashboardData();
-  }, []);
+  }, [isMember]);
 
   const totalRev = financeOverview?.totalRevenue || 45200;
-  const courtRev = financeOverview?.courtRevenue || 14800;
-  const shopRev = financeOverview?.shopRevenue || 12400;
-  const canteenRev = financeOverview?.canteenRevenue || 6800;
-  const memRev = financeOverview?.membershipRevenue || 11200;
+  if (isMember) {
+    return <MemberDashboardView user={user} menuItems={canteenItems} bookings={memberBookings} loading={loading} navigate={navigate} />;
+  }
 
   return (
     <DashboardLayout>
