@@ -161,12 +161,27 @@ export const managerService = {
   },
 
   getTodayAttendance: async () => {
-    const res = await api.get('/manager/employees/attendance/today');
+    const res = await api.get('/attendance/manager');
+    return res.data;
+  },
+
+  getAttendance: async (params = {}) => {
+    const res = await api.get('/attendance/manager', { params });
+    return res.data;
+  },
+
+  updateAttendanceRecord: async (id, data) => {
+    const res = await api.put(`/attendance/manager/${id}`, data);
+    return res.data;
+  },
+
+  recordManualAttendance: async (data) => {
+    const res = await api.post('/attendance/manager/manual', data);
     return res.data;
   },
 
   recordAttendance: async (data) => {
-    const res = await api.post('/manager/employees/attendance/record', data);
+    const res = await api.post('/attendance/manager/manual', data);
     return res.data;
   },
 

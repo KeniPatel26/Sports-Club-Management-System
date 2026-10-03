@@ -22,6 +22,7 @@ import activityRoutes from './routes/activityRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import attendanceRoutes from './routes/attendanceRoutes.js';
 
 // Middlewares
 import { notFound, errorHandler } from './middlewares/errorMiddleware.js';
@@ -73,6 +74,7 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/finance', financeReportsRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/manager', managerRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
 // User & Utility API Routes
 app.use('/api/users', userRoutes);

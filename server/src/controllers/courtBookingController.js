@@ -1,9 +1,22 @@
 import Court from '../models/Court.js';
 import Booking from '../models/Booking.js';
-import User from '../models/User.js';
 import Membership from '../models/Membership.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
-import { logActivity, logAudit } from '../services/activityService.js';
+import { logActivity } from '../services/activityService.js';
+
+const parseBookingDate = (value) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  return date;
+};
+
+const isValidStartTime = (value) => {
+  if (!/^\d{2}:(00|30)$/.test(value || '')) return false;
+  const [hour, minute] = value.split(':').map(Number);
+  return hour >= 6 && (hour < 21 || (hour === 21 && minute === 0));
+};
 
 /**
  * @desc    Get all courts with sport filters
@@ -40,14 +53,19 @@ export const getCourtSlots = async (req, res, next) => {
       return sendError(res, { statusCode: 400, message: 'Please provide a date query parameter (YYYY-MM-DD)' });
     }
 
+    const parsedDate = parseBookingDate(date);
+    if (!parsedDate || parsedDate < new Date(new Date().setHours(0, 0, 0, 0))) {
+      return sendError(res, { statusCode: 400, message: 'Choose a valid date today or later' });
+    }
+
     const court = await Court.findById(id);
     if (!court) {
       return sendError(res, { statusCode: 404, message: 'Court not found' });
     }
 
-    const queryDate = new Date(date);
-    const startOfDay = new Date(queryDate.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(queryDate.setHours(23, 59, 59, 999));
+    const startOfDay = new Date(parsedDate);
+    const endOfDay = new Date(parsedDate);
+    endOfDay.setHours(23, 59, 59, 999);
 
     // Find all active bookings on this court for the day
     const existingBookings = await Booking.find({
@@ -56,20 +74,18 @@ export const getCourtSlots = async (req, res, next) => {
       status: { $in: ['CONFIRMED', 'CHECKED_IN', 'COMPLETED'] },
     }).select('startTime endTime bookingType walkInDetails member');
 
-    // Generate standard half-hour slots from 06:00 to 22:00
+    // Return only one-hour sessions that are still available. Slots start
+    // every 30 minutes and the final session ends when the club closes at 22:00.
     const slots = [];
-    for (let hour = 6; hour < 22; hour++) {
-      const hStr = hour.toString().padStart(2, '0');
-      const timeSlots = [`${hStr}:00`, `${hStr}:30`];
-
-      for (const time of timeSlots) {
-        const booked = existingBookings.find((b) => b.startTime === time);
-        slots.push({
-          time,
-          available: !booked,
-          booking: booked || null,
-        });
-      }
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    for (let minutes = 6 * 60; minutes <= 21 * 60; minutes += 30) {
+      const time = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+      const endMinutes = minutes + 60;
+      const endTime = `${String(Math.floor(endMinutes / 60)).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`;
+      const overlaps = existingBookings.some((booking) => booking.startTime < endTime && booking.endTime > time);
+      const alreadyStarted = startOfDay.toDateString() === now.toDateString() && minutes <= nowMinutes;
+      if (!overlaps && !alreadyStarted) slots.push({ time, available: true });
     }
 
     return sendSuccess(res, {
@@ -94,7 +110,6 @@ export const createBooking = async (req, res, next) => {
   try {
     const {
       courtId,
-      memberId,
       date,
       startTime,
       bookingType = 'MEMBER',
@@ -111,16 +126,35 @@ export const createBooking = async (req, res, next) => {
       return sendError(res, { statusCode: 404, message: 'Court is inactive or does not exist' });
     }
 
-    const bookingDate = new Date(date);
-    const startOfDay = new Date(new Date(date).setHours(0, 0, 0, 0));
-    const endOfDay = new Date(new Date(date).setHours(23, 59, 59, 999));
+    const parsedDate = parseBookingDate(date);
+    if (!parsedDate || parsedDate < new Date(new Date().setHours(0, 0, 0, 0)) || !isValidStartTime(startTime)) {
+      return sendError(res, { statusCode: 400, message: 'Choose a valid future date and available session time' });
+    }
+    if (!['MEMBER', 'WALK_IN'].includes(bookingType) || (req.user.role === 'MEMBER' && bookingType !== 'MEMBER')) {
+      return sendError(res, { statusCode: 403, message: 'You are not allowed to create this booking type' });
+    }
+    if (bookingType === 'WALK_IN' && (!walkInDetails?.name?.trim() || !walkInDetails?.phone?.trim())) {
+      return sendError(res, { statusCode: 400, message: 'Walk-in name and phone are required' });
+    }
+    const bookingDate = parsedDate;
+    const startOfDay = new Date(parsedDate);
+    const endOfDay = new Date(parsedDate);
+    endOfDay.setHours(23, 59, 59, 999);
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const endMinutes = startHour * 60 + startMinute + 60;
+    const endTime = `${String(Math.floor(endMinutes / 60)).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}`;
+    const now = new Date();
+    if (startOfDay.toDateString() === now.toDateString() && startHour * 60 + startMinute <= now.getHours() * 60 + now.getMinutes()) {
+      return sendError(res, { statusCode: 400, message: 'This session time has already passed' });
+    }
 
     // 1. Conflict Prevention: Ensure court slot is NOT already booked
     const conflict = await Booking.findOne({
       court: courtId,
       date: { $gte: startOfDay, $lte: endOfDay },
-      startTime,
-      status: { $in: ['CONFIRMED', 'CHECKED_IN', 'COMPLETED'] },
+      startTime: { $lt: endTime },
+      endTime: { $gt: startTime },
+      status: { $in: ['CONFIRMED', 'COMPLETED'] },
     });
 
     if (conflict) {
@@ -130,7 +164,7 @@ export const createBooking = async (req, res, next) => {
       });
     }
 
-    let targetUserId = memberId || (bookingType === 'MEMBER' ? req.user._id : null);
+    let targetUserId = bookingType === 'MEMBER' ? req.user._id : null;
     let basePrice = bookingType === 'WALK_IN' ? court.walkInRate : court.hourlyRate;
     let discountApplied = 0;
 
@@ -166,11 +200,6 @@ export const createBooking = async (req, res, next) => {
     }
 
     const finalAmount = Math.max(0, basePrice - discountApplied);
-
-    // Calculate end time (1 hour session)
-    const [h, m] = startTime.split(':').map(Number);
-    const endHour = (h + 1).toString().padStart(2, '0');
-    const endTime = `${endHour}:${m === 0 ? '00' : m}`;
 
     const booking = await Booking.create({
       court: courtId,
@@ -263,6 +292,16 @@ export const cancelBooking = async (req, res, next) => {
     const booking = await Booking.findById(req.params.id);
     if (!booking) {
       return sendError(res, { statusCode: 404, message: 'Booking not found' });
+    }
+
+    if (req.user.role?.toUpperCase() === 'MEMBER' && String(booking.member) !== String(req.user._id)) {
+      return sendError(res, { statusCode: 403, message: 'You can only cancel your own court bookings' });
+    }
+    const sessionStart = new Date(booking.date);
+    const [sessionHour, sessionMinute] = booking.startTime.split(':').map(Number);
+    sessionStart.setHours(sessionHour, sessionMinute, 0, 0);
+    if (booking.status !== 'CONFIRMED' || sessionStart <= new Date()) {
+      return sendError(res, { statusCode: 400, message: 'Only future confirmed bookings can be cancelled' });
     }
 
     booking.status = 'CANCELLED';

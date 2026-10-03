@@ -525,54 +525,6 @@ export const CanteenStaffDashboard = () => {
         </div>
       </div>
 
-      {/* Sub-Nav Navigation Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '0.5rem',
-          borderBottom: '1px solid var(--border)',
-          paddingBottom: '0.75rem',
-          marginBottom: '1.5rem',
-          overflowX: 'auto',
-        }}
-      >
-        {[
-          { id: 'dashboard', label: 'Canteen Dashboard', icon: TrendingUp },
-          { id: 'menu', label: 'Menu Availability', icon: UtensilsCrossed },
-          { id: 'tables', label: 'Table Management', icon: Building2 },
-          { id: 'orders', label: 'Kitchen Pipeline', icon: ChefHat },
-          { id: 'tabs', label: 'Open Tabs & Bills', icon: Receipt },
-          { id: 'payments', label: 'Canteen Payments', icon: DollarSign },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.55rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                border: 'none',
-                backgroundColor: isActive ? 'var(--primary-navy)' : 'transparent',
-                color: isActive ? '#FFFFFF' : 'var(--text-muted)',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                transition: 'var(--transition)',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <Icon size={16} />
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
       {alert && (
         <div style={{ marginBottom: '1.25rem' }}>
           <Alert type={alert.type} message={alert.message} onClose={() => setAlert(null)} />

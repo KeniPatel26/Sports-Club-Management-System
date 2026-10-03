@@ -9,13 +9,18 @@ export const staffService = {
     return res.data;
   },
 
+  getMyAttendance: async () => {
+    const res = await api.get('/attendance/my');
+    return res.data;
+  },
+
   checkIn: async () => {
-    const res = await api.post('/staff/check-in');
+    const res = await api.post('/attendance/check-in');
     return res.data;
   },
 
   checkOut: async () => {
-    const res = await api.post('/staff/check-out');
+    const res = await api.post('/attendance/check-out');
     return res.data;
   },
 

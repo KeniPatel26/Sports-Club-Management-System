@@ -1,14 +1,21 @@
 import mongoose from 'mongoose';
 
 /**
- * Attendance Schema - Daily Employee Check-in, Check-out & Status
+ * Attendance Schema - Daily Employee Check-in, Check-out, Shift tracking & Automated Login Sync
  */
 const attendanceSchema = new mongoose.Schema(
   {
+    employee: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      index: true,
+    },
+
     staff: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+      index: true,
     },
 
     date: {
@@ -17,26 +24,54 @@ const attendanceSchema = new mongoose.Schema(
       default: () => new Date().setHours(0, 0, 0, 0),
     },
 
+    dateKey: {
+      type: String, // e.g. "2026-10-04" for deterministic uniqueness
+      required: true,
+      index: true,
+    },
+
+    checkIn: {
+      type: Date,
+      default: Date.now,
+    },
+
+    checkInTime: {
+      type: String, // e.g. "09:04 AM"
+      default: null,
+    },
+
+    checkOut: {
+      type: Date,
+      default: null,
+    },
+
+    checkOutTime: {
+      type: String, // e.g. "05:58 PM"
+      default: null,
+    },
+
     shift: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Shift',
       default: null,
     },
 
-    checkInTime: {
-      type: String, // e.g. "08:55 AM"
-      default: null,
-    },
-
-    checkOutTime: {
-      type: String, // e.g. "05:05 PM"
-      default: null,
-    },
-
     status: {
       type: String,
-      enum: ['PRESENT', 'ABSENT', 'ON_LEAVE', 'LATE', 'HALF_DAY'],
+      enum: ['PRESENT', 'LATE', 'HALF_DAY', 'ABSENT', 'LEAVE', 'ON_LEAVE'],
       default: 'PRESENT',
+    },
+
+    workedMinutes: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    source: {
+      type: String,
+      enum: ['LOGIN', 'MANUAL', 'ADMIN'],
+      default: 'LOGIN',
     },
 
     notes: {
@@ -49,7 +84,30 @@ const attendanceSchema = new mongoose.Schema(
   }
 );
 
-attendanceSchema.index({ staff: 1, date: 1 }, { unique: true });
+// Pre-validate hook to sync staff & employee and populate dateKey if missing
+attendanceSchema.pre('validate', function (next) {
+  if (this.staff && !this.employee) {
+    this.employee = this.staff;
+  }
+  if (this.employee && !this.staff) {
+    this.staff = this.employee;
+  }
+  if (!this.dateKey) {
+    const d = this.date || new Date();
+    this.dateKey = new Date(d).toISOString().slice(0, 10);
+  }
+  if (!this.checkInTime && this.checkIn) {
+    this.checkInTime = new Date(this.checkIn).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  }
+  next();
+});
+
+// Enforce strictly one attendance record per employee per calendar day
+attendanceSchema.index({ staff: 1, dateKey: 1 }, { unique: true });
 
 export const Attendance =
   mongoose.models.Attendance || mongoose.model('Attendance', attendanceSchema);

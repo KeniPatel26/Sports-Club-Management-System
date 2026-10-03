@@ -619,7 +619,7 @@ export const ShopStaffDashboard = () => {
               gap: '0.5rem',
               padding: '0.55rem 1.15rem',
               borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--primary-peach)',
+              backgroundColor: '#D98E68',
               border: 'none',
               color: '#FFFFFF',
               fontSize: '0.875rem',
@@ -628,58 +628,10 @@ export const ShopStaffDashboard = () => {
               boxShadow: '0 2px 8px rgba(217, 142, 104, 0.3)',
             }}
           >
-            <ShoppingCart size={16} />
+            <ShoppingCart size={16} color="#FFFFFF" />
             Counter POS Sale
           </button>
         </div>
-      </div>
-
-      {/* Sub-Nav Navigation Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '0.5rem',
-          borderBottom: '1px solid var(--border)',
-          paddingBottom: '0.75rem',
-          marginBottom: '1.5rem',
-          overflowX: 'auto',
-        }}
-      >
-        {[
-          { id: 'dashboard', label: 'Shop Dashboard', icon: TrendingUp },
-          { id: 'products', label: 'Product Catalog', icon: ShoppingBag },
-          { id: 'inventory', label: 'Shared Inventory & Stock Logs', icon: Package },
-          { id: 'sales', label: 'Counter POS Sales', icon: ShoppingCart },
-          { id: 'orders', label: 'Online Orders Lifecycle', icon: Truck },
-          { id: 'payments', label: 'Shop Payments', icon: Receipt },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.55rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                border: 'none',
-                backgroundColor: isActive ? 'var(--primary-navy)' : 'transparent',
-                color: isActive ? '#FFFFFF' : 'var(--text-muted)',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                transition: 'var(--transition)',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <Icon size={16} />
-              {tab.label}
-            </button>
-          );
-        })}
       </div>
 
       {alert && (

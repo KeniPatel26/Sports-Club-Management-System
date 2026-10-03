@@ -1,12 +1,11 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import {
   Sun,
   Moon,
   LogIn,
-  UserPlus,
   LogOut,
   User as UserIcon,
   LayoutDashboard,
@@ -14,22 +13,96 @@ import {
   ShoppingBag,
   Coffee,
   Crown,
-  TrendingUp,
-  Briefcase,
   ShieldCheck,
   Trophy,
-  Building2,
-  Award,
   Menu,
 } from 'lucide-react';
 import NotificationDropdown from '../common/NotificationDropdown';
 import Button from '../ui/Button';
 import Dropdown from '../ui/Dropdown';
 
-export const Navbar = ({ onToggleSidebar }) => {
-  const { user, isAuthenticated, logout, isOwner } = useAuth();
+/**
+ * Resolves clean, dynamic ERP Page Title matching user's active route & sub-tab
+ */
+const resolvePageTitle = (pathname, search) => {
+  const searchParams = new URLSearchParams(search);
+  const tab = searchParams.get('tab');
+
+  // Staff Front Desk
+  if (pathname === '/staff/front-desk') {
+    if (tab === 'courts') return 'Court Availability';
+    if (tab === 'bookings') return 'Front Desk Bookings';
+    if (tab === 'members') return 'Member Directory';
+    if (tab === 'payments') return 'Desk Payments';
+    return 'Front Desk';
+  }
+
+  // Staff Sports Shop
+  if (pathname === '/staff/shop') {
+    if (tab === 'orders') return 'Online Orders';
+    if (tab === 'inventory') return 'Inventory & Stock';
+    if (tab === 'sales') return 'Counter POS Sales';
+    if (tab === 'products') return 'Product Catalog';
+    if (tab === 'payments') return 'Shop Payments';
+    return 'Sports Shop';
+  }
+
+  // Staff Canteen & Bar
+  if (pathname === '/staff/canteen') {
+    if (tab === 'tables') return 'Table Floor Map';
+    if (tab === 'orders') return 'Kitchen Queue';
+    if (tab === 'tabs') return 'Running Bar Tabs';
+    if (tab === 'menu') return 'Menu Availability';
+    if (tab === 'payments') return 'Canteen Payments';
+    return 'Canteen & Bar';
+  }
+
+  // Staff Profile & Shift
+  if (pathname === '/staff/profile') {
+    return 'My Profile & Shift';
+  }
+
+  // Manager ERP Dedicated Modules
+  if (pathname === '/manager/dashboard') return 'Dashboard';
+  if (pathname === '/manager/members') return 'Members';
+  if (pathname === '/manager/memberships') return 'Memberships';
+  if (pathname === '/manager/employees') {
+    if (tab === 'attendance') return 'Employee Attendance';
+    if (tab === 'shifts') return 'Staff Shifts';
+    if (tab === 'leave') return 'Leave Requests';
+    if (tab === 'payroll') return 'Payroll & Compensation';
+    return 'Employees';
+  }
+  if (pathname === '/manager/courts') return 'Courts';
+  if (pathname === '/manager/shop') return 'Sports Shop & Stock';
+  if (pathname === '/manager/canteen') return 'Canteen & Tables';
+  if (pathname === '/manager/finance') return 'Finance';
+  if (pathname === '/manager/reports') return 'Reports';
+  if (pathname === '/manager/leads') return 'CRM Leads';
+  if (pathname === '/manager/settings') return 'Club Settings';
+
+  // Member & Shared Portals
+  if (pathname === '/dashboard') return 'Dashboard';
+  if (pathname === '/courts') return 'Book a Court';
+  if (pathname === '/booking-history') return 'Booking History';
+  if (pathname === '/shop') return 'Pro Shop';
+  if (pathname === '/canteen') return 'Canteen & Bar';
+  if (pathname === '/memberships') return 'Membership Plans';
+  if (pathname === '/projects') return 'Club Projects';
+  if (pathname === '/ai-hub') return 'AI Assistant';
+  if (pathname === '/profile') return 'My Profile';
+  if (pathname === '/users') return 'User Management';
+
+  return 'Dashboard';
+};
+
+export const Navbar = ({ onToggleSidebar, title }) => {
+  const { user, isAuthenticated, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const dynamicTitle = title || resolvePageTitle(location.pathname, location.search);
 
   const userMenuItems = [
     {
@@ -41,218 +114,125 @@ export const Navbar = ({ onToggleSidebar }) => {
     {
       label: 'Club Dashboard',
       icon: LayoutDashboard,
-      onClick: () => navigate('/dashboard'),
-    },
-    {
-      label: 'Court Bookings',
-      icon: Calendar,
-      onClick: () => navigate('/courts'),
-    },
-    {
-      label: 'Pro Shop',
-      icon: ShoppingBag,
-      onClick: () => navigate('/shop'),
-    },
-    {
-      label: 'Canteen & Bar',
-      icon: Coffee,
-      onClick: () => navigate('/canteen'),
+      onClick: () => navigate(user?.role === 'STAFF' ? (user?.department === 'FRONT_DESK' ? '/staff/front-desk' : user?.department === 'SPORTS_SHOP' ? '/staff/shop' : '/staff/canteen') : user?.role === 'CLUB_MANAGER' ? '/manager/dashboard' : '/dashboard'),
     },
     {
       label: 'My Profile',
       icon: UserIcon,
-      onClick: () => navigate('/profile'),
+      onClick: () => navigate(user?.role === 'STAFF' ? '/staff/profile' : '/profile'),
     },
     { divider: true },
     {
       label: 'Logout',
       icon: LogOut,
       danger: true,
-      onClick: () => {
-        logout();
-        navigate('/');
+      onClick: async () => {
+        await logout();
+        navigate('/login');
       },
     },
   ];
 
-  return (
-    <header
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        backgroundColor: 'var(--bg-glass)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        borderBottom: '1px solid var(--border-color)',
-        height: '64px',
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 1.25rem',
-      }}
-    >
-      <div
+  // =========================================================================
+  // 1. AUTHENTICATED ERP TOPBAR (Manager, Staff, Logged-in Members)
+  // Layout: [Hamburger] [Dynamic Page Heading] ------------ [Theme] [Notifs] [Profile ▼]
+  // =========================================================================
+  if (isAuthenticated) {
+    return (
+      <header
+        className="authenticated-erp-header"
         style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 40,
+          backgroundColor: 'var(--bg-glass, rgba(255, 255, 255, 0.95))',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderBottom: '1px solid var(--border-color, #E2E8F0)',
+          height: '64px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          width: '100%',
+          padding: '0 1.5rem',
+          transition: 'background-color 0.2s ease, border-color 0.2s ease',
         }}
       >
-        {/* Left: Hamburger & Brand Logo & Links */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {onToggleSidebar && (
-            <button
-              type="button"
-              className="navbar-hamburger-btn"
-              onClick={onToggleSidebar}
-              aria-label="Toggle Navigation Drawer"
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--border-color)',
-                borderRadius: 'var(--radius-md)',
-                color: 'var(--text-main)',
-                width: '38px',
-                height: '38px',
-                display: 'none',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-              }}
-            >
-              <Menu size={20} />
-            </button>
-          )}
-
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: 'var(--radius-md)',
-                background: 'linear-gradient(135deg, #354962 0%, #D98E68 100%)',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 800,
-                fontSize: '1.1rem',
-                boxShadow: 'var(--shadow-sm)',
-                flexShrink: 0,
-              }}
-            >
-              <Trophy size={19} />
-            </div>
-            <div>
-              <span style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.02em', color: 'var(--text-main)', fontFamily: 'var(--font-family-display)' }}>
-                Sports<span style={{ color: 'var(--primary)' }}>Club</span>
-              </span>
-              <span
-                className="desktop-live-badge"
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            width: '100%',
+          }}
+        >
+          {/* Left: Mobile Drawer Trigger + Dynamic Page Title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            {onToggleSidebar && (
+              <button
+                type="button"
+                className="navbar-hamburger-btn"
+                onClick={onToggleSidebar}
+                aria-label="Toggle Navigation Drawer"
                 style={{
-                  marginLeft: '6px',
-                  fontSize: '0.65rem',
-                  fontWeight: 700,
-                  backgroundColor: 'var(--color-success-bg)',
-                  color: 'var(--color-success-text)',
-                  padding: '2px 6px',
-                  borderRadius: 'var(--radius-full)',
+                  background: '#F4F6FC',
+                  border: '1px solid var(--border-color, #E2E8F0)',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  color: 'var(--text-main, #354962)',
+                  width: '38px',
+                  height: '38px',
+                  display: 'none',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'var(--transition)',
                 }}
               >
-                LIVE OS
-              </span>
-            </div>
-          </Link>
+                <Menu size={20} />
+              </button>
+            )}
 
-          <nav className="navbar-desktop-links" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginLeft: '1rem' }}>
-            <Link
-              to="/courts"
+            <h1
               style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: 'var(--text-muted)',
-                transition: 'var(--transition)',
+                fontSize: '1.35rem',
+                fontWeight: 700,
+                letterSpacing: '-0.02em',
+                color: 'var(--text-main, #354962)',
+                fontFamily: 'var(--font-family-display, inherit)',
+                margin: 0,
+                lineHeight: 1.2,
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--primary)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
             >
-              Courts
-            </Link>
-            <Link
-              to="/shop"
+              {dynamicTitle}
+            </h1>
+          </div>
+
+          {/* Right: Theme Toggle + Notifications Dropdown + User Avatar Menu */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            {/* Theme Toggle Button */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: 'var(--text-muted)',
-                transition: 'var(--transition)',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--primary)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-            >
-              Pro Shop
-            </Link>
-            <Link
-              to="/canteen"
-              style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: 'var(--text-muted)',
-                transition: 'var(--transition)',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--primary)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-            >
-              Bar Lounge
-            </Link>
-            <Link
-              to="/memberships"
-              style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: 'var(--text-muted)',
+                width: '38px',
+                height: '38px',
+                borderRadius: 'var(--radius-md, 8px)',
+                background: 'var(--bg-subtle, #F4F6FC)',
+                border: '1px solid var(--border-color, #E2E8F0)',
+                color: 'var(--text-main, #354962)',
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
+                justifyContent: 'center',
                 transition: 'var(--transition)',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--primary)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
             >
-              <Crown size={14} color="#f59e0b" />
-              Plans
-            </Link>
-          </nav>
-        </div>
+              {theme === 'dark' ? <Sun size={17} color="#f59e0b" /> : <Moon size={17} />}
+            </button>
 
-        {/* Right: Actions, Theme, Notifications & User */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-          {/* Theme Toggle Button */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--bg-subtle)',
-              border: '1px solid var(--border-color)',
-              color: 'var(--text-main)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'var(--transition)',
-            }}
-          >
-            {theme === 'dark' ? <Sun size={17} color="#f59e0b" /> : <Moon size={17} />}
-          </button>
+            {/* Notifications Dropdown */}
+            <NotificationDropdown />
 
-          {/* Notifications Dropdown (when authenticated) */}
-          {isAuthenticated && <NotificationDropdown />}
-
-          {/* Auth State Button / Profile Dropdown */}
-          {isAuthenticated ? (
+            {/* User Profile Dropdown */}
             <Dropdown
               trigger={
                 <div
@@ -260,11 +240,12 @@ export const Navbar = ({ onToggleSidebar }) => {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.6rem',
-                    padding: '0.35rem 0.6rem',
-                    borderRadius: 'var(--radius-full)',
-                    background: 'var(--bg-subtle)',
-                    border: '1px solid var(--border-color)',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: 'var(--radius-full, 9999px)',
+                    background: 'var(--bg-subtle, #F4F6FC)',
+                    border: '1px solid var(--border-color, #E2E8F0)',
                     cursor: 'pointer',
+                    transition: 'all 0.2s ease',
                   }}
                 >
                   <img
@@ -281,25 +262,154 @@ export const Navbar = ({ onToggleSidebar }) => {
                       objectFit: 'cover',
                     }}
                   />
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main, #354962)' }}>
                     {user?.firstName || user?.name?.split(' ')[0] || 'Member'}
                   </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted, #64748B)' }}>▼</span>
                 </div>
               }
               items={userMenuItems}
             />
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Button
-                variant="primary"
-                size="sm"
-                icon={LogIn}
-                onClick={() => navigate('/login')}
-              >
-                Club Login
-              </Button>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
+  // =========================================================================
+  // 2. PUBLIC WEBSITE HEADER (Unauthenticated Visitors & Landing Page)
+  // Layout: [SportsClub Logo + LIVE OS] [Public Nav Links] ------ [Theme] [Club Login]
+  // =========================================================================
+  return (
+    <header
+      className="public-website-header"
+      style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 50,
+        backgroundColor: 'var(--bg-glass, rgba(255, 255, 255, 0.95))',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        borderBottom: '1px solid var(--border-color, #E2E8F0)',
+        height: '68px',
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 1.5rem',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+          maxWidth: '1280px',
+          margin: '0 auto',
+        }}
+      >
+        {/* Left: Brand Logo & Public Nav Links */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', textDecoration: 'none' }}>
+            <div
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: 'var(--radius-md, 8px)',
+                background: 'linear-gradient(135deg, #354962 0%, #D98E68 100%)',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 800,
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              <Trophy size={20} />
             </div>
-          )}
+            <div>
+              <span style={{ fontWeight: 800, fontSize: '1.15rem', letterSpacing: '-0.02em', color: 'var(--text-main, #354962)' }}>
+                Sports<span style={{ color: 'var(--primary, #D98E68)' }}>Club</span>
+              </span>
+              <span
+                style={{
+                  marginLeft: '6px',
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  backgroundColor: 'rgba(22, 163, 74, 0.12)',
+                  color: '#16a34a',
+                  padding: '2px 7px',
+                  borderRadius: '999px',
+                }}
+              >
+                LIVE OS
+              </span>
+            </div>
+          </Link>
+
+          <nav className="navbar-desktop-links" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+            <Link
+              to="/"
+              style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted, #64748B)', textDecoration: 'none' }}
+            >
+              Home
+            </Link>
+            <Link
+              to="/courts"
+              style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted, #64748B)', textDecoration: 'none' }}
+            >
+              Courts
+            </Link>
+            <Link
+              to="/memberships"
+              style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted, #64748B)', textDecoration: 'none' }}
+            >
+              Memberships
+            </Link>
+            <Link
+              to="/shop"
+              style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted, #64748B)', textDecoration: 'none' }}
+            >
+              Shop
+            </Link>
+            <Link
+              to="/canteen"
+              style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-muted, #64748B)', textDecoration: 'none' }}
+            >
+              Canteen
+            </Link>
+          </nav>
+        </div>
+
+        {/* Right: Theme Toggle & Login CTA */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: 'var(--radius-md, 8px)',
+              background: 'var(--bg-subtle, #F4F6FC)',
+              border: '1px solid var(--border-color, #E2E8F0)',
+              color: 'var(--text-main, #354962)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {theme === 'dark' ? <Sun size={17} color="#f59e0b" /> : <Moon size={17} />}
+          </button>
+
+          <Button
+            variant="primary"
+            size="sm"
+            icon={LogIn}
+            onClick={() => navigate('/login')}
+          >
+            Club Login
+          </Button>
         </div>
       </div>
     </header>

@@ -3,7 +3,8 @@ import MemberProfile from '../models/MemberProfile.js';
 import StaffProfile from '../models/StaffProfile.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import generateToken from '../utils/generateToken.js';
-import { logActivity, logAudit } from '../services/activityService.js';
+import { logActivity } from '../services/activityService.js';
+import { markLoginAttendance, markLogoutAttendance } from '../services/attendanceService.js';
 
 // ============================================
 // REGISTER MEMBER (Public Registration)
@@ -11,7 +12,8 @@ import { logActivity, logAudit } from '../services/activityService.js';
 export const registerMember = async (req, res) => {
   return res.status(403).json({
     success: false,
-    message: 'Public registration is disabled. All Member and Staff accounts are provisioned exclusively by Club Managers. Please contact Club Administration or login with your assigned credentials.',
+    message:
+      'Public registration is disabled. All Member and Staff accounts are provisioned exclusively by Club Managers. Please contact Club Administration or login with your assigned credentials.',
   });
 };
 
@@ -60,9 +62,15 @@ export const login = async (req, res) => {
     user.lastLogin = new Date();
     await user.save();
 
+    // ⚡ AUTOMATED STAFF ATTENDANCE SYNC ON LOGIN
+    let attendanceRecord = null;
+    if (user.role === 'STAFF') {
+      attendanceRecord = await markLoginAttendance(user._id);
+    }
+
     const token = generateToken(user);
 
-    // Optional audit log
+    // Activity log
     try {
       await logActivity({
         userId: user._id,
@@ -78,6 +86,7 @@ export const login = async (req, res) => {
       success: true,
       message: 'Login successful',
       token,
+      attendance: attendanceRecord,
       user: {
         id: user._id,
         _id: user._id,
@@ -92,6 +101,7 @@ export const login = async (req, res) => {
       },
       data: {
         token,
+        attendance: attendanceRecord,
         user: {
           id: user._id,
           _id: user._id,
@@ -111,6 +121,27 @@ export const login = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Login failed',
+      error: error.message,
+    });
+  }
+};
+
+// ============================================
+// LOGOUT
+// ============================================
+export const logout = async (req, res) => {
+  try {
+    if (req.user && req.user.role === 'STAFF') {
+      await markLogoutAttendance(req.user._id);
+    }
+    return res.status(200).json({
+      success: true,
+      message: 'Logged out successfully. Shift check-out updated.',
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Logout failed',
       error: error.message,
     });
   }
@@ -260,6 +291,7 @@ export default {
   registerUser,
   login,
   loginUser,
+  logout,
   getMe,
   updateProfile,
   changePassword,
