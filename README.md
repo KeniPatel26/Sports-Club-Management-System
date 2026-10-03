@@ -1,10 +1,3 @@
-# 🚀 MERN Hackathon Universal Starter Kit (Day 0 Ready)
-
-> **Speed is the #1 advantage in any hackathon.**  
-> This starter kit eliminates 2–4 hours of repetitive setup (JWT authentication, role routing, CRUD boilerplate, UI kit, toast notifications, search/filter, and activity feeds) so your team can spend 100% of the hackathon solving the actual problem statement.
-
----
-
 ## ⚡ Quick Start (Run in 2 Steps)
 
 ### 1. Install Dependencies
