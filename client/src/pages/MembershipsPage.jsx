@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Crown,
   Sparkles,
@@ -15,12 +16,15 @@ import {
   X,
   HelpCircle,
   ArrowRight,
+  ArrowLeft,
   ShieldCheck,
   Zap,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import membershipService from '../services/membershipService';
+import DashboardLayout from '../components/layout/DashboardLayout';
+import PageHeader from '../components/layout/PageHeader';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -30,6 +34,7 @@ import Select from '../components/ui/Select';
 import Loader from '../components/ui/Loader';
 
 export const MembershipsPage = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toastSuccess, toastError } = useToast();
 
@@ -113,51 +118,26 @@ export const MembershipsPage = () => {
   ];
 
   return (
-    <div style={{ maxWidth: '1240px', margin: '0 auto', paddingBottom: '3rem' }}>
-      {/* Header Banner */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '1.5rem',
-          padding: '2.25rem 2.5rem',
-          borderRadius: '16px',
-          background: 'linear-gradient(135deg, #2B3A4F 0%, #17263B 100%)',
-          color: '#FFFFFF',
-          marginBottom: '2rem',
-          boxShadow: '0 10px 30px rgba(43, 58, 79, 0.15)',
-        }}
-      >
-        <div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', backgroundColor: 'rgba(217, 142, 104, 0.2)', color: '#F0B08E', padding: '4px 12px', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.75rem' }}>
-            <Sparkles size={14} />
-            <span>PRICING & PRIVILEGES ENGINE</span>
+    <DashboardLayout>
+      <PageHeader
+        title="Membership Plans & Benefits"
+        subtitle="Automated access control, court discounts, sports shop privileges, and cafeteria savings."
+        breadcrumbs={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Memberships' }]}
+        action={
+          <div style={{ display: 'flex', gap: '0.65rem' }}>
+            <Button variant="outline" icon={ArrowLeft} onClick={() => navigate('/dashboard')}>
+              Back to Dashboard
+            </Button>
+            <Button variant="secondary" icon={RefreshCw} onClick={fetchData} loading={loading}>
+              Refresh
+            </Button>
           </div>
-          <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-            Champions Club Membership Plans
-          </h1>
-          <p style={{ margin: '0.4rem 0 0 0', color: '#B2BFCF', fontSize: '0.95rem', maxWidth: '680px', lineHeight: 1.5 }}>
-            Automated access control, real-time court discounts, sports shop privileges, and cafeteria savings calculated automatically on your account.
-          </p>
-        </div>
+        }
+      />
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <Button
-            variant="outline"
-            icon={RefreshCw}
-            onClick={fetchData}
-            loading={loading}
-            style={{ backgroundColor: 'transparent', borderColor: '#64748B', color: '#FFFFFF' }}
-          >
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      {/* Active Membership Status Card */}
-      {myMembership && myMembership.plan && (
+      <div style={{ maxWidth: '1240px', margin: '0 auto', paddingBottom: '3rem' }}>
+        {/* Active Membership Status Card */}
+        {myMembership && myMembership.plan && (
         <Card
           style={{
             marginBottom: '2.5rem',
@@ -530,7 +510,8 @@ export const MembershipsPage = () => {
           </div>
         </form>
       </Modal>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 };
 

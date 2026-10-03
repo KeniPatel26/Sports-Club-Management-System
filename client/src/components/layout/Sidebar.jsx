@@ -1,8 +1,9 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Calendar,
+  History,
   ShoppingBag,
   Coffee,
   Crown,
@@ -28,6 +29,7 @@ import { useAuth } from '../../context/AuthContext';
 export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
   const { user, isManager, isOwner, isStaff, isFrontDesk, isShopStaff, isCanteenStaff, isMember, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
@@ -45,6 +47,9 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
         { label: 'Employees', path: '/manager/employees', icon: Briefcase },
         { label: 'Courts', path: '/manager/courts', icon: Calendar },
         { label: 'Sports Shop', path: '/manager/shop', icon: ShoppingBag },
+        { label: 'Canteen & Bar', path: '/manager/canteen', icon: Coffee },
+        { label: 'Finance', path: '/manager/finance', icon: TrendingUp },
+        { label: 'Reports', path: '/manager/reports', icon: BarChart3 },
         { label: 'Settings', path: '/manager/settings', icon: SlidersHorizontal },
       ];
     }
@@ -95,8 +100,10 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
     return [
       { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
       { label: 'Book Court', path: '/courts', icon: Calendar },
+      { label: 'Booking History', path: '/booking-history', icon: History },
       { label: 'Shop', path: '/shop', icon: ShoppingBag },
-      { label: 'Canteen', path: '/canteen', icon: Coffee },
+      { label: 'My Orders', path: '/shop?view=orders', icon: Receipt },
+      { label: 'Canteen & Bar', path: '/canteen', icon: Coffee },
       { label: 'Membership', path: '/memberships', icon: Crown },
       { label: 'Profile', path: '/profile', icon: User },
     ];
@@ -177,28 +184,40 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           {navItems.map((item) => {
             const Icon = item.icon;
+            const isShopPage = location.pathname === '/shop';
+            const isOrdersView = isShopPage && location.search.includes('view=orders');
+            const isMyOrdersItem = item.label === 'My Orders' || item.path === '/shop?view=orders';
+            const isShopItem = (item.label === 'Shop' || item.label === 'Sports Shop') && item.path === '/shop';
+
+            const isActiveItem = isMyOrdersItem
+              ? isOrdersView
+              : isShopItem
+                ? isShopPage && !isOrdersView
+                : location.pathname === item.path.split('?')[0];
+
             return (
               <NavLink
                 key={item.label + item.path}
                 to={item.path}
                 title={collapsed ? item.label : undefined}
-                style={({ isActive }) => ({
+                className={isActiveItem ? 'sidebar-item-active' : ''}
+                style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: collapsed ? 'center' : 'space-between',
                   padding: '0.65rem 0.85rem',
                   borderRadius: 'var(--radius-md)',
                   fontSize: '0.875rem',
-                  fontWeight: isActive ? 600 : 500,
-                  color: isActive ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)',
-                  backgroundColor: isActive ? 'var(--sidebar-active-bg)' : 'transparent',
+                  fontWeight: isActiveItem ? 600 : 500,
+                  color: isActiveItem ? 'var(--sidebar-active-text, #ffffff)' : 'var(--sidebar-text)',
+                  backgroundColor: isActiveItem ? 'var(--sidebar-active-bg, rgba(217, 142, 104, 0.22))' : 'transparent',
                   transition: 'var(--transition)',
                   textDecoration: 'none',
                   fontFamily: 'var(--font-family-body)',
-                })}
+                }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <Icon size={17} style={{ flexShrink: 0 }} />
+                  <Icon size={17} style={{ flexShrink: 0, color: isActiveItem ? 'var(--primary)' : 'inherit' }} />
                   {!collapsed && <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>}
                 </div>
 
