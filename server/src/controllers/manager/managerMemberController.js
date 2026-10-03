@@ -37,7 +37,7 @@ export const getMembers = async (req, res) => {
       members.map(async (u) => {
         const profile = await MemberProfile.findOne({ user: u._id });
         const currentMembership = await Membership.findOne({
-          user: u._id,
+          $or: [{ user: u._id }, { member: u._id }],
           status: 'ACTIVE',
         })
           .populate('plan')
@@ -94,7 +94,7 @@ export const getMemberById = async (req, res) => {
     }
 
     const profile = await MemberProfile.findOne({ user: user._id });
-    const memberships = await Membership.find({ user: user._id })
+    const memberships = await Membership.find({ $or: [{ user: user._id }, { member: user._id }] })
       .populate('plan')
       .sort({ createdAt: -1 });
 
@@ -158,6 +158,9 @@ export const getMemberById = async (req, res) => {
  * Create new member with profile and active membership plan
  */
 export const createMember = async (req, res) => {
+  let createdUser = null;
+  let createdProfile = null;
+
   try {
     const {
       firstName,
@@ -174,8 +177,10 @@ export const createMember = async (req, res) => {
       emergencyName = '',
       emergencyPhone = '',
       emergencyRelation = '',
+      planId,
       planName = 'GOLD',
       durationDays = 365,
+      paymentMethod = 'UPI',
     } = req.body;
 
     if (!firstName || !email || !phone) {
@@ -186,8 +191,10 @@ export const createMember = async (req, res) => {
     }
 
     const resolvedEmail = email.toLowerCase().trim();
+    const resolvedPhone = phone.trim();
+
     const existing = await User.findOne({
-      $or: [{ email: resolvedEmail }, { phone: phone.trim() }],
+      $or: [{ email: resolvedEmail }, { phone: resolvedPhone }],
     });
 
     if (existing) {
@@ -199,11 +206,11 @@ export const createMember = async (req, res) => {
 
     const hashedPassword = await hashPassword(password);
 
-    const user = await User.create({
+    createdUser = await User.create({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: resolvedEmail,
-      phone: phone.trim(),
+      phone: resolvedPhone,
       password: hashedPassword,
       role: 'MEMBER',
       department: null,
@@ -213,8 +220,8 @@ export const createMember = async (req, res) => {
     const memberCount = await MemberProfile.countDocuments();
     const memberId = `MEM${(memberCount + 1001).toString()}`;
 
-    const profile = await MemberProfile.create({
-      user: user._id,
+    createdProfile = await MemberProfile.create({
+      user: createdUser._id,
       memberId,
       dateOfBirth: dob ? new Date(dob) : null,
       gender,
@@ -228,46 +235,57 @@ export const createMember = async (req, res) => {
     });
 
     // Find or create MembershipPlan
-    let selectedPlan = await MembershipPlan.findOne({
-      name: { $regex: new RegExp(planName, 'i') },
-    });
+    let selectedPlan = null;
+    if (planId) {
+      selectedPlan = await MembershipPlan.findById(planId);
+    }
 
-    if (!selectedPlan) {
-      selectedPlan = await MembershipPlan.create({
-        name: planName.toUpperCase(),
-        price: planName.toUpperCase().includes('GOLD') ? 20000 : 12000,
-        durationInDays: durationDays,
-        courtDiscount: 50,
-        shopDiscount: 10,
-        canteenDiscount: 10,
+    if (!selectedPlan && planName) {
+      selectedPlan = await MembershipPlan.findOne({
+        name: { $regex: new RegExp(planName, 'i') },
       });
     }
 
+    if (!selectedPlan) {
+      selectedPlan = await MembershipPlan.create({
+        name: (planName || 'GOLD').toUpperCase(),
+        price: (planName || 'GOLD').toUpperCase().includes('GOLD') ? 20000 : 12000,
+        durationInDays: durationDays || 365,
+        courtDiscount: 20,
+        shopDiscount: 15,
+        canteenDiscount: 15,
+      });
+    }
+
+    const duration = selectedPlan.durationInDays || selectedPlan.duration || durationDays || 365;
     const startDate = new Date();
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + (selectedPlan.durationInDays || durationDays));
+    const expiryDate = new Date(startDate.getTime() + duration * 24 * 60 * 60 * 1000);
 
     const membership = await Membership.create({
-      user: user._id,
+      member: createdUser._id,
+      user: createdUser._id,
       plan: selectedPlan._id,
       startDate,
-      endDate,
+      endDate: expiryDate,
+      expiryDate,
       status: 'ACTIVE',
-      paymentMethod: 'UPI',
+      paymentMethod,
+      paymentStatus: 'PAID',
+      amountPaid: selectedPlan.price || 0,
     });
 
     // Auto-generate initial invoice & payment log
     const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
     await Invoice.create({
       invoiceNumber,
-      user: user._id,
-      customerName: `${user.firstName} ${user.lastName}`.trim(),
-      customerEmail: user.email,
-      customerPhone: user.phone,
+      user: createdUser._id,
+      customerName: `${createdUser.firstName} ${createdUser.lastName || ''}`.trim(),
+      customerEmail: createdUser.email,
+      customerPhone: createdUser.phone,
       type: 'MEMBERSHIP',
       items: [
         {
-          description: `${selectedPlan.name} Membership Fee (1 Year)`,
+          description: `${selectedPlan.name} Membership Fee (${duration} Days)`,
           quantity: 1,
           unitPrice: selectedPlan.price,
           amount: selectedPlan.price,
@@ -281,11 +299,11 @@ export const createMember = async (req, res) => {
 
     await Payment.create({
       paymentId: `PAY-${Date.now().toString().slice(-6)}`,
-      user: user._id,
-      customerName: `${user.firstName} ${user.lastName}`.trim(),
+      user: createdUser._id,
+      customerName: `${createdUser.firstName} ${createdUser.lastName || ''}`.trim(),
       type: 'MEMBERSHIP',
       amount: selectedPlan.price,
-      method: 'UPI',
+      method: paymentMethod,
       status: 'SUCCESS',
       referenceId: invoiceNumber,
     });
@@ -294,16 +312,25 @@ export const createMember = async (req, res) => {
       success: true,
       message: 'Member registered and assigned membership successfully',
       data: {
-        user,
-        profile,
+        user: createdUser,
+        profile: createdProfile,
         membership,
       },
     });
   } catch (error) {
     console.error('createMember error:', error);
+
+    // Rollback partially created records to avoid 409 conflict on retry
+    if (createdUser && createdUser._id) {
+      await User.findByIdAndDelete(createdUser._id).catch(() => {});
+    }
+    if (createdProfile && createdProfile._id) {
+      await MemberProfile.findByIdAndDelete(createdProfile._id).catch(() => {});
+    }
+
     return res.status(500).json({
       success: false,
-      message: 'Failed to create member',
+      message: error.message || 'Failed to create member',
       error: error.message,
     });
   }

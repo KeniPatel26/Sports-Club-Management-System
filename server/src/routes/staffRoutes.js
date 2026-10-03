@@ -12,6 +12,8 @@ import {
   getFrontDeskOverview,
   searchMembers,
   createFrontDeskBooking,
+  checkInBooking,
+  checkOutBooking,
   updateBookingStatus,
   getCourtAvailability,
   rescheduleBooking,
@@ -24,12 +26,14 @@ import {
   getShopOverview,
   getShopProducts,
   receiveStock,
+  adjustStock,
   reportDamage,
   getInventoryHistory,
   processCounterSale,
   getShopOrders,
   getShopPayments,
   updateShopOrderStatus,
+  processOrderReturn,
   reportLowStock,
 } from '../controllers/staff/sportsShopController.js';
 import {
@@ -89,6 +93,18 @@ router.post(
   requirePermission('BOOKING_CREATE'),
   createFrontDeskBooking
 );
+router.post(
+  '/front-desk/bookings/:id/check-in',
+  authenticate,
+  requirePermission('BOOKING_UPDATE'),
+  checkInBooking
+);
+router.post(
+  '/front-desk/bookings/:id/check-out',
+  authenticate,
+  requirePermission('BOOKING_UPDATE'),
+  checkOutBooking
+);
 router.patch(
   '/front-desk/bookings/:id/status',
   authenticate,
@@ -142,6 +158,12 @@ router.post(
   receiveStock
 );
 router.post(
+  '/sports-shop/inventory/adjust',
+  authenticate,
+  requirePermission('INVENTORY_MANAGE'),
+  adjustStock
+);
+router.post(
   '/sports-shop/inventory/damage',
   authenticate,
   requirePermission('INVENTORY_MANAGE'),
@@ -171,6 +193,12 @@ router.patch(
   requirePermission('SHOP_ORDER_MANAGE'),
   updateShopOrderStatus
 );
+router.post(
+  '/sports-shop/orders/:id/return',
+  authenticate,
+  requirePermission('SHOP_ORDER_MANAGE'),
+  processOrderReturn
+);
 router.get(
   '/sports-shop/payments',
   authenticate,
@@ -183,6 +211,7 @@ router.post(
   requirePermission('INVENTORY_VIEW'),
   reportLowStock
 );
+
 
 // ============================================
 // 3. CANTEEN & BAR STAFF

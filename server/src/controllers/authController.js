@@ -3,136 +3,18 @@ import MemberProfile from '../models/MemberProfile.js';
 import StaffProfile from '../models/StaffProfile.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import generateToken from '../utils/generateToken.js';
-import { logActivity, logAudit } from '../services/activityService.js';
+import { logActivity } from '../services/activityService.js';
+import { markLoginAttendance, markLogoutAttendance } from '../services/attendanceService.js';
 
 // ============================================
 // REGISTER MEMBER (Public Registration)
 // ============================================
 export const registerMember = async (req, res) => {
-  try {
-    const {
-      firstName,
-      lastName = '',
-      name,
-      email,
-      emailId,
-      phone,
-      password,
-    } = req.body;
-
-    const resolvedEmail = (email || emailId || '').toLowerCase().trim();
-    let fName = firstName;
-    let lName = lastName;
-
-    // Split compound name if firstName not provided
-    if (!fName && name) {
-      const parts = name.trim().split(' ');
-      fName = parts[0];
-      lName = parts.slice(1).join(' ');
-    }
-
-    if (!fName || !resolvedEmail || !phone || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'All required fields must be provided',
-      });
-    }
-
-    const existingUser = await User.findOne({
-      $or: [
-        { email: resolvedEmail },
-        { phone: phone.trim() },
-      ],
-    });
-
-    if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        message: 'A user with this email or phone already exists',
-      });
-    }
-
-    const hashedPassword = await hashPassword(password);
-
-    // Enforce role = MEMBER for public registration
-    const user = await User.create({
-      firstName: fName.trim(),
-      lastName: lName.trim(),
-      email: resolvedEmail,
-      phone: phone.trim(),
-      password: hashedPassword,
-      role: 'MEMBER',
-      department: null,
-      status: 'ACTIVE',
-    });
-
-    // Auto-create initial MemberProfile
-    try {
-      const memberCount = await MemberProfile.countDocuments();
-      const memberId = `MEM${(memberCount + 1001).toString()}`;
-      await MemberProfile.create({
-        user: user._id,
-        memberId,
-        joinedAt: new Date(),
-      });
-    } catch (profileErr) {
-      console.warn('MemberProfile auto-creation warning:', profileErr.message);
-    }
-
-    const token = generateToken(user);
-
-    // Optional audit logging
-    try {
-      await logActivity({
-        userId: user._id,
-        action: 'Member registered for Champions Club',
-        entity: 'User',
-        entityId: user._id,
-      });
-    } catch (e) {
-      // ignore
-    }
-
-    return res.status(201).json({
-      success: true,
-      message: 'Member registered successfully',
-      token,
-      user: {
-        id: user._id,
-        _id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        department: user.department,
-        status: user.status,
-      },
-      data: {
-        token,
-        user: {
-          id: user._id,
-          _id: user._id,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          department: user.department,
-          status: user.status,
-        },
-      },
-    });
-  } catch (error) {
-    console.error('Register error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Registration failed',
-      error: error.message,
-    });
-  }
+  return res.status(403).json({
+    success: false,
+    message:
+      'Public registration is disabled. All Member and Staff accounts are provisioned exclusively by Club Managers. Please contact Club Administration or login with your assigned credentials.',
+  });
 };
 
 // ============================================
@@ -180,9 +62,15 @@ export const login = async (req, res) => {
     user.lastLogin = new Date();
     await user.save();
 
+    // ⚡ AUTOMATED STAFF ATTENDANCE SYNC ON LOGIN
+    let attendanceRecord = null;
+    if (user.role === 'STAFF') {
+      attendanceRecord = await markLoginAttendance(user._id);
+    }
+
     const token = generateToken(user);
 
-    // Optional audit log
+    // Activity log
     try {
       await logActivity({
         userId: user._id,
@@ -198,6 +86,7 @@ export const login = async (req, res) => {
       success: true,
       message: 'Login successful',
       token,
+      attendance: attendanceRecord,
       user: {
         id: user._id,
         _id: user._id,
@@ -212,6 +101,7 @@ export const login = async (req, res) => {
       },
       data: {
         token,
+        attendance: attendanceRecord,
         user: {
           id: user._id,
           _id: user._id,
@@ -231,6 +121,27 @@ export const login = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Login failed',
+      error: error.message,
+    });
+  }
+};
+
+// ============================================
+// LOGOUT
+// ============================================
+export const logout = async (req, res) => {
+  try {
+    if (req.user && req.user.role === 'STAFF') {
+      await markLogoutAttendance(req.user._id);
+    }
+    return res.status(200).json({
+      success: true,
+      message: 'Logged out successfully. Shift check-out updated.',
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Logout failed',
       error: error.message,
     });
   }
@@ -380,6 +291,7 @@ export default {
   registerUser,
   login,
   loginUser,
+  logout,
   getMe,
   updateProfile,
   changePassword,

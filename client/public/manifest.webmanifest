@@ -1,0 +1,15 @@
+{
+  "name": "Sports Club Management System",
+  "short_name": "SportsClub",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F4F6FC",
+  "theme_color": "#354962",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

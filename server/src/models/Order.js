@@ -117,20 +117,37 @@ const orderSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: [
+        'new',
         'pending',
+        'processing',
         'confirmed',
         'preparing',
         'ready',
+        'ready_for_pickup',
+        'packed',
+        'collected',
+        'shipped',
+        'delivered',
         'completed',
         'cancelled',
+        'returned',
       ],
-      default: 'pending',
+      default: 'new',
+    },
+
+    returnDetails: {
+      isReturned: { type: Boolean, default: false },
+      reason: { type: String, default: '' },
+      returnedAt: { type: Date, default: null },
+      refundAmount: { type: Number, default: 0 },
+      processedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     },
   },
   {
     timestamps: true,
   }
 );
+
 
 export const Order =
   mongoose.models.Order ||

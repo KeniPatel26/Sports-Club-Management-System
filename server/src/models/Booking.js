@@ -20,14 +20,21 @@ const bookingSchema = new mongoose.Schema(
 
     bookingType: {
       type: String,
-      enum: ['MEMBER', 'WALK_IN', 'SOCIAL_PLAY'],
+      enum: ['MEMBER', 'WALK_IN', 'PHONE', 'FRONT_DESK', 'SOCIAL_PLAY', 'ONLINE'],
       default: 'MEMBER',
       required: true,
+    },
+
+    bookingSource: {
+      type: String,
+      enum: ['FRONT_DESK', 'PHONE', 'WALK_IN', 'ONLINE'],
+      default: 'FRONT_DESK',
     },
 
     walkInDetails: {
       name: { type: String, default: '' },
       phone: { type: String, default: '' },
+      email: { type: String, default: '' },
     },
 
     date: {
@@ -77,13 +84,33 @@ const bookingSchema = new mongoose.Schema(
     paymentStatus: {
       type: String,
       enum: ['PENDING', 'PAID', 'REFUNDED'],
-      default: 'PENDING',
+      default: 'PAID',
     },
 
     status: {
       type: String,
-      enum: ['CONFIRMED', 'CANCELLED', 'COMPLETED', 'NO_SHOW'],
+      enum: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED', 'NO_SHOW'],
       default: 'CONFIRMED',
+    },
+
+    checkInTime: {
+      type: Date,
+      default: null,
+    },
+
+    checkOutTime: {
+      type: Date,
+      default: null,
+    },
+
+    cancellationReason: {
+      type: String,
+      default: '',
+    },
+
+    notes: {
+      type: String,
+      default: '',
     },
 
     bookedBy: {
@@ -96,6 +123,7 @@ const bookingSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
 
 // Compound index to guarantee no two bookings exist for the same court, date, and startTime
 bookingSchema.index(

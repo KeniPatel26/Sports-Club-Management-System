@@ -9,13 +9,18 @@ export const staffService = {
     return res.data;
   },
 
+  getMyAttendance: async () => {
+    const res = await api.get('/attendance/my');
+    return res.data;
+  },
+
   checkIn: async () => {
-    const res = await api.post('/staff/check-in');
+    const res = await api.post('/attendance/check-in');
     return res.data;
   },
 
   checkOut: async () => {
-    const res = await api.post('/staff/check-out');
+    const res = await api.post('/attendance/check-out');
     return res.data;
   },
 
@@ -53,6 +58,16 @@ export const staffService = {
 
   createFrontDeskBooking: async (bookingData) => {
     const res = await api.post('/staff/front-desk/bookings', bookingData);
+    return res.data;
+  },
+
+  checkInBooking: async (bookingId) => {
+    const res = await api.post(`/staff/front-desk/bookings/${bookingId}/check-in`);
+    return res.data;
+  },
+
+  checkOutBooking: async (bookingId) => {
+    const res = await api.post(`/staff/front-desk/bookings/${bookingId}/check-out`);
     return res.data;
   },
 
@@ -101,6 +116,11 @@ export const staffService = {
     return res.data;
   },
 
+  adjustStock: async (data) => {
+    const res = await api.post('/staff/sports-shop/inventory/adjust', data);
+    return res.data;
+  },
+
   reportDamagedStock: async (data) => {
     const res = await api.post('/staff/sports-shop/inventory/damage', data);
     return res.data;
@@ -128,6 +148,11 @@ export const staffService = {
     return res.data;
   },
 
+  processOrderReturn: async (orderId, data) => {
+    const res = await api.post(`/staff/sports-shop/orders/${orderId}/return`, data);
+    return res.data;
+  },
+
   getShopPayments: async () => {
     const res = await api.get('/staff/sports-shop/payments');
     return res.data;
@@ -137,6 +162,7 @@ export const staffService = {
     const res = await api.post('/staff/sports-shop/report-low-stock', data);
     return res.data;
   },
+
 
   // ============================================
   // 3. CANTEEN & BAR STAFF

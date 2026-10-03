@@ -86,7 +86,7 @@ export const AppRoutes = () => {
       {/* Public Pages */}
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+      <Route path="/register" element={<Navigate to="/login" replace />} />
 
       {/* Main Shared Pages */}
       <Route

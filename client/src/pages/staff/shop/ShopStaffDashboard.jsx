@@ -25,6 +25,11 @@ import {
   ShieldCheck,
   MinusCircle,
   History,
+  SlidersHorizontal,
+  RotateCcw,
+  LayoutGrid,
+  List,
+  Eye,
 } from 'lucide-react';
 import staffService from '../../../services/staffService';
 import { useAuth } from '../../../context/AuthContext';
@@ -56,8 +61,19 @@ export const ShopStaffDashboard = () => {
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [receivedQty, setReceivedQty] = useState(10);
+  const [supplierName, setSupplierName] = useState('Yonex India Authorized');
+  const [supplierInvoice, setSupplierInvoice] = useState('INV-2026-089');
+  const [receivedDate, setReceivedDate] = useState(new Date().toISOString().split('T')[0]);
   const [receiveReason, setReceiveReason] = useState('New shipment delivery received');
   const [submittingStock, setSubmittingStock] = useState(false);
+
+  // Stock Adjustment Modal state (Damaged, Missing, Wrong count, Returned)
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [adjustProductId, setAdjustProductId] = useState('');
+  const [adjustQtyChange, setAdjustQtyChange] = useState(-1);
+  const [adjustType, setAdjustType] = useState('DAMAGED'); // DAMAGED, MISSING, WRONG_COUNT, RETURNED, MANUAL
+  const [adjustReason, setAdjustReason] = useState('Damaged during storage/display');
+  const [submittingAdjust, setSubmittingAdjust] = useState(false);
 
   // Report Damage Modal state
   const [showDamageModal, setShowDamageModal] = useState(false);
@@ -65,6 +81,15 @@ export const ShopStaffDashboard = () => {
   const [damageQty, setDamageQty] = useState(1);
   const [damageReason, setDamageReason] = useState('Broken string / damaged in storage');
   const [submittingDamage, setSubmittingDamage] = useState(false);
+
+  // Controlled Return & Refund Modal state
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnOrderId, setReturnOrderId] = useState(null);
+  const [returnProductId, setReturnProductId] = useState('');
+  const [returnQty, setReturnQty] = useState(1);
+  const [returnReason, setReturnReason] = useState('Customer returned unused product in original package');
+  const [returnRefundAmount, setReturnRefundAmount] = useState(0);
+  const [submittingReturn, setSubmittingReturn] = useState(false);
 
   // Inventory History state
   const [inventoryHistory, setInventoryHistory] = useState([]);
@@ -86,6 +111,8 @@ export const ShopStaffDashboard = () => {
   const [shopOrders, setShopOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [orderFilter, setOrderFilter] = useState('ALL'); // ALL, pending, confirmed, preparing, ready, completed
+  const [orderViewMode, setOrderViewMode] = useState('kanban'); // 'kanban' | 'table'
+  const [selectedOrderForDrawer, setSelectedOrderForDrawer] = useState(null);
 
   // Payments state
   const [paymentsList, setPaymentsList] = useState([]);
@@ -111,6 +138,7 @@ export const ShopStaffDashboard = () => {
         if (resProducts.data.length > 0 && !selectedProductId) {
           setSelectedProductId(resProducts.data[0]._id);
           setDamageProductId(resProducts.data[0]._id);
+          setAdjustProductId(resProducts.data[0]._id);
         }
       }
     } catch (err) {
@@ -222,7 +250,7 @@ export const ShopStaffDashboard = () => {
     return () => clearTimeout(timer);
   }, [memberSearchQuery]);
 
-  // Stock In submission
+  // Stock In submission (with Supplier & Invoice)
   const handleReceiveStock = async (e) => {
     e.preventDefault();
     setSubmittingStock(true);
@@ -230,7 +258,10 @@ export const ShopStaffDashboard = () => {
       const res = await staffService.receiveStock({
         productId: selectedProductId,
         quantity: receivedQty,
-        reason: receiveReason,
+        supplier: supplierName,
+        invoiceNumber: supplierInvoice,
+        receivedDate,
+        notes: receiveReason,
       });
       if (res.success) {
         setAlert({ type: 'success', message: res.message || 'Stock updated successfully.' });
@@ -242,6 +273,30 @@ export const ShopStaffDashboard = () => {
       setAlert({ type: 'danger', message: err.response?.data?.message || 'Failed to update stock' });
     } finally {
       setSubmittingStock(false);
+    }
+  };
+
+  // Stock Adjustment submission
+  const handleAdjustStock = async (e) => {
+    e.preventDefault();
+    setSubmittingAdjust(true);
+    try {
+      const res = await staffService.adjustStock({
+        productId: adjustProductId,
+        quantityChange: adjustQtyChange,
+        adjustmentType: adjustType,
+        reason: adjustReason,
+      });
+      if (res.success) {
+        setAlert({ type: 'success', message: res.message || 'Stock adjusted successfully.' });
+        setShowAdjustModal(false);
+        fetchShopData();
+        if (activeTab === 'inventory') fetchInventoryHistory();
+      }
+    } catch (err) {
+      setAlert({ type: 'danger', message: err.response?.data?.message || 'Failed to adjust stock' });
+    } finally {
+      setSubmittingAdjust(false);
     }
   };
 
@@ -267,6 +322,34 @@ export const ShopStaffDashboard = () => {
       setSubmittingDamage(false);
     }
   };
+
+  // Process Return & Refund
+  const handleReturnOrder = async (e) => {
+    e.preventDefault();
+    if (!returnOrderId || !returnProductId) return;
+
+    setSubmittingReturn(true);
+    try {
+      const res = await staffService.processOrderReturn(returnOrderId, {
+        productId: returnProductId,
+        quantity: returnQty,
+        returnReason,
+        refundAmount: returnRefundAmount,
+      });
+      if (res.success) {
+        setAlert({ type: 'success', message: res.message || 'Return and restock processed successfully.' });
+        setShowReturnModal(false);
+        fetchOrders(orderFilter);
+        fetchShopData();
+        if (activeTab === 'inventory') fetchInventoryHistory();
+      }
+    } catch (err) {
+      setAlert({ type: 'danger', message: err.response?.data?.message || 'Failed to process return' });
+    } finally {
+      setSubmittingReturn(false);
+    }
+  };
+
 
   // Cart operations
   const addToCart = (product) => {
@@ -415,7 +498,12 @@ export const ShopStaffDashboard = () => {
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <ShoppingBag size={24} color="var(--primary-navy)" />
+            {activeTab === 'products' && <ShoppingBag size={24} color="var(--primary-navy)" />}
+            {activeTab === 'inventory' && <Package size={24} color="var(--primary-navy)" />}
+            {activeTab === 'sales' && <ShoppingCart size={24} color="var(--primary-navy)" />}
+            {activeTab === 'orders' && <Truck size={24} color="var(--primary-navy)" />}
+            {activeTab === 'payments' && <Receipt size={24} color="var(--primary-navy)" />}
+            {activeTab === 'dashboard' && <TrendingUp size={24} color="var(--primary-navy)" />}
             <h1
               style={{
                 fontSize: '1.65rem',
@@ -425,7 +513,12 @@ export const ShopStaffDashboard = () => {
                 margin: 0,
               }}
             >
-              Sports Shop Terminal
+              {activeTab === 'products' && 'Product Catalog & Stock Levels'}
+              {activeTab === 'inventory' && 'Inventory & Stock Management'}
+              {activeTab === 'sales' && 'Counter POS Checkout'}
+              {activeTab === 'orders' && 'Online Orders & Fulfillment'}
+              {activeTab === 'payments' && 'Shop Transaction Ledger & Receipts'}
+              {activeTab === 'dashboard' && 'Sports Shop Dashboard'}
             </h1>
             <span
               style={{
@@ -438,11 +531,21 @@ export const ShopStaffDashboard = () => {
                 border: '1px solid var(--border)',
               }}
             >
-              PRO SHOP OPERATIONS
+              {activeTab === 'products' && 'CATALOG'}
+              {activeTab === 'inventory' && 'INVENTORY'}
+              {activeTab === 'sales' && 'POINT OF SALE'}
+              {activeTab === 'orders' && 'FULFILLMENT'}
+              {activeTab === 'payments' && 'TRANSACTIONS'}
+              {activeTab === 'dashboard' && 'DASHBOARD'}
             </span>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>
-            Shared Inventory • Counter POS Checkout • Online Order Fulfillment • Stock Management
+            {activeTab === 'products' && 'Browse sports catalog, stock levels, and product prices'}
+            {activeTab === 'inventory' && 'Receive stock deliveries, record adjustments, and audit inventory logs'}
+            {activeTab === 'sales' && 'Rapid point-of-sale checkout for walk-in customers and club members'}
+            {activeTab === 'orders' && 'Track and update online order fulfillment stages (Pending → Preparing → Ready → Delivered)'}
+            {activeTab === 'payments' && 'Review point-of-sale payments, order invoices, and payment method totals'}
+            {activeTab === 'dashboard' && `Logged in as ${user?.firstName || 'Staff'} • Daily sales metrics, order queue, and inventory alerts`}
           </p>
         </div>
 
@@ -516,7 +619,7 @@ export const ShopStaffDashboard = () => {
               gap: '0.5rem',
               padding: '0.55rem 1.15rem',
               borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--primary-peach)',
+              backgroundColor: '#D98E68',
               border: 'none',
               color: '#FFFFFF',
               fontSize: '0.875rem',
@@ -525,58 +628,10 @@ export const ShopStaffDashboard = () => {
               boxShadow: '0 2px 8px rgba(217, 142, 104, 0.3)',
             }}
           >
-            <ShoppingCart size={16} />
+            <ShoppingCart size={16} color="#FFFFFF" />
             Counter POS Sale
           </button>
         </div>
-      </div>
-
-      {/* Sub-Nav Navigation Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '0.5rem',
-          borderBottom: '1px solid var(--border)',
-          paddingBottom: '0.75rem',
-          marginBottom: '1.5rem',
-          overflowX: 'auto',
-        }}
-      >
-        {[
-          { id: 'dashboard', label: 'Shop Dashboard', icon: TrendingUp },
-          { id: 'products', label: 'Product Catalog', icon: ShoppingBag },
-          { id: 'inventory', label: 'Shared Inventory & Stock Logs', icon: Package },
-          { id: 'sales', label: 'Counter POS Sales', icon: ShoppingCart },
-          { id: 'orders', label: 'Online Orders Lifecycle', icon: Truck },
-          { id: 'payments', label: 'Shop Payments', icon: Receipt },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.55rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                border: 'none',
-                backgroundColor: isActive ? 'var(--primary-navy)' : 'transparent',
-                color: isActive ? '#FFFFFF' : 'var(--text-muted)',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                transition: 'var(--transition)',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <Icon size={16} />
-              {tab.label}
-            </button>
-          );
-        })}
       </div>
 
       {alert && (
@@ -585,108 +640,107 @@ export const ShopStaffDashboard = () => {
         </div>
       )}
 
-      {/* 4 KPIs - Always Visible */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1.75rem',
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            padding: '1.15rem 1.25rem',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              TODAY'S SALES
-            </span>
-            <DollarSign size={18} color="var(--primary-navy)" />
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary-navy)', marginTop: '0.4rem' }}>
-            ₹{overview?.kpi?.todaySales || '24,500'}
-          </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>
-            Counter & Online combined
-          </span>
-        </div>
-
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            padding: '1.15rem 1.25rem',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              PENDING ORDERS
-            </span>
-            <Clock size={18} color="var(--warning)" />
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--warning)', marginTop: '0.4rem' }}>
-            {overview?.kpi?.pendingOrders || 12}
-          </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-            Need preparation
-          </span>
-        </div>
-
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            padding: '1.15rem 1.25rem',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              READY FOR PICKUP
-            </span>
-            <CheckCircle size={18} color="var(--success)" />
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--success)', marginTop: '0.4rem' }}>
-            {overview?.kpi?.readyForPickup || 5}
-          </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-            Awaiting member pickup
-          </span>
-        </div>
-
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            padding: '1.15rem 1.25rem',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              LOW STOCK ALERTS
-            </span>
-            <AlertTriangle size={18} color="var(--danger)" />
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--danger)', marginTop: '0.4rem' }}>
-            {overview?.kpi?.lowStockCount || 7}
-          </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-            Under threshold level
-          </span>
-        </div>
-      </div>
-
       {/* ======================================================== */}
       {/* TAB 1: SHOP DASHBOARD OVERVIEW */}
       {/* ======================================================== */}
       {activeTab === 'dashboard' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+          {/* 4 KPIs - Displayed only on Dashboard */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '1rem',
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)',
+                padding: '1.15rem 1.25rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                  TODAY'S SALES
+                </span>
+                <DollarSign size={18} color="var(--primary-navy)" />
+              </div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary-navy)', marginTop: '0.4rem' }}>
+                ₹{overview?.kpi?.todaySales || '24,500'}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>
+                Counter & Online combined
+              </span>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)',
+                padding: '1.15rem 1.25rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                  PENDING ORDERS
+                </span>
+                <Clock size={18} color="var(--warning)" />
+              </div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--warning)', marginTop: '0.4rem' }}>
+                {overview?.kpi?.pendingOrders || 12}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                Need preparation
+              </span>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)',
+                padding: '1.15rem 1.25rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                  READY FOR PICKUP
+                </span>
+                <CheckCircle size={18} color="var(--success)" />
+              </div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--success)', marginTop: '0.4rem' }}>
+                {overview?.kpi?.readyForPickup || 5}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                Awaiting member pickup
+              </span>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)',
+                padding: '1.15rem 1.25rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                  LOW STOCK ALERTS
+                </span>
+                <AlertTriangle size={18} color="var(--danger)" />
+              </div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--danger)', marginTop: '0.4rem' }}>
+                {overview?.kpi?.lowStockCount || 7}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                Under threshold level
+              </span>
+            </div>
+          </div>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
           {/* Recent Orders Table */}
           <div
@@ -945,10 +999,11 @@ export const ShopStaffDashboard = () => {
             </div>
           </div>
         </div>
+      </div>
       )}
 
       {/* ======================================================== */}
-      {/* TAB 2: PRODUCT CATALOG & SEARCH */}
+      {/* TAB 2: PRODUCT CATALOG & SEARCH (VIEW ONLY FOR STAFF) */}
       {/* ======================================================== */}
       {activeTab === 'products' && (
         <div
@@ -959,6 +1014,32 @@ export const ShopStaffDashboard = () => {
             padding: '1.5rem',
           }}
         >
+          {/* Security & Access Banner */}
+          <div
+            style={{
+              backgroundColor: 'rgba(53, 73, 98, 0.06)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '0.75rem 1rem',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <ShieldCheck size={18} color="var(--primary-navy)" />
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-main)', fontWeight: 600 }}>
+                Operational Catalog (View Only): Staff can search items, check SKU/stock, and sell via POS. Adding products or editing prices is restricted to Club Managers.
+              </span>
+            </div>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary-navy)', backgroundColor: 'var(--lavender)', padding: '2px 8px', borderRadius: '4px' }}>
+              STAFF PERMISSION
+            </span>
+          </div>
+
           {/* Filters & Search */}
           <div
             style={{
@@ -992,7 +1073,7 @@ export const ShopStaffDashboard = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-              {['ALL', 'Rackets', 'Balls', 'Shoes', 'Apparel', 'Accessories'].map((cat) => (
+              {['ALL', 'Rackets', 'Balls', 'Shoes', 'Apparel', 'Accessories', 'Sports Equipment'].map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
@@ -1148,15 +1229,15 @@ export const ShopStaffDashboard = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <ShieldCheck size={20} color="var(--primary-navy)" />
                 <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--primary-navy)' }}>
-                  Shared Real-Time Inventory
+                  Shared Real-Time Inventory Control
                 </h3>
               </div>
               <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                Online member purchases and counter POS sales automatically synchronize with and deduct from the exact same inventory pool.
+                Online member purchases and counter POS sales automatically synchronize with and deduct from the exact same physical inventory.
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <button
                 onClick={() => setShowReceiveModal(true)}
                 style={{
@@ -1174,6 +1255,27 @@ export const ShopStaffDashboard = () => {
                 }}
               >
                 <Plus size={15} /> + Receive Stock
+              </button>
+              <button
+                onClick={() => {
+                  setAdjustProductId(products[0]?._id || '');
+                  setShowAdjustModal(true);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.55rem 1rem',
+                  backgroundColor: 'var(--primary-navy)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                }}
+              >
+                <SlidersHorizontal size={15} /> Stock Adjustment
               </button>
               <button
                 onClick={() => setShowDamageModal(true)}
@@ -1195,6 +1297,7 @@ export const ShopStaffDashboard = () => {
               </button>
             </div>
           </div>
+
 
           {/* Inventory Transaction Logs */}
           <div
@@ -1647,21 +1750,17 @@ export const ShopStaffDashboard = () => {
       )}
 
       {/* ======================================================== */}
-      {/* TAB 5: ONLINE ORDERS LIFECYCLE */}
+      {/* TAB 5: ONLINE ORDERS LIFECYCLE & KANBAN BOARD */}
       {/* ======================================================== */}
       {activeTab === 'orders' && (
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            overflow: 'hidden',
-          }}
-        >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Orders Top Bar */}
           <div
             style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border)',
               padding: '1.25rem',
-              borderBottom: '1px solid var(--border)',
               display: 'flex',
               flexWrap: 'wrap',
               justifyContent: 'space-between',
@@ -1670,177 +1769,1088 @@ export const ShopStaffDashboard = () => {
             }}
           >
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                Online Shop Orders Lifecycle
-              </h3>
-              <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Lifecycle: NEW ➔ PROCESSING ➔ READY FOR PICKUP / PACKED ➔ COLLECTED ➔ DELIVERED
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <Truck size={20} color="var(--primary-navy)" />
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'var(--font-family-display)' }}>
+                  Online Shop Orders Pipeline
+                </h3>
+              </div>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                Operational Workflow: NEW ➔ PROCESSING ➔ READY FOR PICKUP ➔ COMPLETED / DELIVERED
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-              {[
-                { id: 'ALL', label: 'All' },
-                { id: 'pending', label: 'New Orders' },
-                { id: 'preparing', label: 'Processing' },
-                { id: 'ready', label: 'Ready for Pickup' },
-                { id: 'completed', label: 'Completed / Delivered' },
-              ].map((f) => (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              {/* View Toggle */}
+              <div
+                style={{
+                  display: 'flex',
+                  backgroundColor: 'var(--bg-main)',
+                  padding: '3px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border)',
+                }}
+              >
                 <button
-                  key={f.id}
-                  onClick={() => setOrderFilter(f.id)}
+                  type="button"
+                  onClick={() => setOrderViewMode('kanban')}
                   style={{
-                    padding: '0.4rem 0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    padding: '0.35rem 0.75rem',
                     borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border)',
-                    backgroundColor: orderFilter === f.id ? 'var(--primary-navy)' : '#FFFFFF',
-                    color: orderFilter === f.id ? '#FFFFFF' : 'var(--text-muted)',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
+                    border: 'none',
+                    backgroundColor: orderViewMode === 'kanban' ? 'var(--primary-navy)' : 'transparent',
+                    color: orderViewMode === 'kanban' ? '#FFFFFF' : 'var(--text-muted)',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
                     cursor: 'pointer',
                   }}
                 >
-                  {f.label}
+                  <LayoutGrid size={14} /> Kanban Board
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setOrderViewMode('table')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: 'none',
+                    backgroundColor: orderViewMode === 'table' ? 'var(--primary-navy)' : 'transparent',
+                    color: orderViewMode === 'table' ? '#FFFFFF' : 'var(--text-muted)',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <List size={14} /> Table View
+                </button>
+              </div>
+
+              {/* Status Filter for Table View */}
+              {orderViewMode === 'table' && (
+                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                  {[
+                    { id: 'ALL', label: 'All' },
+                    { id: 'pending', label: 'New' },
+                    { id: 'preparing', label: 'Processing' },
+                    { id: 'ready', label: 'Ready' },
+                    { id: 'completed', label: 'Completed' },
+                  ].map((f) => (
+                    <button
+                      key={f.id}
+                      onClick={() => setOrderFilter(f.id)}
+                      style={{
+                        padding: '0.35rem 0.65rem',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border)',
+                        backgroundColor: orderFilter === f.id ? 'var(--primary-navy)' : '#FFFFFF',
+                        color: orderFilter === f.id ? '#FFFFFF' : 'var(--text-muted)',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={() => fetchOrders(orderFilter)}
+                style={{
+                  background: '#FFFFFF',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '0.4rem 0.75rem',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                }}
+              >
+                <RefreshCw size={13} /> Refresh
+              </button>
             </div>
           </div>
 
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-              <thead>
-                <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border)' }}>
-                  <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-muted)' }}>ORDER ID</th>
-                  <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-muted)' }}>MEMBER / BUYER</th>
-                  <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-muted)' }}>ITEMS</th>
-                  <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-muted)' }}>FULFILLMENT</th>
-                  <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-muted)' }}>STATUS</th>
-                  <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-muted)' }}>TOTAL</th>
-                  <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-muted)', textAlign: 'right' }}>
-                    STAGE ACTION
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {shopOrders.length > 0 ? (
-                  shopOrders.map((o) => (
-                    <tr key={o._id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--primary-navy)' }}>
-                        #{o._id.slice(-4).toUpperCase()}
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem' }}>
-                        <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>
-                          {o.member ? `${o.member.firstName} ${o.member.lastName || ''}` : o.customerName || 'Online Member'}
+          {/* VIEW MODE 1: KANBAN BOARD */}
+          {orderViewMode === 'kanban' && (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: '1.25rem',
+                alignItems: 'start',
+              }}
+            >
+              {/* Column 1: NEW ORDERS */}
+              {(() => {
+                const colOrders = shopOrders.filter((o) => o.status === 'pending');
+                return (
+                  <div
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: 'var(--radius-lg)',
+                      border: '1px solid var(--border)',
+                      padding: '1rem',
+                      minHeight: '400px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '0.85rem',
+                        paddingBottom: '0.65rem',
+                        borderBottom: '2px solid rgba(53, 73, 98, 0.2)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Clock size={15} color="var(--primary-navy)" />
+                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
+                          NEW ORDERS
                         </span>
-                        <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>{o.customerPhone || o.member?.phone}</div>
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem', fontSize: '0.8rem' }}>
-                        {o.items?.map((it) => `${it.quantity}x ${it.name}`).join(', ')}
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem' }}>
-                        <span
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          backgroundColor: 'var(--lavender)',
+                          color: 'var(--primary-navy)',
+                          padding: '2px 8px',
+                          borderRadius: 'var(--radius-full)',
+                        }}
+                      >
+                        {colOrders.length}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {colOrders.map((o) => (
+                        <div
+                          key={o._id}
                           style={{
-                            fontSize: '0.7rem',
-                            fontWeight: 700,
-                            padding: '2px 7px',
-                            borderRadius: '4px',
-                            backgroundColor: o.fulfillment === 'counter' ? 'var(--lavender)' : 'var(--light-peach)',
-                            color: o.fulfillment === 'counter' ? 'var(--primary-navy)' : 'var(--primary-peach)',
+                            backgroundColor: 'var(--bg-main)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 'var(--radius-md)',
+                            padding: '0.9rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.5rem',
+                            transition: 'var(--transition)',
+                            cursor: 'pointer',
                           }}
+                          onClick={() => setSelectedOrderForDrawer(o)}
                         >
-                          {o.fulfillment?.toUpperCase()}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
+                              #{o._id.slice(-4).toUpperCase()}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                backgroundColor: 'var(--lavender)',
+                                color: 'var(--primary-navy)',
+                              }}
+                            >
+                              {o.fulfillment === 'counter' ? 'COUNTER POS' : 'CLUB PICKUP'}
+                            </span>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                              {o.member ? `${o.member.firstName} ${o.member.lastName || ''}` : o.customerName || 'Online Member'}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              {o.member ? 'Club Member' : 'Walk-in Guest'} • {new Date(o.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', borderTop: '1px dashed var(--border)', paddingTop: '0.4rem' }}>
+                            {o.items?.map((it) => `${it.quantity}x ${it.name}`).join(', ') || 'Sports Items'}
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+                            <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
+                              ₹{o.total}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOrderStatusUpdate(o._id, 'preparing');
+                              }}
+                              style={{
+                                backgroundColor: 'var(--primary-navy)',
+                                color: '#FFFFFF',
+                                border: 'none',
+                                padding: '0.4rem 0.75rem',
+                                borderRadius: 'var(--radius-sm)',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Accept & Process ➔
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {colOrders.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                          No new pending orders
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Column 2: PROCESSING / PREPARING */}
+              {(() => {
+                const colOrders = shopOrders.filter((o) => o.status === 'preparing' || o.status === 'confirmed');
+                return (
+                  <div
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: 'var(--radius-lg)',
+                      border: '1px solid var(--border)',
+                      padding: '1rem',
+                      minHeight: '400px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '0.85rem',
+                        paddingBottom: '0.65rem',
+                        borderBottom: '2px solid rgba(217, 142, 104, 0.4)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Package size={15} color="var(--primary-peach)" />
+                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-peach)' }}>
+                          PROCESSING
                         </span>
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem' }}>
-                        <span
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          backgroundColor: 'var(--light-peach)',
+                          color: 'var(--primary-peach)',
+                          padding: '2px 8px',
+                          borderRadius: 'var(--radius-full)',
+                        }}
+                      >
+                        {colOrders.length}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {colOrders.map((o) => (
+                        <div
+                          key={o._id}
                           style={{
-                            fontSize: '0.725rem',
-                            fontWeight: 700,
-                            padding: '2px 8px',
-                            borderRadius: 'var(--radius-full)',
-                            backgroundColor:
-                              o.status === 'completed'
-                                ? 'var(--light-green)'
-                                : o.status === 'ready'
-                                ? 'var(--light-warning)'
-                                : 'rgba(53, 73, 98, 0.1)',
-                            color:
-                              o.status === 'completed'
-                                ? 'var(--success)'
-                                : o.status === 'ready'
-                                ? 'var(--warning)'
-                                : 'var(--primary-navy)',
+                            backgroundColor: '#FFFFFF',
+                            border: '1px solid rgba(217, 142, 104, 0.3)',
+                            borderRadius: 'var(--radius-md)',
+                            padding: '0.9rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.5rem',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                            cursor: 'pointer',
                           }}
+                          onClick={() => setSelectedOrderForDrawer(o)}
                         >
-                          {o.status?.toUpperCase()}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
+                              #{o._id.slice(-4).toUpperCase()}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                backgroundColor: 'var(--light-peach)',
+                                color: 'var(--primary-peach)',
+                              }}
+                            >
+                              PACKING
+                            </span>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                              {o.member ? `${o.member.firstName} ${o.member.lastName || ''}` : o.customerName || 'Online Member'}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              {o.customerPhone || o.member?.phone || 'No phone'}
+                            </div>
+                          </div>
+
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', borderTop: '1px dashed var(--border)', paddingTop: '0.4rem' }}>
+                            {o.items?.map((it) => `${it.quantity}x ${it.name}`).join(', ')}
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+                            <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
+                              ₹{o.total}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOrderStatusUpdate(o._id, 'ready');
+                              }}
+                              style={{
+                                backgroundColor: 'var(--warning)',
+                                color: '#FFFFFF',
+                                border: 'none',
+                                padding: '0.4rem 0.75rem',
+                                borderRadius: 'var(--radius-sm)',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Mark Ready ➔
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {colOrders.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                          No orders in processing
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Column 3: READY FOR PICKUP */}
+              {(() => {
+                const colOrders = shopOrders.filter((o) => o.status === 'ready');
+                return (
+                  <div
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: 'var(--radius-lg)',
+                      border: '1px solid var(--border)',
+                      padding: '1rem',
+                      minHeight: '400px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '0.85rem',
+                        paddingBottom: '0.65rem',
+                        borderBottom: '2px solid rgba(234, 179, 8, 0.4)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <CheckCircle size={15} color="var(--warning)" />
+                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--warning)' }}>
+                          READY FOR PICKUP
                         </span>
-                      </td>
-                      <td style={{ padding: '0.85rem 1rem', fontWeight: 700 }}>₹{o.total}</td>
-                      <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
-                        {o.status === 'pending' && (
-                          <button
-                            onClick={() => handleOrderStatusUpdate(o._id, 'preparing')}
-                            style={{
-                              backgroundColor: 'var(--primary-navy)',
-                              color: '#FFFFFF',
-                              border: 'none',
-                              padding: '4px 8px',
-                              borderRadius: 'var(--radius-sm)',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Accept & Process
-                          </button>
-                        )}
-                        {o.status === 'preparing' && (
-                          <button
-                            onClick={() => handleOrderStatusUpdate(o._id, 'ready')}
-                            style={{
-                              backgroundColor: 'var(--warning)',
-                              color: '#FFFFFF',
-                              border: 'none',
-                              padding: '4px 8px',
-                              borderRadius: 'var(--radius-sm)',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Ready for Pickup
-                          </button>
-                        )}
-                        {o.status === 'ready' && (
-                          <button
-                            onClick={() => handleOrderStatusUpdate(o._id, 'completed')}
-                            style={{
-                              backgroundColor: 'var(--success)',
-                              color: '#FFFFFF',
-                              border: 'none',
-                              padding: '4px 8px',
-                              borderRadius: 'var(--radius-sm)',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Handover / Shipped
-                          </button>
-                        )}
-                      </td>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          backgroundColor: 'var(--light-warning)',
+                          color: 'var(--warning)',
+                          padding: '2px 8px',
+                          borderRadius: 'var(--radius-full)',
+                        }}
+                      >
+                        {colOrders.length}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {colOrders.map((o) => (
+                        <div
+                          key={o._id}
+                          style={{
+                            backgroundColor: '#FFFFFF',
+                            border: '1px solid rgba(234, 179, 8, 0.3)',
+                            borderRadius: 'var(--radius-md)',
+                            padding: '0.9rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.5rem',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => setSelectedOrderForDrawer(o)}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
+                              #{o._id.slice(-4).toUpperCase()}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                backgroundColor: 'var(--light-warning)',
+                                color: 'var(--warning)',
+                              }}
+                            >
+                              AT DESK
+                            </span>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                              {o.member ? `${o.member.firstName} ${o.member.lastName || ''}` : o.customerName || 'Online Member'}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              {o.customerPhone || o.member?.phone || 'No phone'}
+                            </div>
+                          </div>
+
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', borderTop: '1px dashed var(--border)', paddingTop: '0.4rem' }}>
+                            {o.items?.map((it) => `${it.quantity}x ${it.name}`).join(', ')}
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+                            <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
+                              ₹{o.total}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOrderStatusUpdate(o._id, 'completed');
+                              }}
+                              style={{
+                                backgroundColor: 'var(--success)',
+                                color: '#FFFFFF',
+                                border: 'none',
+                                padding: '0.4rem 0.75rem',
+                                borderRadius: 'var(--radius-sm)',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Handover / Collect ✓
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {colOrders.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                          No orders awaiting pickup
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Column 4: COMPLETED / DELIVERED */}
+              {(() => {
+                const colOrders = shopOrders.filter((o) => o.status === 'completed');
+                return (
+                  <div
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: 'var(--radius-lg)',
+                      border: '1px solid var(--border)',
+                      padding: '1rem',
+                      minHeight: '400px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '0.85rem',
+                        paddingBottom: '0.65rem',
+                        borderBottom: '2px solid rgba(168, 192, 172, 0.6)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Check size={15} color="var(--success)" />
+                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--success)' }}>
+                          COMPLETED
+                        </span>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          backgroundColor: 'var(--light-green)',
+                          color: 'var(--success)',
+                          padding: '2px 8px',
+                          borderRadius: 'var(--radius-full)',
+                        }}
+                      >
+                        {colOrders.length}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {colOrders.slice(0, 10).map((o) => (
+                        <div
+                          key={o._id}
+                          style={{
+                            backgroundColor: 'var(--bg-main)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 'var(--radius-md)',
+                            padding: '0.9rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.45rem',
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => setSelectedOrderForDrawer(o)}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
+                              #{o._id.slice(-4).toUpperCase()}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                backgroundColor: 'var(--light-green)',
+                                color: 'var(--success)',
+                              }}
+                            >
+                              COMPLETED
+                            </span>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                              {o.member ? `${o.member.firstName} ${o.member.lastName || ''}` : o.customerName || 'Online Member'}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              {new Date(o.createdAt).toLocaleDateString()} • Paid
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.2rem' }}>
+                            <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
+                              ₹{o.total}
+                            </span>
+                            {!o.isReturned ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setReturnOrderId(o._id);
+                                  if (o.items && o.items.length > 0) {
+                                    setReturnProductId(o.items[0].productId?._id || o.items[0].productId);
+                                    setReturnQty(o.items[0].quantity || 1);
+                                    setReturnRefundAmount(o.total || 0);
+                                  }
+                                  setShowReturnModal(true);
+                                }}
+                                style={{
+                                  backgroundColor: 'transparent',
+                                  color: 'var(--danger)',
+                                  border: '1px solid var(--border)',
+                                  padding: '3px 7px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Return
+                              </button>
+                            ) : (
+                              <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--danger)' }}>
+                                RETURNED
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {colOrders.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                          No completed orders yet
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* VIEW MODE 2: TABLE VIEW */}
+          {orderViewMode === 'table' && (
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border)' }}>
+                      <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-muted)' }}>ORDER ID</th>
+                      <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-muted)' }}>MEMBER / BUYER</th>
+                      <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-muted)' }}>ITEMS</th>
+                      <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-muted)' }}>FULFILLMENT</th>
+                      <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-muted)' }}>STATUS</th>
+                      <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-muted)' }}>TOTAL</th>
+                      <th style={{ padding: '0.75rem 1rem', fontWeight: 600, color: 'var(--text-muted)', textAlign: 'right' }}>
+                        STAGE ACTION
+                      </th>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      {loadingOrders ? 'Loading orders...' : 'No orders matching filter.'}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {shopOrders.length > 0 ? (
+                      shopOrders.map((o) => (
+                        <tr
+                          key={o._id}
+                          style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                          onClick={() => setSelectedOrderForDrawer(o)}
+                        >
+                          <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--primary-navy)' }}>
+                            #{o._id.slice(-4).toUpperCase()}
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem' }}>
+                            <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+                              {o.member ? `${o.member.firstName} ${o.member.lastName || ''}` : o.customerName || 'Online Member'}
+                            </span>
+                            <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>{o.customerPhone || o.member?.phone}</div>
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem', fontSize: '0.8rem' }}>
+                            {o.items?.map((it) => `${it.quantity}x ${it.name}`).join(', ')}
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem' }}>
+                            <span
+                              style={{
+                                fontSize: '0.7rem',
+                                fontWeight: 700,
+                                padding: '2px 7px',
+                                borderRadius: '4px',
+                                backgroundColor: o.fulfillment === 'counter' ? 'var(--lavender)' : 'var(--light-peach)',
+                                color: o.fulfillment === 'counter' ? 'var(--primary-navy)' : 'var(--primary-peach)',
+                              }}
+                            >
+                              {o.fulfillment?.toUpperCase()}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem' }}>
+                            <span
+                              style={{
+                                fontSize: '0.725rem',
+                                fontWeight: 700,
+                                padding: '2px 8px',
+                                borderRadius: 'var(--radius-full)',
+                                backgroundColor:
+                                  o.status === 'completed'
+                                    ? 'var(--light-green)'
+                                    : o.status === 'ready'
+                                    ? 'var(--light-warning)'
+                                    : 'rgba(53, 73, 98, 0.1)',
+                                color:
+                                  o.status === 'completed'
+                                    ? 'var(--success)'
+                                    : o.status === 'ready'
+                                    ? 'var(--warning)'
+                                    : 'var(--primary-navy)',
+                              }}
+                            >
+                              {o.status?.toUpperCase()}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.85rem 1rem', fontWeight: 700 }}>₹{o.total}</td>
+                          <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                            {o.status === 'pending' && (
+                              <button
+                                onClick={() => handleOrderStatusUpdate(o._id, 'preparing')}
+                                style={{
+                                  backgroundColor: 'var(--primary-navy)',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  padding: '4px 8px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Accept & Process
+                              </button>
+                            )}
+                            {o.status === 'preparing' && (
+                              <button
+                                onClick={() => handleOrderStatusUpdate(o._id, 'ready')}
+                                style={{
+                                  backgroundColor: 'var(--warning)',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  padding: '4px 8px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Ready for Pickup
+                              </button>
+                            )}
+                            {o.status === 'ready' && (
+                              <button
+                                onClick={() => handleOrderStatusUpdate(o._id, 'completed')}
+                                style={{
+                                  backgroundColor: 'var(--success)',
+                                  color: '#FFFFFF',
+                                  border: 'none',
+                                  padding: '4px 8px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Handover / Shipped
+                              </button>
+                            )}
+                            {o.status === 'completed' && !o.isReturned && (
+                              <button
+                                onClick={() => {
+                                  setReturnOrderId(o._id);
+                                  if (o.items && o.items.length > 0) {
+                                    setReturnProductId(o.items[0].productId?._id || o.items[0].productId);
+                                    setReturnQty(o.items[0].quantity || 1);
+                                    setReturnRefundAmount(o.total || 0);
+                                  }
+                                  setShowReturnModal(true);
+                                }}
+                                style={{
+                                  backgroundColor: 'transparent',
+                                  color: 'var(--danger)',
+                                  border: '1px solid var(--border)',
+                                  padding: '4px 8px',
+                                  borderRadius: 'var(--radius-sm)',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                              >
+                                <RotateCcw size={12} /> Return
+                              </button>
+                            )}
+                            {o.isReturned && (
+                              <span style={{ fontSize: '0.72rem', color: 'var(--danger)', fontWeight: 700 }}>
+                                RETURNED
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          {loadingOrders ? 'Loading orders...' : 'No orders matching filter.'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ORDER DETAILS SLIDE-OVER DRAWER */}
+          {selectedOrderForDrawer && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                backgroundColor: 'rgba(23, 38, 59, 0.5)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                zIndex: 1000,
+              }}
+              onClick={() => setSelectedOrderForDrawer(null)}
+            >
+              <div
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  width: '100%',
+                  maxWidth: '460px',
+                  height: '100%',
+                  padding: '1.75rem',
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  boxShadow: '-4px 0 24px rgba(0,0,0,0.15)',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+                    <div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary-peach)', textTransform: 'uppercase' }}>
+                        Order Details
+                      </span>
+                      <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1.3rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
+                        #{selectedOrderForDrawer._id.slice(-6).toUpperCase()}
+                      </h3>
+                    </div>
+                    <button
+                      onClick={() => setSelectedOrderForDrawer(null)}
+                      style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '4px' }}
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  {/* Customer Information */}
+                  <div style={{ backgroundColor: 'var(--bg-main)', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
+                      CUSTOMER
+                    </div>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                      {selectedOrderForDrawer.member
+                        ? `${selectedOrderForDrawer.member.firstName} ${selectedOrderForDrawer.member.lastName || ''}`
+                        : selectedOrderForDrawer.customerName || 'Online Member'}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                      Phone: {selectedOrderForDrawer.customerPhone || selectedOrderForDrawer.member?.phone || 'N/A'}
+                    </div>
+                    <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.4rem' }}>
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          backgroundColor: 'var(--lavender)',
+                          color: 'var(--primary-navy)',
+                        }}
+                      >
+                        {selectedOrderForDrawer.member ? 'Club Member (Discount Applied)' : 'Walk-in Guest'}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          backgroundColor: 'var(--light-peach)',
+                          color: 'var(--primary-peach)',
+                        }}
+                      >
+                        {selectedOrderForDrawer.fulfillment === 'counter' ? 'Counter POS' : 'Club Pickup'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Items List */}
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+                      ORDER ITEMS
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                      {selectedOrderForDrawer.items?.map((it, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '0.65rem',
+                            border: '1px solid var(--border)',
+                            borderRadius: 'var(--radius-sm)',
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                              {it.name}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              ₹{it.price} × {it.quantity}
+                            </div>
+                          </div>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--primary-navy)' }}>
+                            ₹{it.price * it.quantity}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Pricing Breakdown */}
+                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.85rem', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Subtotal</span>
+                      <span>₹{selectedOrderForDrawer.total}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Status</span>
+                      <span style={{ fontWeight: 700, textTransform: 'uppercase', color: 'var(--primary-navy)' }}>
+                        {selectedOrderForDrawer.status}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Payment</span>
+                      <span style={{ color: 'var(--success)', fontWeight: 700 }}>
+                        {selectedOrderForDrawer.paymentStatus?.toUpperCase() || 'PAID'}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontSize: '1.15rem',
+                        fontWeight: 800,
+                        color: 'var(--primary-navy)',
+                        borderTop: '1px solid var(--border)',
+                        paddingTop: '0.5rem',
+                        marginTop: '0.5rem',
+                      }}
+                    >
+                      <span>Total Amount</span>
+                      <span>₹{selectedOrderForDrawer.total}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stage Progression Action inside Drawer */}
+                <div>
+                  {selectedOrderForDrawer.status === 'pending' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleOrderStatusUpdate(selectedOrderForDrawer._id, 'preparing');
+                        setSelectedOrderForDrawer(null);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '0.85rem',
+                        backgroundColor: 'var(--primary-navy)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.9rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Accept & Start Processing ➔
+                    </button>
+                  )}
+                  {selectedOrderForDrawer.status === 'preparing' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleOrderStatusUpdate(selectedOrderForDrawer._id, 'ready');
+                        setSelectedOrderForDrawer(null);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '0.85rem',
+                        backgroundColor: 'var(--warning)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.9rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Mark Ready for Pickup ➔
+                    </button>
+                  )}
+                  {selectedOrderForDrawer.status === 'ready' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleOrderStatusUpdate(selectedOrderForDrawer._id, 'completed');
+                        setSelectedOrderForDrawer(null);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '0.85rem',
+                        backgroundColor: 'var(--success)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.9rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Complete Handover / Shipped ✓
+                    </button>
+                  )}
+                  {selectedOrderForDrawer.status === 'completed' && !selectedOrderForDrawer.isReturned && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReturnOrderId(selectedOrderForDrawer._id);
+                        if (selectedOrderForDrawer.items && selectedOrderForDrawer.items.length > 0) {
+                          setReturnProductId(selectedOrderForDrawer.items[0].productId?._id || selectedOrderForDrawer.items[0].productId);
+                          setReturnQty(selectedOrderForDrawer.items[0].quantity || 1);
+                          setReturnRefundAmount(selectedOrderForDrawer.total || 0);
+                        }
+                        setSelectedOrderForDrawer(null);
+                        setShowReturnModal(true);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '0.85rem',
+                        backgroundColor: 'var(--danger)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.9rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Process Return & Refund
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2018,22 +3028,77 @@ export const ShopStaffDashboard = () => {
                 </select>
               </div>
 
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Quantity to Add</label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={receivedQty}
-                  onChange={(e) => setReceivedQty(Number(e.target.value))}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border)',
-                    marginTop: '0.25rem',
-                  }}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Quantity to Add</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={receivedQty}
+                    onChange={(e) => setReceivedQty(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)',
+                      marginTop: '0.25rem',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Received Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={receivedDate}
+                    onChange={(e) => setReceivedDate(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)',
+                      marginTop: '0.25rem',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Supplier / Vendor</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Yonex India"
+                    value={supplierName}
+                    onChange={(e) => setSupplierName(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)',
+                      marginTop: '0.25rem',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Invoice / PO #</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. INV-2026-089"
+                    value={supplierInvoice}
+                    onChange={(e) => setSupplierInvoice(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)',
+                      marginTop: '0.25rem',
+                    }}
+                  />
+                </div>
               </div>
 
               <div style={{ marginBottom: '1.25rem' }}>
@@ -2067,6 +3132,292 @@ export const ShopStaffDashboard = () => {
                 }}
               >
                 {submittingStock ? 'Updating...' : 'Add to Shared Stock'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* STOCK ADJUSTMENT MODAL (Damaged, Missing, Wrong count, Returned) */}
+      {/* ======================================================== */}
+      {showAdjustModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(23, 38, 59, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 'var(--radius-lg)',
+              maxWidth: '480px',
+              width: '100%',
+              padding: '1.5rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary-navy)' }}>
+                Stock Adjustment & Reconciliation
+              </h3>
+              <button onClick={() => setShowAdjustModal(false)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAdjustStock}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Select Product</label>
+                <select
+                  value={adjustProductId}
+                  onChange={(e) => setAdjustProductId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)',
+                    marginTop: '0.25rem',
+                  }}
+                >
+                  {products.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.name} (Current Stock: {p.stock})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Adjustment Type</label>
+                  <select
+                    value={adjustType}
+                    onChange={(e) => setAdjustType(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)',
+                      marginTop: '0.25rem',
+                    }}
+                  >
+                    <option value="DAMAGED">Damaged Product (-)</option>
+                    <option value="MISSING">Missing / Lost (-)</option>
+                    <option value="WRONG_COUNT">Wrong Physical Count (+/-)</option>
+                    <option value="RETURNED">Customer Return (+)</option>
+                    <option value="MANUAL">Manual Correction</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                    Quantity Change ({adjustQtyChange >= 0 ? `+${adjustQtyChange}` : adjustQtyChange})
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={adjustQtyChange}
+                    onChange={(e) => setAdjustQtyChange(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)',
+                      marginTop: '0.25rem',
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Dynamic preview */}
+              {(() => {
+                const p = products.find((prod) => prod._id === adjustProductId);
+                const current = p ? p.stock : 0;
+                const nextStock = Math.max(0, current + Number(adjustQtyChange));
+                return (
+                  <div style={{ backgroundColor: 'var(--bg-main)', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '0.82rem', display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Stock Change Preview:</span>
+                    <span><strong>{current}</strong> units ➔ <strong style={{ color: adjustQtyChange >= 0 ? 'var(--success)' : 'var(--danger)' }}>{nextStock}</strong> units</span>
+                  </div>
+                );
+              })()}
+
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Adjustment Reason & Discrepancy Note</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Audit discrepancy / string snapped in rack"
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)',
+                    marginTop: '0.25rem',
+                  }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submittingAdjust}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  backgroundColor: 'var(--primary-navy)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  fontWeight: 700,
+                  cursor: submittingAdjust ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {submittingAdjust ? 'Adjusting Stock...' : 'Save Stock Adjustment'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* RETURN & REFUND MODAL */}
+      {/* ======================================================== */}
+      {showReturnModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(23, 38, 59, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 'var(--radius-lg)',
+              maxWidth: '480px',
+              width: '100%',
+              padding: '1.5rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--danger)' }}>
+                  Process Order Return & Restock
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Order #{returnOrderId ? returnOrderId.slice(-6).toUpperCase() : ''}
+                </span>
+              </div>
+              <button onClick={() => setShowReturnModal(false)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleReturnOrder}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Product to Return</label>
+                <select
+                  value={returnProductId}
+                  onChange={(e) => setReturnProductId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)',
+                    marginTop: '0.25rem',
+                  }}
+                >
+                  {products.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Return Quantity</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={returnQty}
+                    onChange={(e) => setReturnQty(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)',
+                      marginTop: '0.25rem',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Refund Amount (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={returnRefundAmount}
+                    onChange={(e) => setReturnRefundAmount(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)',
+                      marginTop: '0.25rem',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Return Reason & Inspection Notes</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Unused item returned within policy / Wrong size"
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)',
+                    marginTop: '0.25rem',
+                  }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submittingReturn}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  backgroundColor: 'var(--danger)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  fontWeight: 700,
+                  cursor: submittingReturn ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {submittingReturn ? 'Processing Return...' : `Confirm Return & Restock (+${returnQty} units)`}
               </button>
             </form>
           </div>

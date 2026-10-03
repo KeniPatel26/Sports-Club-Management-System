@@ -186,21 +186,22 @@ export const Login = () => {
         </Button>
       </form>
 
-      {/* Footer link to Register */}
+      {/* Manager Provisioning Notice */}
       <div
         style={{
           marginTop: '1.75rem',
           paddingTop: '1.25rem',
           borderTop: '1px solid #DDE2EC',
           textAlign: 'center',
-          fontSize: '0.875rem',
+          fontSize: '0.825rem',
           color: '#64748B',
+          lineHeight: '1.4',
         }}
       >
-        Don't have a club account?{' '}
-        <Link to="/register" style={{ color: '#D98E68', fontWeight: 700, textDecoration: 'none' }}>
-          Join Champions Club
-        </Link>
+        <span style={{ fontWeight: 600, color: '#354962' }}>Member & Staff Access:</span>
+        <div style={{ marginTop: '0.25rem' }}>
+          Accounts are provisioned directly by the Club Manager at the Front Desk.
+        </div>
       </div>
     </AuthLayout>
   );

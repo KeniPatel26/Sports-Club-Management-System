@@ -204,7 +204,7 @@ export const Home = () => {
                 variant="primary"
                 size="lg"
                 icon={Calendar}
-                onClick={() => navigate('/register')}
+                onClick={() => navigate('/login')}
                 style={{
                   backgroundColor: '#D98E68',
                   borderColor: '#D98E68',
@@ -215,7 +215,7 @@ export const Home = () => {
                   borderRadius: '12px',
                 }}
               >
-                Join Champions Club
+                Club Member Login
               </Button>
               <Button
                 variant="secondary"
@@ -469,7 +469,7 @@ export const Home = () => {
                   variant={tier.highlight ? 'primary' : 'outline'}
                   fullWidth
                   size="md"
-                  onClick={() => navigate('/register')}
+                  onClick={() => navigate('/login')}
                   style={{
                     backgroundColor: tier.highlight ? '#D98E68' : '#FFFFFF',
                     borderColor: tier.highlight ? '#D98E68' : '#DDE2EC',
@@ -479,7 +479,7 @@ export const Home = () => {
                     height: '44px',
                   }}
                 >
-                  Select Plan
+                  Member Login
                 </Button>
               </div>
             </div>
@@ -502,13 +502,13 @@ export const Home = () => {
             Ready to Experience Champions Club?
           </h2>
           <p style={{ fontSize: '1.05rem', color: '#B2BFCF', lineHeight: 1.6, margin: '0 0 2rem 0' }}>
-            Create your member profile today to reserve courts, participate in leagues, access the pro shop, and connect with fellow sports enthusiasts.
+            All member and staff accounts are provisioned directly by the Club Manager at the Front Desk. Login with your credentials to access services.
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             <Button
               variant="primary"
               size="lg"
-              onClick={() => navigate('/register')}
+              onClick={() => navigate('/login')}
               style={{
                 backgroundColor: '#D98E68',
                 borderColor: '#D98E68',
@@ -518,7 +518,7 @@ export const Home = () => {
                 borderRadius: '10px',
               }}
             >
-              Sign Up Now
+              Sign In to Portal
             </Button>
             <Button
               variant="outline"

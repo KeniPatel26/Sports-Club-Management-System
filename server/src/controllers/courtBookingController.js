@@ -71,7 +71,7 @@ export const getCourtSlots = async (req, res, next) => {
     const existingBookings = await Booking.find({
       court: id,
       date: { $gte: startOfDay, $lte: endOfDay },
-      status: { $in: ['CONFIRMED', 'COMPLETED'] },
+      status: { $in: ['CONFIRMED', 'CHECKED_IN', 'COMPLETED'] },
     }).select('startTime endTime bookingType walkInDetails member');
 
     // Return only one-hour sessions that are still available. Slots start
@@ -174,7 +174,7 @@ export const createBooking = async (req, res, next) => {
       const memberDailyCount = await Booking.countDocuments({
         member: targetUserId,
         date: { $gte: startOfDay, $lte: endOfDay },
-        status: { $in: ['CONFIRMED', 'COMPLETED'] },
+        status: { $in: ['CONFIRMED', 'CHECKED_IN', 'COMPLETED'] },
       });
 
       if (memberDailyCount >= 2) {
@@ -186,7 +186,7 @@ export const createBooking = async (req, res, next) => {
 
       // Check active membership discount
       const activeMembership = await Membership.findOne({
-        member: targetUserId,
+        $or: [{ member: targetUserId }, { user: targetUserId }],
         status: 'ACTIVE',
       }).populate('plan');
 
