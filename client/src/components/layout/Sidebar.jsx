@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Calendar,
+  History,
   ShoppingBag,
   Coffee,
   Crown,
@@ -39,7 +40,7 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
         { label: 'Members', path: '/users', icon: Users },
         { label: 'Courts', path: '/courts', icon: Calendar },
-        { label: 'Bookings', path: '/courts', icon: Calendar, badge: 'Live' },
+        { label: 'Booking History', path: '/booking-history', icon: History },
         { label: 'Shop', path: '/shop', icon: ShoppingBag },
         { label: 'Canteen', path: '/canteen', icon: Coffee },
         { label: 'Finance', path: '/finance-analytics', icon: TrendingUp },
@@ -55,7 +56,7 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
         return [
           { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
           { label: 'Courts', path: '/courts', icon: Calendar },
-          { label: 'Bookings', path: '/courts', icon: Calendar, badge: 'Live' },
+          { label: 'Booking History', path: '/booking-history', icon: History },
           { label: 'Members', path: '/users', icon: Users },
           { label: 'Staff Roster', path: '/staff-roster', icon: Briefcase },
           { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
@@ -73,8 +74,8 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
       if (isCanteenStaff) {
         return [
           { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-          { label: 'Menu & Tables', path: '/canteen', icon: UtensilsCrossed },
-          { label: 'Orders & Tabs', path: '/canteen', icon: Coffee },
+          { label: 'Canteen Menu', path: '/canteen', icon: UtensilsCrossed },
+          { label: 'Canteen Orders', path: '/canteen', icon: Coffee },
           { label: 'Staff Roster', path: '/staff-roster', icon: Briefcase },
           { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
         ];
@@ -83,7 +84,8 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
       // Generic Staff fallback
       return [
         { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-        { label: 'Courts & Bookings', path: '/courts', icon: Calendar },
+        { label: 'Courts', path: '/courts', icon: Calendar },
+        { label: 'Booking History', path: '/booking-history', icon: History },
         { label: 'Shop Operations', path: '/shop', icon: ShoppingBag },
         { label: 'Canteen & Bar', path: '/canteen', icon: Coffee },
         { label: 'Staff Roster', path: '/staff-roster', icon: Briefcase },
@@ -95,6 +97,7 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
     return [
       { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
       { label: 'Book Court', path: '/courts', icon: Calendar },
+      { label: 'Booking History', path: '/booking-history', icon: History },
       { label: 'Shop', path: '/shop', icon: ShoppingBag },
       { label: 'Canteen', path: '/canteen', icon: Coffee },
       { label: 'My Orders', path: '/shop', icon: Receipt },

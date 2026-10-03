@@ -751,3 +751,117 @@ tr:hover td {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* Court booking flow */
+.court-booking-page { min-width: 0; }
+.court-booking-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.15rem;
+  margin-bottom: 1.4rem;
+  background: var(--bg-card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.court-step { display: flex; align-items: center; gap: 0.55rem; color: var(--text-muted); font-size: 0.88rem; font-weight: 600; }
+.court-step.is-active { color: var(--primary); }
+.court-step-number { width: 30px; height: 30px; display: grid; place-items: center; flex: 0 0 30px; border-radius: 50%; background: var(--bg-subtle); color: var(--text-muted); font-size: 0.8rem; font-weight: 700; }
+.court-step.is-active .court-step-number { background: var(--primary); color: #fff; box-shadow: 0 0 0 4px rgba(217, 142, 104, 0.14); }
+.court-step-connector { flex: 1 1 24px; min-width: 24px; height: 1px; background: var(--border-color); }
+.court-sport-filters { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.court-filter { padding: 0.5rem 0.95rem; color: var(--text-main); background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-full); font-size: 0.84rem; font-weight: 650; cursor: pointer; transition: var(--transition); }
+.court-filter:hover { border-color: var(--primary); }
+.court-filter.is-active { color: #fff; background: var(--primary); border-color: var(--primary); box-shadow: 0 3px 8px rgba(217, 142, 104, 0.22); }
+.court-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.15rem; }
+.court-select-card { min-width: 0; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
+.court-card-media { position: relative; height: 215px; overflow: hidden; background: var(--bg-subtle); }
+.court-card-media > img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform 0.35s ease; }
+.court-select-card:hover .court-card-media > img { transform: scale(1.035); }
+.court-card-media > .badge { position: absolute; top: 0.85rem; left: 0.85rem; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14); }
+.court-image-placeholder { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.55rem; color: var(--text-muted); background: linear-gradient(135deg, var(--bg-subtle), var(--bg-card)); }
+.court-card-content { display: flex; flex: 1; flex-direction: column; gap: 0.8rem; padding: 1.1rem 1.2rem 1.2rem; }
+.court-card-meta { display: flex; align-items: center; gap: 0.6rem; color: var(--text-muted); font-size: 0.77rem; }
+.court-card-title { font-size: 1.05rem; min-height: 2.6em; }
+.court-card-bottom { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; margin-top: auto; padding-top: 0.35rem; }
+.court-card-bottom > div { display: flex; flex-direction: column; }
+.court-card-bottom small { color: var(--text-muted); font-size: 0.72rem; }
+.court-card-bottom strong { color: var(--primary); font-size: 1.04rem; white-space: nowrap; }
+.court-card-bottom strong span { color: var(--text-muted); font-size: 0.76rem; font-weight: 500; }
+.court-timeslot-wrap { width: 100%; max-width: 960px; margin: 0 auto; }
+.court-timeslot-card { overflow: hidden; }
+.court-timeslot-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.4rem 1.5rem; border-bottom: 1px solid var(--border-subtle); background: linear-gradient(110deg, var(--bg-card), var(--bg-subtle)); }
+.court-timeslot-heading .card-title { margin: 0.2rem 0; font-size: 1.2rem; }
+.court-section-eyebrow { color: var(--text-muted); font-size: 0.72rem; font-weight: 750; letter-spacing: 0.09em; text-transform: uppercase; }
+.court-date-field { display: flex; flex-direction: column; gap: 0.55rem; max-width: 390px; margin-bottom: 1.65rem; }
+.court-date-field label { display: flex; align-items: center; gap: 0.5rem; color: var(--text-main); font-size: 0.9rem; font-weight: 700; }
+.court-date-field label svg { color: var(--primary); }
+.court-date-field input { width: 100%; min-height: 48px; padding: 0.65rem 0.8rem; color: var(--text-main); background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-md); font: inherit; }
+.court-date-field input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(217, 142, 104, 0.16); }
+.court-slot-title { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin-bottom: 0.85rem; }
+.court-slot-title h3 { margin-top: 0.2rem; font-size: 1.08rem; }
+.court-availability-count { padding: 0.35rem 0.65rem; color: var(--color-success-text); background: var(--color-success-bg); border-radius: var(--radius-full); font-size: 0.77rem; font-weight: 700; white-space: nowrap; }
+.court-slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(142px, 1fr)); gap: 0.75rem; }
+.court-slot-button { min-height: 58px; display: flex; align-items: center; justify-content: center; gap: 0.55rem; padding: 0.7rem 0.75rem; color: var(--text-main); background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 0.96rem; font-weight: 750; cursor: pointer; transition: var(--transition); }
+.court-slot-button svg { color: var(--primary); }
+.court-slot-button:hover { border-color: var(--primary); background: var(--bg-subtle); transform: translateY(-1px); }
+.court-slot-button:focus-visible, .court-filter:focus-visible { outline: 3px solid rgba(217, 142, 104, 0.38); outline-offset: 2px; }
+.court-slot-button.is-selected { color: #fff; background: var(--secondary); border-color: var(--secondary); box-shadow: 0 0 0 3px rgba(70, 98, 127, 0.18); }
+.court-slot-button.is-selected svg { color: #fff; }
+.court-slot-check { margin-left: auto; }
+.court-no-slots, .court-slots-loading { min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; color: var(--text-muted); background: var(--bg-subtle); border: 1px dashed var(--border-color); border-radius: var(--radius-md); text-align: center; }
+.court-no-slots svg { color: var(--primary); }
+.court-no-slots strong { color: var(--text-main); }
+.court-timeslot-actions { display: flex; justify-content: space-between; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle); }
+.court-confirmation { display: flex; flex-direction: column; gap: 1rem; }
+.court-confirmation-banner { display: flex; align-items: center; gap: 0.8rem; padding: 0.9rem 1rem; color: var(--text-main); background: var(--bg-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+.court-confirmation-banner > div:last-child { display: flex; flex-direction: column; gap: 0.12rem; }
+.court-confirmation-banner strong { font-size: 0.92rem; }
+.court-confirmation-banner span { color: var(--text-muted); font-size: 0.79rem; }
+.court-confirmation-icon { width: 40px; height: 40px; display: grid; place-items: center; flex: 0 0 40px; color: var(--color-success-text); background: var(--color-success-bg); border-radius: 50%; }
+.court-confirmation-details { padding: 0.2rem 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+.court-confirmation-row { display: flex; align-items: start; justify-content: space-between; gap: 1rem; padding: 0.85rem 0; border-bottom: 1px solid var(--border-subtle); }
+.court-confirmation-row:last-child { border-bottom: 0; }
+.court-confirmation-row > span { display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); font-size: 0.83rem; }
+.court-confirmation-row > span svg { color: var(--primary); }
+.court-confirmation-row > strong { max-width: 65%; text-align: right; font-size: 0.88rem; }
+.court-confirmation-total { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem; background: var(--bg-subtle); border-radius: var(--radius-md); }
+.court-confirmation-total > div { display: flex; flex-direction: column; }
+.court-confirmation-total span { font-weight: 700; }
+.court-confirmation-total small { color: var(--color-success-text); font-size: 0.75rem; }
+.court-confirmation-total > strong { color: var(--primary); font-size: 1.35rem; }
+.court-guest-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; }
+.modal-overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1.25rem; overflow-y: auto; background: rgba(12, 20, 31, 0.62); backdrop-filter: blur(4px); }
+.modal-overlay .modal-content { width: 100%; max-height: min(90vh, 780px); overflow-y: auto; color: var(--text-main); background: var(--bg-card); border: 1px solid var(--card-border); border-radius: var(--radius-xl); box-shadow: var(--shadow-xl); }
+
+@media (max-width: 1050px) {
+  .court-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .court-card-media { height: 205px; }
+}
+@media (max-width: 640px) {
+  .court-booking-stepper { gap: 0.45rem; justify-content: space-between; padding: 0.75rem; }
+  .court-step { flex-direction: column; gap: 0.3rem; flex: 1 1 25%; text-align: center; font-size: 0.68rem; line-height: 1.2; }
+  .court-step-connector { flex: 0 0 10px; min-width: 10px; margin-top: -1.1rem; }
+  .court-card-grid { grid-template-columns: minmax(0, 1fr); gap: 0.85rem; }
+  .court-card-media { height: clamp(185px, 58vw, 270px); }
+  .court-card-content { padding: 0.95rem; }
+  .court-card-title { min-height: auto; }
+  .court-timeslot-heading { padding: 1rem; }
+  .court-timeslot-heading .card-title { font-size: 1rem; }
+  .court-timeslot-card > .card-body { padding: 1rem; }
+  .court-slot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
+  .court-slot-button { min-height: 54px; }
+  .court-timeslot-actions { flex-direction: column-reverse; }
+  .court-timeslot-actions .btn { width: 100%; }
+  .court-guest-fields { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .modal-overlay { align-items: flex-end; padding: 0.5rem; }
+  .modal-overlay .modal-content { max-height: 94dvh; border-radius: var(--radius-lg); }
+  .modal-overlay .modal-content > div:first-child { padding: 1rem !important; }
+  .modal-overlay .modal-content > div:nth-child(2) { padding: 1rem !important; }
+  .modal-overlay .modal-content > div:last-child { flex-wrap: wrap; padding: 0.8rem 1rem !important; }
+  .modal-overlay .modal-content > div:last-child .btn { flex: 1 1 140px; }
+  .court-confirmation-row { flex-direction: column; gap: 0.35rem; }
+  .court-confirmation-row > strong { max-width: 100%; padding-left: 1.5rem; text-align: left; }
+}

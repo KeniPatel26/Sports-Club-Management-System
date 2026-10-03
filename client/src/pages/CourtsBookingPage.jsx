@@ -1,512 +1,145 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
-import {
-  Calendar,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  Plus,
-  Users,
-  Shield,
-  Search,
-  Filter,
-  Flame,
-} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, Clock3, History, MapPin, ShieldCheck } from 'lucide-react';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import PageHeader from '../components/layout/PageHeader';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
-import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
-import Select from '../components/ui/Select';
+import Modal from '../components/ui/Modal';
 import Loader from '../components/ui/Loader';
+import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import courtBookingService from '../services/courtBookingService';
 import membershipService from '../services/membershipService';
-import { formatDate } from '../utils/formatDate';
+
+const today = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN')}`;
 
 export const CourtsBookingPage = () => {
-  const { user } = useAuth();
+  const navigate = useNavigate();
   const { toastSuccess, toastError } = useToast();
-
+  const { user } = useAuth();
   const [courts, setCourts] = useState([]);
-  const [selectedSport, setSelectedSport] = useState('ALL');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedCourt, setSelectedCourt] = useState(null);
-  const [slotsData, setSlotsData] = useState([]);
-  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [sport, setSport] = useState('ALL');
+  const [court, setCourt] = useState(null);
+  const [date, setDate] = useState(today());
+  const [slots, setSlots] = useState([]);
+  const [slot, setSlot] = useState('');
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(true);
-
-  // Booking Modal
-  const [bookingModalOpen, setBookingModalOpen] = useState(false);
-  const [selectedSlotTime, setSelectedSlotTime] = useState('');
-  const [bookingType, setBookingType] = useState('MEMBER');
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [membership, setMembership] = useState(null);
   const [walkInName, setWalkInName] = useState('');
   const [walkInPhone, setWalkInPhone] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('UPI');
-  const [submitting, setSubmitting] = useState(false);
-
-  // User Membership status
-  const [userMembership, setUserMembership] = useState(null);
-
-  // My recent bookings
-  const [myBookings, setMyBookings] = useState([]);
-
-  const isFrontDeskOrOwner = ['OWNER', 'ADMIN', 'FRONT_DESK'].includes(user?.role?.toUpperCase());
 
   useEffect(() => {
-    const init = async () => {
+    const load = async () => {
       try {
-        setLoading(true);
-        const [courtsRes, memRes, bookRes] = await Promise.allSettled([
-          courtBookingService.getCourts(),
-          membershipService.getMyMembership(),
-          courtBookingService.getBookings(),
+        const [courtResult, membershipResult] = await Promise.allSettled([
+          courtBookingService.getCourts(), membershipService.getMyMembership(),
         ]);
-
-        if (courtsRes.status === 'fulfilled' && courtsRes.value.success) {
-          const courtsList = courtsRes.value.data || [];
-          setCourts(courtsList);
-          if (courtsList.length > 0) {
-            setSelectedCourt(courtsList[0]);
-          }
+        if (courtResult.status === 'fulfilled' && courtResult.value.success) {
+          const list = courtResult.value.data || [];
+          setCourts(list);
+          setCourt(list[0] || null);
         }
-
-        if (memRes.status === 'fulfilled' && memRes.value.success) {
-          setUserMembership(memRes.value.data?.membership);
+        if (membershipResult.status === 'fulfilled' && membershipResult.value.success) {
+          setMembership(membershipResult.value.data?.membership || null);
         }
-
-        if (bookRes.status === 'fulfilled' && bookRes.value.success) {
-          setMyBookings(bookRes.value.data || []);
-        }
-      } catch (e) {
-        console.error('Error loading courts data:', e);
-      } finally {
-        setLoading(false);
-      }
+      } catch (error) {
+        toastError('Could not load courts. Please refresh and try again.');
+      } finally { setLoading(false); }
     };
-
-    init();
+    load();
   }, []);
 
   useEffect(() => {
-    if (selectedCourt?._id && selectedDate) {
-      fetchCourtSlots(selectedCourt._id, selectedDate);
-    }
-  }, [selectedCourt, selectedDate]);
+    if (step !== 2 || !court?._id || !date) return;
+    let active = true;
+    setLoadingSlots(true);
+    setSlot('');
+    courtBookingService.getCourtSlots(court._id, date)
+      .then((result) => { if (active) setSlots((result.data?.slots || []).filter((item) => item.available)); })
+      .catch((error) => { if (active) { setSlots([]); toastError(error.response?.data?.message || 'Could not load available timeslots.'); } })
+      .finally(() => { if (active) setLoadingSlots(false); });
+    return () => { active = false; };
+  }, [court?._id, date, step]);
 
-  const fetchCourtSlots = async (courtId, date) => {
-    try {
-      setLoadingSlots(true);
-      const res = await courtBookingService.getCourtSlots(courtId, date);
-      if (res.success) {
-        setSlotsData(res.data?.slots || []);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingSlots(false);
-    }
-  };
+  const visibleCourts = courts.filter((item) => sport === 'ALL' || item.type === sport);
+  const categories = useMemo(() => ['ALL', ...new Set(courts.map((item) => item.type).filter(Boolean))], [courts]);
+  const isMember = user?.role?.toUpperCase() === 'MEMBER';
+  const discount = isMember ? (membership?.plan?.fullCourtAccess ? 100 : Number(membership?.plan?.courtDiscount || 0)) : 0;
+  const rate = (isMember ? court?.hourlyRate : court?.walkInRate) || court?.hourlyRate || 0;
+  const total = Math.max(0, rate * (1 - discount / 100));
 
-  const handleOpenBooking = (time) => {
-    setSelectedSlotTime(time);
-    setBookingType(isFrontDeskOrOwner ? 'WALK_IN' : 'MEMBER');
-    setBookingModalOpen(true);
-  };
-
-  const handleConfirmBooking = async (e) => {
-    e.preventDefault();
-    if (!selectedCourt || !selectedSlotTime || !selectedDate) return;
-
-    if (bookingType === 'WALK_IN' && (!walkInName.trim() || !walkInPhone.trim())) {
-      toastError('Please enter walk-in customer name and contact phone number.');
+  const chooseCourt = (selected) => { setCourt(selected); setSlot(''); setStep(2); };
+  const submitBooking = async () => {
+    if (!court || !slot || !date) return;
+    if (!isMember && (!walkInName.trim() || !walkInPhone.trim())) {
+      toastError('Enter the guest name and phone number to continue.');
       return;
     }
-
     try {
       setSubmitting(true);
-      const payload = {
-        courtId: selectedCourt._id,
-        date: selectedDate,
-        startTime: selectedSlotTime,
-        bookingType,
-        walkInDetails: bookingType === 'WALK_IN' ? { name: walkInName, phone: walkInPhone } : undefined,
-        paymentMethod,
-      };
-
-      await courtBookingService.createBooking(payload);
-      toastSuccess(`Slot ${selectedSlotTime} reserved on ${selectedCourt.name}!`);
-      setBookingModalOpen(false);
-      setWalkInName('');
-      setWalkInPhone('');
-      fetchCourtSlots(selectedCourt._id, selectedDate);
-
-      // Refresh bookings
-      const bookRes = await courtBookingService.getBookings();
-      if (bookRes.success) setMyBookings(bookRes.data || []);
-    } catch (err) {
-      toastError(err.response?.data?.message || 'Court booking failed. Check daily limit or availability.');
-    } finally {
-      setSubmitting(false);
-    }
+      const bookingType = isMember ? 'MEMBER' : 'WALK_IN';
+      const result = await courtBookingService.createBooking({ courtId: court._id, date, startTime: slot, bookingType, walkInDetails: bookingType === 'WALK_IN' ? { name: walkInName, phone: walkInPhone } : undefined, paymentMethod: 'UPI' });
+      toastSuccess(result.message || 'Your court booking is confirmed.');
+      setConfirmOpen(false);
+      navigate('/booking-history', { state: { newBooking: result.data } });
+    } catch (error) {
+      toastError(error.response?.data?.message || 'This timeslot is no longer available. Select another slot.');
+      setConfirmOpen(false);
+      const result = await courtBookingService.getCourtSlots(court._id, date).catch(() => ({ data: { slots: [] } }));
+      setSlots((result.data?.slots || []).filter((item) => item.available));
+      setSlot('');
+    } finally { setSubmitting(false); }
   };
 
-  const filteredCourts = courts.filter(
-    (c) => selectedSport === 'ALL' || c.type === selectedSport
-  );
+  if (loading) return <DashboardLayout><div style={{ padding: '4rem 0' }}><Loader fullPage text="Loading courts..." /></div></DashboardLayout>;
 
-  return (
-    <DashboardLayout>
-      <PageHeader
-        title="Court Availability & Bookings"
-        subtitle="Reserve Tennis, Cricket, Padel, and Badminton courts. Slots open every 30 minutes with zero double-booking."
-        breadcrumbs={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Courts & Bookings' }]}
-        action={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            {userMembership?.plan && (
-              <Badge variant="primary" dot>
-                {userMembership.plan.name} Tier Active ({userMembership.plan.courtDiscount}% Court Discount)
-              </Badge>
-            )}
-          </div>
-        }
-      />
+  return <DashboardLayout>
+    <PageHeader title="Book a Court" subtitle="Choose a court, select an available session time, and confirm your booking." breadcrumbs={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Courts' }]} action={<Button variant="outline" icon={History} onClick={() => navigate('/booking-history')}>Booking history</Button>} />
 
-      {/* Sport Selector Pills */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
-        {['ALL', 'TENNIS', 'CRICKET', 'PADEL', 'BADMINTON'].map((sport) => (
-          <button
-            key={sport}
-            type="button"
-            onClick={() => setSelectedSport(sport)}
-            style={{
-              padding: '0.45rem 1rem',
-              borderRadius: 'var(--radius-full)',
-              border: selectedSport === sport ? '1px solid var(--primary)' : '1px solid var(--border-color)',
-              background: selectedSport === sport ? 'var(--primary)' : 'var(--bg-card)',
-              color: selectedSport === sport ? '#ffffff' : 'var(--text-main)',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              transition: 'var(--transition)',
-            }}
-          >
-            {sport === 'ALL' ? '🏸 All Courts' : sport === 'TENNIS' ? '🎾 Tennis' : sport === 'CRICKET' ? '🏏 Cricket Arena' : sport === 'PADEL' ? '🏓 Padel' : '🏸 Badminton'}
-          </button>
-        ))}
+    <div className="court-booking-page">
+    <div className="court-booking-stepper">
+      {[['1', 'Choose sports court'], ['2', 'Pick session timeslot'], ['3', 'Confirm booking']].map(([number, label], index) => <React.Fragment key={number}>
+        {index > 0 && <div className="court-step-connector" />}
+        <div className={`court-step ${step === Number(number) ? 'is-active' : ''}`}><span className="court-step-number">{step > Number(number) ? <CheckCircle2 size={16} /> : number}</span><span>{label}</span></div>
+      </React.Fragment>)}
+    </div>
+
+    {step === 1 && <>
+      <div className="court-sport-filters">{categories.map((item) => <button className={`court-filter ${sport === item ? 'is-active' : ''}`} key={item} type="button" onClick={() => setSport(item)}>{item === 'ALL' ? 'All sports' : item}</button>)}</div>
+      {visibleCourts.length ? <div className="court-card-grid">{visibleCourts.map((item) => <Card key={item._id} hoverable className="court-select-card">
+        <div className="court-card-media">{item.image ? <img src={item.image} alt={`${item.name} court`} loading="lazy" /> : <div className="court-image-placeholder"><MapPin size={34} /><span>Club court</span></div>}<Badge variant="primary">{item.type}</Badge></div>
+        <Card.Content className="court-card-content"><div className="court-card-meta"><Badge variant={item.isIndoor ? 'purple' : 'info'}>{item.isIndoor ? 'Indoor' : 'Outdoor'}</Badge><span>{item.isIndoor ? 'All-weather facility' : 'Open-air court'}</span></div><Card.Title className="court-card-title">{item.name}</Card.Title><div className="court-card-bottom"><div><small>Starting at</small><strong>{money(isMember ? item.hourlyRate : item.walkInRate || item.hourlyRate)}<span> / hour</span></strong></div><Button variant="primary" size="sm" onClick={() => chooseCourt(item)}>Choose court <ArrowRight size={15} /></Button></div></Card.Content>
+      </Card>)}</div> : <Card><Card.Content><p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No active courts found.</p></Card.Content></Card>}
+    </>}
+
+    {step === 2 && <div className="court-timeslot-wrap"><Card className="court-timeslot-card"><div className="court-timeslot-heading"><div><span className="court-section-eyebrow">Selected court</span><Card.Title>{court?.name}</Card.Title><Card.Description>Choose a date to see open one-hour sessions.</Card.Description></div><Badge variant="primary">{court?.type}</Badge></div><Card.Content>
+      <div className="court-date-field"><label htmlFor="booking-date"><CalendarDays size={18} /> Choose your date</label><input id="booking-date" type="date" min={today()} value={date} onChange={(event) => setDate(event.target.value)} /></div>
+      <div className="court-slot-title"><div><span className="court-section-eyebrow">Session times</span><h3>Available timeslots</h3></div><span className="court-availability-count">{loadingSlots ? 'Checking…' : `${slots.length} available`}</span></div>
+      {loadingSlots ? <div className="court-slots-loading"><Loader text="Checking available times..." /></div> : slots.length ? <div className="court-slot-grid">{slots.map((item) => <button key={item.time} type="button" aria-pressed={slot === item.time} className={`court-slot-button ${slot === item.time ? 'is-selected' : ''}`} onClick={() => setSlot(item.time)}><Clock3 size={17} /><span>{item.time}</span>{slot === item.time && <CheckCircle2 className="court-slot-check" size={17} />}</button>)}</div> : <div className="court-no-slots"><CalendarDays size={25} /><strong>No timeslots available</strong><span>Choose another date to view available sessions.</span></div>}
+      <div className="court-timeslot-actions"><Button variant="outline" onClick={() => { setStep(1); setSlot(''); }}><ArrowLeft size={15} /> Change court</Button><Button variant="primary" disabled={!slot || loadingSlots} onClick={() => setConfirmOpen(true)}>Review booking <ArrowRight size={15} /></Button></div>
+    </Card.Content></Card></div>}
+
+    <Modal isOpen={confirmOpen} onClose={() => setConfirmOpen(false)} title="Review your booking" subtitle="Check your court and session details before confirming." maxWidth="620px" footer={<><Button variant="secondary" onClick={() => setConfirmOpen(false)}>Back to timeslots</Button><Button variant="primary" loading={submitting} onClick={submitBooking}><ShieldCheck size={16} /> Confirm booking</Button></>}>
+      <div className="court-confirmation">
+        <div className="court-confirmation-banner"><div className="court-confirmation-icon"><CheckCircle2 size={23} /></div><div><strong>Session selected</strong><span>Review the details before submitting your booking.</span></div></div>
+        <div className="court-confirmation-details"><div className="court-confirmation-row"><span><MapPin size={17} /> Court</span><strong>{court?.name}</strong></div><div className="court-confirmation-row"><span><CalendarDays size={17} /> Date</span><strong>{new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</strong></div><div className="court-confirmation-row"><span><Clock3 size={17} /> Session</span><strong>{slot}–{`${String(Number(slot?.slice(0, 2)) + 1).padStart(2, '0')}:${slot?.slice(3)}`}</strong></div></div>
+        <div className="court-confirmation-total"><div><span>Estimated total</span>{discount > 0 && <small>{discount}% member discount applied</small>}</div><strong>{money(total)}</strong></div>
+        {!isMember && <div className="court-guest-fields"><Input label="Guest name" value={walkInName} onChange={(event) => setWalkInName(event.target.value)} required /><Input label="Guest phone" type="tel" value={walkInPhone} onChange={(event) => setWalkInPhone(event.target.value)} required /></div>}
       </div>
-
-      <div className="grid-cols-3" style={{ alignItems: 'start' }}>
-        {/* Left: Court Selection List (1 col) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <h4 style={{ margin: 0, fontWeight: 700 }}>Select Sport Court</h4>
-
-          {filteredCourts.map((court) => {
-            const isSelected = selectedCourt?._id === court._id;
-            return (
-              <div
-                key={court._id}
-                onClick={() => setSelectedCourt(court)}
-                style={{
-                  padding: '1rem',
-                  borderRadius: 'var(--radius-lg)',
-                  background: isSelected ? 'var(--primary-light)' : 'var(--bg-card)',
-                  border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                  cursor: 'pointer',
-                  transition: 'var(--transition)',
-                  display: 'flex',
-                  gap: '0.85rem',
-                }}
-              >
-                {court.image && (
-                  <img
-                    src={court.image}
-                    alt={court.name}
-                    style={{ width: '70px', height: '70px', borderRadius: 'var(--radius-md)', objectFit: 'cover' }}
-                  />
-                )}
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <h5 style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem' }}>{court.name}</h5>
-                    <Badge variant={court.isIndoor ? 'purple' : 'info'}>
-                      {court.isIndoor ? 'Indoor' : 'Outdoor'}
-                    </Badge>
-                  </div>
-
-                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Member: <strong>₹{court.hourlyRate}/hr</strong> &bull; Walk-in: <strong>₹{court.walkInRate}/hr</strong>
-                  </p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Right: Date Picker & Slot Grid (2 cols) */}
-        <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <Card>
-            <Card.Header>
-              <div>
-                <Card.Title>{selectedCourt?.name || 'Court Timeslots'}</Card.Title>
-                <Card.Description>1-hour sessions starting every 30 minutes</Card.Description>
-              </div>
-
-              {/* Date Input */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Calendar size={18} color="var(--primary)" />
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  style={{
-                    padding: '0.4rem 0.75rem',
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: 'var(--radius-md)',
-                    color: 'var(--text-main)',
-                    fontSize: '0.875rem',
-                  }}
-                />
-              </div>
-            </Card.Header>
-
-            <Card.Content>
-              {loadingSlots ? (
-                <div style={{ padding: '3rem 0' }}>
-                  <Loader text="Checking court timetable availability..." />
-                </div>
-              ) : (
-                <div>
-                  {/* Legend */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600 }}>
-                      <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: 'var(--court-available-bg)', border: '1px solid var(--court-available)' }} />
-                      <span style={{ color: 'var(--color-text-secondary)' }}>Available</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600 }}>
-                      <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: 'var(--court-booked-bg)', border: '1px solid var(--court-booked)' }} />
-                      <span style={{ color: 'var(--color-text-secondary)' }}>Booked</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600 }}>
-                      <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: 'var(--court-selected)' }} />
-                      <span style={{ color: 'var(--color-text-secondary)' }}>Selected</span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.75rem' }}>
-                    {slotsData.map((slot) => {
-                      const isAvail = slot.available;
-                      return (
-                        <div
-                          key={slot.time}
-                          style={{
-                            padding: '0.85rem 0.5rem',
-                            borderRadius: 'var(--radius-md)',
-                            border: isAvail ? '1px solid rgba(168, 192, 172, 0.4)' : '1px solid rgba(217, 154, 117, 0.4)',
-                            background: isAvail ? 'var(--court-available-bg)' : 'var(--court-booked-bg)',
-                            textAlign: 'center',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: '0.4rem',
-                          }}
-                        >
-                          <span style={{ fontWeight: 800, fontSize: '0.95rem', color: isAvail ? 'var(--court-available-text)' : 'var(--court-booked-text)' }}>
-                            {slot.time}
-                          </span>
-
-                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: isAvail ? 'var(--court-available-text)' : 'var(--court-booked-text)' }}>
-                            {isAvail ? 'Available' : 'Booked'}
-                          </span>
-
-                          {isAvail ? (
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => handleOpenBooking(slot.time)}
-                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', width: '100%', borderRadius: 'var(--radius-md)' }}
-                            >
-                              Book Slot
-                            </Button>
-                          ) : (
-                            <span style={{ fontSize: '0.7rem', color: 'var(--court-booked-text)', opacity: 0.85 }}>
-                              {slot.booking?.bookingType === 'WALK_IN' ? 'Walk-in' : 'Member'}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </Card.Content>
-          </Card>
-
-          {/* Bookings Overview Table */}
-          <Card>
-            <Card.Header>
-              <Card.Title>Today's Active Reservations</Card.Title>
-            </Card.Header>
-            <Card.Content>
-              {myBookings.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '1rem' }}>
-                  No active court bookings for today.
-                </p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                  {myBookings.slice(0, 5).map((b) => (
-                    <div
-                      key={b._id}
-                      style={{
-                        padding: '0.75rem 1rem',
-                        background: 'var(--bg-subtle)',
-                        borderRadius: 'var(--radius-md)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <div>
-                        <span style={{ fontWeight: 700 }}>{b.court?.name}</span> &bull;{' '}
-                        <span style={{ color: 'var(--primary)', fontWeight: 600 }}>
-                          {b.startTime} - {b.endTime}
-                        </span>
-                        <p style={{ margin: '0.1rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                          {b.member ? `Member: ${b.member.firstName} ${b.member.lastName}` : `Walk-in: ${b.walkInDetails?.name}`} &bull; Paid: ₹{b.finalAmount} ({b.paymentMethod})
-                        </p>
-                      </div>
-
-                      <Badge variant={b.status === 'CONFIRMED' ? 'success' : 'secondary'}>
-                        {b.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card.Content>
-          </Card>
-        </div>
-      </div>
-
-      {/* Booking Confirmation Modal */}
-      <Modal
-        isOpen={bookingModalOpen}
-        onClose={() => setBookingModalOpen(false)}
-        title={`Book Court: ${selectedCourt?.name}`}
-        subtitle={`Session: ${selectedDate} at ${selectedSlotTime} (1 Hour)`}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setBookingModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={handleConfirmBooking} loading={submitting}>
-              Confirm Booking
-            </Button>
-          </>
-        }
-      >
-        <form onSubmit={handleConfirmBooking}>
-          {isFrontDeskOrOwner && (
-            <div style={{ marginBottom: '1rem' }}>
-              <label className="form-label">Booking Category</label>
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.3rem' }}>
-                <Button
-                  variant={bookingType === 'WALK_IN' ? 'primary' : 'outline'}
-                  size="sm"
-                  onClick={() => setBookingType('WALK_IN')}
-                >
-                  Walk-in Guest
-                </Button>
-                <Button
-                  variant={bookingType === 'MEMBER' ? 'primary' : 'outline'}
-                  size="sm"
-                  onClick={() => setBookingType('MEMBER')}
-                >
-                  Club Member
-                </Button>
-                <Button
-                  variant={bookingType === 'SOCIAL_PLAY' ? 'primary' : 'outline'}
-                  size="sm"
-                  onClick={() => setBookingType('SOCIAL_PLAY')}
-                >
-                  Social Play (Friday Night)
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {bookingType === 'WALK_IN' && (
-            <div className="grid-cols-2">
-              <Input
-                label="Walk-in Guest Name"
-                value={walkInName}
-                onChange={(e) => setWalkInName(e.target.value)}
-                placeholder="e.g. Sameer Desai"
-                required
-              />
-              <Input
-                label="Phone Number"
-                value={walkInPhone}
-                onChange={(e) => setWalkInPhone(e.target.value)}
-                placeholder="e.g. 9898000000"
-                required
-              />
-            </div>
-          )}
-
-          <div
-            style={{
-              padding: '1rem',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--primary-light)',
-              border: '1px solid rgba(79,70,229,0.2)',
-              marginBottom: '1rem',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '0.35rem' }}>
-              <span>Standard Hourly Rate:</span>
-              <strong>₹{bookingType === 'WALK_IN' ? selectedCourt?.walkInRate : selectedCourt?.hourlyRate}</strong>
-            </div>
-
-            {bookingType === 'MEMBER' && userMembership?.plan && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--success-text)', marginBottom: '0.35rem' }}>
-                <span>{userMembership.plan.name} Member Discount:</span>
-                <strong>
-                  {userMembership.plan.fullCourtAccess ? '100% (FREE)' : `-${userMembership.plan.courtDiscount}%`}
-                </strong>
-              </div>
-            )}
-
-            <div style={{ borderTop: '1px solid rgba(79,70,229,0.2)', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.05rem' }}>
-              <span>Total Payable:</span>
-              <span className="text-gradient">
-                ₹{bookingType === 'WALK_IN'
-                  ? selectedCourt?.walkInRate
-                  : userMembership?.plan?.fullCourtAccess
-                  ? 0
-                  : selectedCourt?.hourlyRate * (1 - (userMembership?.plan?.courtDiscount || 0) / 100)}
-              </span>
-            </div>
-          </div>
-
-          <Select
-            label="Payment Method"
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value)}
-            options={[
-              { value: 'UPI', label: 'UPI (GPay / PhonePe / Paytm)' },
-              { value: 'CARD', label: 'Credit / Debit Card' },
-              { value: 'CASH', label: 'Cash at Counter' },
-            ]}
-            placeholder=""
-          />
-        </form>
-      </Modal>
-    </DashboardLayout>
-  );
+    </Modal>
+    </div>
+  </DashboardLayout>;
 };
 
 export default CourtsBookingPage;

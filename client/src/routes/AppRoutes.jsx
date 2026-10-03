@@ -9,6 +9,7 @@ import Login from '../pages/Login';
 import Register from '../pages/Register';
 import Dashboard from '../pages/Dashboard';
 import CourtsBookingPage from '../pages/CourtsBookingPage';
+import BookingHistoryPage from '../pages/BookingHistoryPage';
 import ProShopPage from '../pages/ProShopPage';
 import CanteenBarPage from '../pages/CanteenBarPage';
 import MembershipsPage from '../pages/MembershipsPage';
@@ -81,6 +82,14 @@ export const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <CourtsBookingPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/booking-history"
+        element={
+          <ProtectedRoute>
+            <BookingHistoryPage />
           </ProtectedRoute>
         }
       />
