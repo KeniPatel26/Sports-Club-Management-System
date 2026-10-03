@@ -221,7 +221,7 @@ export const AiAssistant = () => {
                             cursor: 'pointer',
                           }}
                         >
-                          ⚡ {action}
+                          {action}
                         </button>
                       ))}
                     </div>

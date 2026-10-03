@@ -45,7 +45,7 @@ export const Hero = () => {
                   fontWeight: 800,
                 }}
               >
-                ★ PREMIUM
+                PREMIUM
               </span>
               <span>Enterprise MERN Architecture Starter</span>
             </div>

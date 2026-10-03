@@ -1,40 +1,203 @@
 import api from './api';
 
 export const staffService = {
-  getStaff: async (params = {}) => {
-    const res = await api.get('/staff', { params });
+  // ============================================
+  // COMMON STAFF (ALL DEPARTMENTS)
+  // ============================================
+  getMyProfile: async () => {
+    const res = await api.get('/staff/profile');
     return res.data;
   },
 
-  createStaff: async (staffData) => {
-    const res = await api.post('/staff', staffData);
+  checkIn: async () => {
+    const res = await api.post('/staff/check-in');
     return res.data;
   },
 
-  getShifts: async (params = {}) => {
-    const res = await api.get('/staff/shifts', { params });
+  checkOut: async () => {
+    const res = await api.post('/staff/check-out');
     return res.data;
   },
 
-  createShift: async (shiftData) => {
-    const res = await api.post('/staff/shifts', shiftData);
+  getNotifications: async () => {
+    const res = await api.get('/staff/notifications');
     return res.data;
   },
 
-  getLeaves: async () => {
-    const res = await api.get('/staff/leaves');
+  // ============================================
+  // 1. FRONT DESK STAFF
+  // ============================================
+  getFrontDeskOverview: async () => {
+    const res = await api.get('/staff/front-desk/overview');
     return res.data;
   },
 
-  requestLeave: async (leaveData) => {
-    const res = await api.post('/staff/leaves', leaveData);
+  getCourtAvailability: async (date) => {
+    const res = await api.get('/staff/front-desk/courts/availability', {
+      params: { date },
+    });
     return res.data;
   },
 
-  updateLeaveStatus: async (id, status) => {
-    const res = await api.patch(`/staff/leaves/${id}/status`, { status });
+  searchMembers: async (query) => {
+    const res = await api.get('/staff/front-desk/members/search', {
+      params: { query },
+    });
+    return res.data;
+  },
+
+  getMemberHistory: async (memberId) => {
+    const res = await api.get(`/staff/front-desk/members/${memberId}/history`);
+    return res.data;
+  },
+
+  createFrontDeskBooking: async (bookingData) => {
+    const res = await api.post('/staff/front-desk/bookings', bookingData);
+    return res.data;
+  },
+
+  updateBookingStatus: async (bookingId, status) => {
+    const res = await api.patch(`/staff/front-desk/bookings/${bookingId}/status`, {
+      status,
+    });
+    return res.data;
+  },
+
+  rescheduleBooking: async (bookingId, data) => {
+    const res = await api.patch(`/staff/front-desk/bookings/${bookingId}/reschedule`, data);
+    return res.data;
+  },
+
+  cancelBooking: async (bookingId, data) => {
+    const res = await api.post(`/staff/front-desk/bookings/${bookingId}/cancel`, data);
+    return res.data;
+  },
+
+  getFrontDeskPayments: async () => {
+    const res = await api.get('/staff/front-desk/payments');
+    return res.data;
+  },
+
+  getDailyClosingSummary: async () => {
+    const res = await api.get('/staff/front-desk/daily-closing');
+    return res.data;
+  },
+
+  // ============================================
+  // 2. SPORTS SHOP STAFF
+  // ============================================
+  getShopOverview: async () => {
+    const res = await api.get('/staff/sports-shop/overview');
+    return res.data;
+  },
+
+  getShopProducts: async (params = {}) => {
+    const res = await api.get('/staff/sports-shop/products', { params });
+    return res.data;
+  },
+
+  receiveStock: async (stockData) => {
+    const res = await api.post('/staff/sports-shop/inventory/receive', stockData);
+    return res.data;
+  },
+
+  reportDamagedStock: async (data) => {
+    const res = await api.post('/staff/sports-shop/inventory/damage', data);
+    return res.data;
+  },
+
+  getInventoryHistory: async () => {
+    const res = await api.get('/staff/sports-shop/inventory/history');
+    return res.data;
+  },
+
+  processCounterSale: async (posData) => {
+    const res = await api.post('/staff/sports-shop/pos/checkout', posData);
+    return res.data;
+  },
+
+  getShopOrders: async (params = {}) => {
+    const res = await api.get('/staff/sports-shop/orders', { params });
+    return res.data;
+  },
+
+  updateShopOrderStatus: async (orderId, status) => {
+    const res = await api.patch(`/staff/sports-shop/orders/${orderId}/status`, {
+      status,
+    });
+    return res.data;
+  },
+
+  getShopPayments: async () => {
+    const res = await api.get('/staff/sports-shop/payments');
+    return res.data;
+  },
+
+  reportLowStock: async (data) => {
+    const res = await api.post('/staff/sports-shop/report-low-stock', data);
+    return res.data;
+  },
+
+  // ============================================
+  // 3. CANTEEN & BAR STAFF
+  // ============================================
+  getCanteenOverview: async () => {
+    const res = await api.get('/staff/canteen/overview');
+    return res.data;
+  },
+
+  getDiningTables: async () => {
+    const res = await api.get('/staff/canteen/tables');
+    return res.data;
+  },
+
+  updateTableStatus: async (tableId, data) => {
+    const res = await api.patch(`/staff/canteen/tables/${tableId}/status`, data);
+    return res.data;
+  },
+
+  getCanteenMenu: async () => {
+    const res = await api.get('/staff/canteen/menu');
+    return res.data;
+  },
+
+  toggleItemAvailability: async (itemId) => {
+    const res = await api.patch(`/staff/canteen/menu/${itemId}/toggle-availability`);
+    return res.data;
+  },
+
+  createCanteenOrder: async (orderData) => {
+    const res = await api.post('/staff/canteen/orders', orderData);
+    return res.data;
+  },
+
+  getCanteenOrders: async (params = {}) => {
+    const res = await api.get('/staff/canteen/orders', { params });
+    return res.data;
+  },
+
+  updateCanteenOrderStatus: async (orderId, status) => {
+    const res = await api.patch(`/staff/canteen/orders/${orderId}/status`, {
+      status,
+    });
+    return res.data;
+  },
+
+  getOpenTabs: async () => {
+    const res = await api.get('/staff/canteen/tabs/open');
+    return res.data;
+  },
+
+  settleCanteenTab: async (settleData) => {
+    const res = await api.post('/staff/canteen/tabs/settle', settleData);
+    return res.data;
+  },
+
+  getCanteenPayments: async () => {
+    const res = await api.get('/staff/canteen/payments');
     return res.data;
   },
 };
 
 export default staffService;
+

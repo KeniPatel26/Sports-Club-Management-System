@@ -128,7 +128,7 @@ export const ProShopPage = () => {
     return cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
   };
 
-  const discountRate = userMembership?.plan?.shopDiscount || 0;
+  const discountRate = userMembership?.plan?.benefits?.shopDiscount ?? userMembership?.plan?.shopDiscount ?? 0;
   const subtotal = calculateSubtotal();
   const discountAmount = (subtotal * discountRate) / 100;
   const totalAmount = Math.max(0, subtotal - discountAmount);
@@ -231,7 +231,7 @@ export const ProShopPage = () => {
                 transition: 'var(--transition)',
               }}
             >
-              {cat === 'ALL' ? '📦 All Gear' : cat}
+              {cat === 'ALL' ? 'All Gear' : cat}
             </button>
           ))}
         </div>

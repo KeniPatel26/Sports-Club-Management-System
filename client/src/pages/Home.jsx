@@ -2,21 +2,21 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  Layers,
-  Zap,
-  ShieldCheck,
-  Sparkles,
-  Database,
-  LayoutDashboard,
+  Calendar,
+  ShoppingBag,
+  Coffee,
+  Crown,
+  Trophy,
+  Users,
   CheckCircle2,
-  FolderKanban,
-  FileSpreadsheet,
   ArrowRight,
-  Code2,
-  Terminal,
-  Cpu,
-  Lock,
-  Workflow,
+  Sparkles,
+  ShieldCheck,
+  Star,
+  Clock,
+  MapPin,
+  ChevronRight,
+  Activity,
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
@@ -24,122 +24,177 @@ import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 
 export const Home = () => {
-  const { isAuthenticated, loginDemoAdmin, loginDemoUser } = useAuth();
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  const handleDemo = async (type) => {
-    if (type === 'admin') {
-      await loginDemoAdmin();
-    } else {
-      await loginDemoUser();
-    }
-    navigate('/dashboard');
-  };
+  const facilities = [
+    {
+      icon: Calendar,
+      badge: 'COURTS & ARENA',
+      color: '#354962',
+      title: 'Olympic-Standard Courts',
+      desc: '8 tournament-grade synthetic & wooden courts with anti-glare LED lighting, automated slot scheduling, and instant reservations.',
+      link: '/courts',
+      actionText: 'Book Court Slot',
+    },
+    {
+      icon: ShoppingBag,
+      badge: 'PRO SHOP',
+      color: '#D98E68',
+      title: 'Athletic Equipment & Gear',
+      desc: 'Top-tier racquets, shuttlecocks, balls, performance apparel, and professional racquet restringing service on-site.',
+      link: '/shop',
+      actionText: 'Browse Pro Shop',
+    },
+    {
+      icon: Coffee,
+      badge: 'CAFE & LOUNGE',
+      color: '#8FAF98',
+      title: 'Sports Cafe & Nutrition Bar',
+      desc: 'Chef-crafted post-workout meals, cold-pressed protein smoothies, artisan espresso, and a panoramic court-view dining lounge.',
+      link: '/canteen',
+      actionText: 'View Cafe Menu',
+    },
+    {
+      icon: Crown,
+      badge: 'MEMBERSHIPS',
+      color: '#D9A65D',
+      title: 'Elite Club Privileges',
+      desc: 'Exclusive booking windows, discounted court rates, priority tournament entry, guest passes, and personal locker amenities.',
+      link: '/memberships',
+      actionText: 'Compare Plans',
+    },
+  ];
 
-  const featureCards = [
+  const stats = [
+    { number: '8', label: 'International Courts' },
+    { number: '1,400+', label: 'Active Club Members' },
+    { number: '350+', label: 'Pro Shop Gear Items' },
+    { number: '99.4%', label: 'Booking Satisfaction' },
+  ];
+
+  const membershipTiers = [
     {
-      icon: ShieldCheck,
-      color: 'var(--primary)',
-      title: 'JWT Auth & Protected Routing',
-      desc: 'Complete token verification, pre-save password hashing, Axios Bearer interceptor, and Role-Based Guards.',
+      name: 'Silver Tier',
+      price: '$49',
+      period: '/month',
+      desc: 'Ideal for weekend players and casual enthusiasts.',
+      highlight: false,
+      features: [
+        'Up to 4 court bookings per week',
+        'Standard 3-day advance booking window',
+        '5% discount at Pro Shop',
+        'Club cafe lounge access',
+      ],
     },
     {
-      icon: LayoutDashboard,
-      color: 'var(--secondary)',
-      title: 'Executive Dashboard & Analytics',
-      desc: 'Pre-built KPI stats cards, multi-metric SVG bar charts, category progress distributions, and fast actions.',
+      name: 'Gold Member',
+      price: '$89',
+      period: '/month',
+      desc: 'Our most popular plan for active athletes and regular players.',
+      highlight: true,
+      badge: 'MOST POPULAR',
+      features: [
+        'Unlimited weekday court bookings',
+        'Priority 7-day advance booking window',
+        '15% discount at Pro Shop & Cafe',
+        '2 Complimentary monthly guest passes',
+        'Free equipment stringing consultation',
+      ],
     },
     {
-      icon: FolderKanban,
-      color: 'var(--success)',
-      title: 'Full CRUD & Mongoose Models',
-      desc: 'Production-ready schemas for Users, Projects, Tasks, Comments, and Attachments with relationship queries.',
-    },
-    {
-      icon: Sparkles,
-      color: 'var(--accent)',
-      title: 'Smart AI Assistant Engine',
-      desc: 'Text summarization, automated category classification, recommendation engine, and interactive assistant chat.',
-    },
-    {
-      icon: FileSpreadsheet,
-      color: 'var(--warning)',
-      title: 'Hackathon UI Kit & Data Table',
-      desc: 'Pre-styled Buttons, Modals, Badges, Search with Debounce, Skeletons, File Upload, and Paginated Tables.',
-    },
-    {
-      icon: Workflow,
-      color: '#ec4899',
-      title: 'Activity Feed & Audit Logs',
-      desc: 'Universal timeline feed for tracking every project event, along with enterprise audit compliance logging.',
+      name: 'Platinum VIP',
+      price: '$149',
+      period: '/month',
+      desc: 'The ultimate sports & country club experience with VIP perks.',
+      highlight: false,
+      features: [
+        'Guaranteed prime-time court reservations',
+        '14-day priority booking window',
+        '25% discount across all club facilities',
+        'Dedicated VIP locker & shower suite',
+        'Free tournament entry & coaching session',
+      ],
     },
   ];
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#F4F6FC' }}>
       <Navbar />
 
       {/* Hero Section */}
       <section
         style={{
           padding: '5rem 1.5rem 4rem 1.5rem',
-          maxWidth: '1200px',
+          maxWidth: '1240px',
           margin: '0 auto',
           textAlign: 'center',
           position: 'relative',
         }}
       >
+        {/* Top badge */}
         <div
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '0.5rem',
-            padding: '0.35rem 0.85rem',
-            borderRadius: 'var(--radius-full)',
-            background: 'var(--primary-light)',
-            color: 'var(--primary)',
+            padding: '0.4rem 1rem',
+            borderRadius: '999px',
+            backgroundColor: 'rgba(217, 142, 104, 0.15)',
+            border: '1px solid rgba(217, 142, 104, 0.35)',
+            color: '#D98E68',
             fontSize: '0.85rem',
             fontWeight: 700,
             marginBottom: '1.5rem',
           }}
         >
-          <Sparkles size={16} />
-          Day 0 Ready &bull; Built for MERN Hackathon Speed
+          <Trophy size={16} color="#D98E68" />
+          <span>PREMIER SPORTS & RECREATION COMPLEX</span>
         </div>
 
         <h1
           style={{
-            fontSize: '3.25rem',
+            fontSize: 'clamp(2.5rem, 5vw, 4rem)',
             fontWeight: 800,
             lineHeight: 1.15,
             letterSpacing: '-0.03em',
+            color: '#17263B',
             marginBottom: '1.25rem',
           }}
         >
-          Build & Win Your Hackathon <br />
-          <span className="text-gradient">In Hours, Not Days</span>
+          Elevate Your Game at <br />
+          <span style={{ color: '#D98E68' }}>Champions Club.</span>
         </h1>
 
         <p
           style={{
-            fontSize: '1.15rem',
-            color: 'var(--text-muted)',
-            maxWidth: '720px',
+            fontSize: '1.18rem',
+            color: '#64748B',
+            maxWidth: '740px',
             margin: '0 auto 2.5rem auto',
-            lineHeight: 1.6,
+            lineHeight: 1.65,
           }}
         >
-          Skip 3–4 hours of repetitive boilerplate setup. Jump straight to solving the actual problem statement with pre-built Authentication, Dashboards, Data Tables, AI Tools, and Reusable UI Components.
+          Experience world-class court reservations, athletic gear at our Pro Shop, chef-curated dining at our Sports Cafe, and vibrant community tournaments all in one seamless club management portal.
         </p>
 
-        {/* CTA Buttons */}
+        {/* CTA Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           {isAuthenticated ? (
             <Button
               variant="primary"
               size="lg"
-              icon={LayoutDashboard}
+              icon={Calendar}
               onClick={() => navigate('/dashboard')}
+              style={{
+                backgroundColor: '#D98E68',
+                borderColor: '#D98E68',
+                color: '#FFFFFF',
+                padding: '0.85rem 2rem',
+                fontSize: '1rem',
+                fontWeight: 700,
+                borderRadius: '12px',
+              }}
             >
               Go to Your Dashboard
             </Button>
@@ -148,172 +203,339 @@ export const Home = () => {
               <Button
                 variant="primary"
                 size="lg"
-                icon={ArrowRight}
-                iconPosition="right"
-                onClick={() => handleDemo('admin')}
+                icon={Calendar}
+                onClick={() => navigate('/register')}
+                style={{
+                  backgroundColor: '#D98E68',
+                  borderColor: '#D98E68',
+                  color: '#FFFFFF',
+                  padding: '0.85rem 1.85rem',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  borderRadius: '12px',
+                }}
               >
-                Launch Demo (Admin)
+                Join Champions Club
               </Button>
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={() => handleDemo('user')}
+                icon={ArrowRight}
+                iconPosition="right"
+                onClick={() => navigate('/courts')}
+                style={{
+                  padding: '0.85rem 1.85rem',
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  borderRadius: '12px',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid #DDE2EC',
+                  color: '#17263B',
+                }}
               >
-                Launch Demo (User)
+                Explore Courts & Times
               </Button>
             </>
           )}
         </div>
 
-        {/* Demo Credentials Box */}
+        {/* Club Quick Stats Bar */}
         <div
           style={{
-            marginTop: '3rem',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '1.25rem 1.5rem',
-            maxWidth: '620px',
-            margin: '3rem auto 0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-around',
-            boxShadow: 'var(--shadow-md)',
-            flexWrap: 'wrap',
-            gap: '1rem',
+            marginTop: '3.5rem',
+            backgroundColor: '#FFFFFF',
+            border: '1px solid #DDE2EC',
+            borderRadius: '16px',
+            padding: '1.75rem 2rem',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '1.5rem',
+            boxShadow: '0 10px 30px rgba(53, 73, 98, 0.05)',
           }}
         >
-          <div style={{ textAlign: 'left' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)' }}>
-              👑 ADMIN DEMO
-            </span>
-            <p style={{ margin: '0.1rem 0 0 0', fontSize: '0.85rem', fontWeight: 600 }}>
-              admin@demo.com &bull; Admin@123
-            </p>
-          </div>
-          <div style={{ width: '1px', height: '32px', background: 'var(--border-color)' }} />
-          <div style={{ textAlign: 'left' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--secondary-hover)' }}>
-              👤 USER DEMO
-            </span>
-            <p style={{ margin: '0.1rem 0 0 0', fontSize: '0.85rem', fontWeight: 600 }}>
-              user@demo.com &bull; User@123
-            </p>
-          </div>
+          {stats.map((s) => (
+            <div key={s.label} style={{ textAlign: 'center' }}>
+              <div
+                style={{
+                  fontSize: '2.1rem',
+                  fontWeight: 800,
+                  color: '#17263B',
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}
+              >
+                {s.number}
+              </div>
+              <div style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 600, marginTop: '0.2rem' }}>
+                {s.label}
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Feature Grid */}
+      {/* Facilities & Services Grid */}
       <section
         style={{
-          padding: '4rem 1.5rem',
-          backgroundColor: 'var(--bg-subtle)',
-          borderTop: '1px solid var(--border-color)',
-          borderBottom: '1px solid var(--border-color)',
+          padding: '4.5rem 1.5rem',
+          backgroundColor: '#FFFFFF',
+          borderTop: '1px solid #DDE2EC',
+          borderBottom: '1px solid #DDE2EC',
         }}
       >
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '1240px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-            <h2 style={{ fontSize: '2rem', fontWeight: 800 }}>The 4-Layer Hackathon Starter Architecture</h2>
-            <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-              Designed to solve any hackathon challenge with modular speed.
+            <div
+              style={{
+                fontSize: '0.8rem',
+                fontWeight: 800,
+                color: '#D98E68',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                marginBottom: '0.5rem',
+              }}
+            >
+              WORLD-CLASS AMENITIES
+            </div>
+            <h2 style={{ fontSize: '2.3rem', fontWeight: 800, color: '#17263B', margin: 0 }}>
+              Complete Athletic & Social Experience
+            </h2>
+            <p style={{ color: '#64748B', marginTop: '0.5rem', fontSize: '1rem' }}>
+              From competitive courts to relaxation lounges, every aspect of our club is built for champions.
             </p>
           </div>
 
-          <div className="grid-cols-3">
-            {featureCards.map((feat) => {
-              const Icon = feat.icon;
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: '1.5rem' }}>
+            {facilities.map((f) => {
+              const Icon = f.icon;
               return (
-                <Card key={feat.title} hoverable>
-                  <Card.Content>
+                <div
+                  key={f.title}
+                  style={{
+                    backgroundColor: '#F4F6FC',
+                    borderRadius: '16px',
+                    padding: '2rem 1.75rem',
+                    border: '1px solid #DDE2EC',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div>
                     <div
                       style={{
-                        width: '46px',
-                        height: '46px',
-                        borderRadius: 'var(--radius-md)',
-                        backgroundColor: 'var(--bg-subtle)',
-                        color: feat.color,
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '12px',
+                        backgroundColor: '#FFFFFF',
+                        color: f.color,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        marginBottom: '1rem',
+                        marginBottom: '1.25rem',
+                        boxShadow: '0 4px 12px rgba(53, 73, 98, 0.08)',
                       }}
                     >
-                      <Icon size={22} />
+                      <Icon size={24} />
                     </div>
-                    <Card.Title style={{ fontSize: '1.1rem' }}>{feat.title}</Card.Title>
-                    <Card.Description style={{ marginTop: '0.5rem', lineHeight: 1.5 }}>
-                      {feat.desc}
-                    </Card.Description>
-                  </Card.Content>
-                </Card>
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        color: f.color,
+                        letterSpacing: '0.06em',
+                      }}
+                    >
+                      {f.badge}
+                    </span>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#17263B', margin: '0.4rem 0 0.6rem 0' }}>
+                      {f.title}
+                    </h3>
+                    <p style={{ fontSize: '0.9rem', color: '#64748B', lineHeight: 1.6, margin: 0 }}>
+                      {f.desc}
+                    </p>
+                  </div>
+
+                  <div style={{ marginTop: '1.75rem' }}>
+                    <Link
+                      to={f.link}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        color: '#17263B',
+                        fontWeight: 700,
+                        fontSize: '0.88rem',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <span>{f.actionText}</span>
+                      <ChevronRight size={16} />
+                    </Link>
+                  </div>
+                </div>
               );
             })}
           </div>
         </div>
       </section>
 
-      {/* Interactive Quick-Start Guide for Judges & Teams */}
-      <section style={{ padding: '4rem 1.5rem', maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-          <h2 style={{ fontSize: '2rem', fontWeight: 800 }}>Ready-to-Use Screen Templates</h2>
-          <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-            5 standard screens covering 95% of hackathon requirements.
+      {/* Membership Tiers Section */}
+      <section style={{ padding: '5rem 1.5rem', maxWidth: '1240px', margin: '0 auto', width: '100%' }}>
+        <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+          <div
+            style={{
+              fontSize: '0.8rem',
+              fontWeight: 800,
+              color: '#D98E68',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              marginBottom: '0.5rem',
+            }}
+          >
+            MEMBERSHIP TIERS
+          </div>
+          <h2 style={{ fontSize: '2.3rem', fontWeight: 800, color: '#17263B', margin: 0 }}>
+            Choose Your Club Membership
+          </h2>
+          <p style={{ color: '#64748B', marginTop: '0.5rem', fontSize: '1rem' }}>
+            Flexible membership tiers designed for casual players, regular athletes, and competitive pros.
           </p>
         </div>
 
-        <div className="grid-cols-2">
-          <Card hoverable onClick={() => navigate('/dashboard')}>
-            <Card.Content>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)' }}>TEMPLATE 1</span>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Live Demo &rarr;</span>
-              </div>
-              <h3 style={{ margin: '0.5rem 0 0.35rem 0' }}>Executive Dashboard</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                KPI statistics, real-time activity timeline, interactive SVG charts, and quick actions.
-              </p>
-            </Card.Content>
-          </Card>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+          {membershipTiers.map((tier) => (
+            <div
+              key={tier.name}
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: '20px',
+                padding: '2.5rem 2rem',
+                border: tier.highlight ? '2px solid #D98E68' : '1px solid #DDE2EC',
+                boxShadow: tier.highlight ? '0 12px 36px rgba(217, 142, 104, 0.15)' : '0 6px 20px rgba(53, 73, 98, 0.04)',
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              {tier.highlight && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '-14px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: '#D98E68',
+                    color: '#FFFFFF',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    padding: '4px 14px',
+                    borderRadius: '999px',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  {tier.badge}
+                </div>
+              )}
 
-          <Card hoverable onClick={() => navigate('/projects')}>
-            <Card.Content>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--success-text)' }}>TEMPLATE 2</span>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Live Demo &rarr;</span>
-              </div>
-              <h3 style={{ margin: '0.5rem 0 0.35rem 0' }}>CRUD & Entity Table</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                Search, filter by status, sorting, create project modal, task assignments, and delete confirmation.
-              </p>
-            </Card.Content>
-          </Card>
+              <div>
+                <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#17263B', margin: 0 }}>
+                  {tier.name}
+                </h3>
+                <p style={{ color: '#64748B', fontSize: '0.85rem', marginTop: '0.35rem', minHeight: '38px' }}>
+                  {tier.desc}
+                </p>
 
-          <Card hoverable onClick={() => navigate('/ai-hub')}>
-            <Card.Content>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent)' }}>TEMPLATE 3</span>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Live Demo &rarr;</span>
-              </div>
-              <h3 style={{ margin: '0.5rem 0 0.35rem 0' }}>AI Assistant Hub</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                Text summarization, automated category tagger, recommendation generator, and chat assistant.
-              </p>
-            </Card.Content>
-          </Card>
+                <div style={{ margin: '1.5rem 0', display: 'flex', alignItems: 'baseline', gap: '0.2rem' }}>
+                  <span style={{ fontSize: '2.5rem', fontWeight: 800, color: '#17263B', fontFamily: "'JetBrains Mono', monospace" }}>
+                    {tier.price}
+                  </span>
+                  <span style={{ color: '#64748B', fontSize: '0.9rem' }}>{tier.period}</span>
+                </div>
 
-          <Card hoverable onClick={() => navigate('/template/form')}>
-            <Card.Content>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--warning-text)' }}>TEMPLATE 4</span>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Live Demo &rarr;</span>
+                <div style={{ borderTop: '1px solid #DDE2EC', paddingTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  {tier.features.map((feat) => (
+                    <div key={feat} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', fontSize: '0.88rem', color: '#2D4159' }}>
+                      <CheckCircle2 size={17} color={tier.highlight ? '#D98E68' : '#8FAF98'} style={{ flexShrink: 0, marginTop: '2px' }} />
+                      <span>{feat}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <h3 style={{ margin: '0.5rem 0 0.35rem 0' }}>Comprehensive Form Template</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                Multi-section form with validations, file uploader with drag & drop, and toast feedback.
-              </p>
-            </Card.Content>
-          </Card>
+
+              <div style={{ marginTop: '2.5rem' }}>
+                <Button
+                  variant={tier.highlight ? 'primary' : 'outline'}
+                  fullWidth
+                  size="md"
+                  onClick={() => navigate('/register')}
+                  style={{
+                    backgroundColor: tier.highlight ? '#D98E68' : '#FFFFFF',
+                    borderColor: tier.highlight ? '#D98E68' : '#DDE2EC',
+                    color: tier.highlight ? '#FFFFFF' : '#17263B',
+                    fontWeight: 700,
+                    borderRadius: '10px',
+                    height: '44px',
+                  }}
+                >
+                  Select Plan
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Bottom CTA Banner */}
+      <section
+        style={{
+          backgroundColor: '#2B3A4F',
+          color: '#FFFFFF',
+          padding: '4.5rem 1.5rem',
+          textAlign: 'center',
+          marginTop: 'auto',
+        }}
+      >
+        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: '2.4rem', fontWeight: 800, margin: '0 0 1rem 0' }}>
+            Ready to Experience Champions Club?
+          </h2>
+          <p style={{ fontSize: '1.05rem', color: '#B2BFCF', lineHeight: 1.6, margin: '0 0 2rem 0' }}>
+            Create your member profile today to reserve courts, participate in leagues, access the pro shop, and connect with fellow sports enthusiasts.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => navigate('/register')}
+              style={{
+                backgroundColor: '#D98E68',
+                borderColor: '#D98E68',
+                color: '#FFFFFF',
+                padding: '0.85rem 2.25rem',
+                fontWeight: 700,
+                borderRadius: '10px',
+              }}
+            >
+              Sign Up Now
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => navigate('/login')}
+              style={{
+                backgroundColor: 'transparent',
+                borderColor: '#B2BFCF',
+                color: '#FFFFFF',
+                padding: '0.85rem 2.25rem',
+                fontWeight: 600,
+                borderRadius: '10px',
+              }}
+            >
+              Member Sign In
+            </Button>
+          </div>
         </div>
       </section>
 

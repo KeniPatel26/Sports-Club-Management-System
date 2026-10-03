@@ -18,24 +18,17 @@ import {
   Briefcase,
   ShieldCheck,
   Trophy,
+  Building2,
+  Award,
 } from 'lucide-react';
 import NotificationDropdown from '../common/NotificationDropdown';
 import Button from '../ui/Button';
 import Dropdown from '../ui/Dropdown';
 
 export const Navbar = ({ onToggleSidebar }) => {
-  const { user, isAuthenticated, logout, loginDemoRole, isOwner } = useAuth();
+  const { user, isAuthenticated, logout, isOwner } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-
-  const handleFastRoleLogin = async (email) => {
-    try {
-      await loginDemoRole(email, 'Champions@123');
-      navigate('/dashboard');
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
   const userMenuItems = [
     {
@@ -207,37 +200,6 @@ export const Navbar = ({ onToggleSidebar }) => {
 
         {/* Right: Actions, Theme, Notifications & User */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-          {/* Fast Role Switcher Pills for Judges / Demo */}
-          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'nowrap' }}>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleFastRoleLogin('owner@championsclub.com')}
-              style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}
-              title="Switch to Owner view"
-            >
-              👑 Owner
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleFastRoleLogin('frontdesk@championsclub.com')}
-              style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}
-              title="Switch to Front Desk view"
-            >
-              🛎️ Front Desk
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleFastRoleLogin('gold.member@championsclub.com')}
-              style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }}
-              title="Switch to Gold Member view"
-            >
-              🥇 Gold Member
-            </Button>
-          </div>
-
           {/* Theme Toggle Button */}
           <button
             type="button"

@@ -193,7 +193,7 @@ export const CourtsBookingPage = () => {
               transition: 'var(--transition)',
             }}
           >
-            {sport === 'ALL' ? '🏸 All Courts' : sport === 'TENNIS' ? '🎾 Tennis' : sport === 'CRICKET' ? '🏏 Cricket Arena' : sport === 'PADEL' ? '🏓 Padel' : '🏸 Badminton'}
+            {sport === 'ALL' ? 'All Courts' : sport === 'TENNIS' ? 'Tennis' : sport === 'CRICKET' ? 'Cricket Arena' : sport === 'PADEL' ? 'Padel' : 'Badminton'}
           </button>
         ))}
       </div>
@@ -475,7 +475,7 @@ export const CourtsBookingPage = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: 'var(--success-text)', marginBottom: '0.35rem' }}>
                 <span>{userMembership.plan.name} Member Discount:</span>
                 <strong>
-                  {userMembership.plan.fullCourtAccess ? '100% (FREE)' : `-${userMembership.plan.courtDiscount}%`}
+                  -{userMembership.plan.benefits?.courtDiscount ?? userMembership.plan.courtDiscount ?? 0}%
                 </strong>
               </div>
             )}
@@ -485,9 +485,11 @@ export const CourtsBookingPage = () => {
               <span className="text-gradient">
                 ₹{bookingType === 'WALK_IN'
                   ? selectedCourt?.walkInRate
-                  : userMembership?.plan?.fullCourtAccess
-                  ? 0
-                  : selectedCourt?.hourlyRate * (1 - (userMembership?.plan?.courtDiscount || 0) / 100)}
+                  : Math.max(
+                      0,
+                      (selectedCourt?.hourlyRate || 500) *
+                        (1 - ((userMembership?.plan?.benefits?.courtDiscount ?? userMembership?.plan?.courtDiscount) || 0) / 100)
+                    )}
               </span>
             </div>
           </div>

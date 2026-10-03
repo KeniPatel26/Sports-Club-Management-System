@@ -58,24 +58,6 @@ export const AuthModal = () => {
     }
   };
 
-  const handleFillDemo = (type) => {
-    if (type === 'admin') {
-      setFormData({
-        name: 'Alex Sterling',
-        email: 'alex.sterling@enterprise.com',
-        password: 'password123',
-        role: 'admin',
-      });
-    } else {
-      setFormData({
-        name: 'Keni Patel',
-        email: 'keni.patel@example.com',
-        password: 'password123',
-        role: 'user',
-      });
-    }
-  };
-
   return (
     <div className="modal-backdrop" onClick={closeAuthModal}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -110,40 +92,6 @@ export const AuthModal = () => {
               ? 'Access your authenticated dashboard and workspace.'
               : 'Join today and get full access to the starter platform.'}
           </p>
-        </div>
-
-        {/* Quick Demo Pre-fill helpers */}
-        <div
-          style={{
-            background: '#FFFFFF',
-            border: '1px dashed var(--champagne)',
-            borderRadius: '10px',
-            padding: '0.75rem',
-            marginBottom: '1.25rem',
-            textAlign: 'center',
-          }}
-        >
-          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--navy)', marginBottom: '0.4rem' }}>
-            ⚡ Instant 1-Click Demo Credentials:
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-            <button
-              type="button"
-              onClick={() => handleFillDemo('user')}
-              className="btn btn-sm btn-secondary"
-              style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
-            >
-              Fill User Demo
-            </button>
-            <button
-              type="button"
-              onClick={() => handleFillDemo('admin')}
-              className="btn btn-sm btn-secondary"
-              style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
-            >
-              Fill Admin Demo
-            </button>
-          </div>
         </div>
 
         {/* Error message */}

@@ -365,7 +365,7 @@ export const DashboardPage = () => {
                     {stats?.uptimePercentage || '99.98'}%
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--success)', fontWeight: 600 }}>
-                    ✓ 0 Unscheduled Downtime
+                    0 Unscheduled Downtime
                   </div>
                 </div>
 
@@ -520,7 +520,7 @@ export const DashboardPage = () => {
                 </div>
 
                 <div style={{ marginTop: '1.25rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  💡 Pass this token in your HTTP headers as:{' '}
+                  Pass this token in your HTTP headers as:{' '}
                   <code style={{ color: 'var(--navy)', fontWeight: 700 }}>
                     Authorization: Bearer {'<token>'}
                   </code>

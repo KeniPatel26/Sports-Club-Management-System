@@ -11,6 +11,7 @@ import {
   TrendingUp,
   BarChart3,
   User,
+  UserCheck,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -19,6 +20,8 @@ import {
   Package,
   UtensilsCrossed,
   SlidersHorizontal,
+  CheckCircle2,
+  Building2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -33,19 +36,16 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
 
   // Determine Nav Items based on Role (Member, Owner/Manager, Staff)
   const getNavItems = () => {
-    // 1. Owner / Club Manager View
+    // 1. Owner / Club Manager View (Business level: Members, Memberships, Employees, Courts, Shop, Settings)
     if (isManager || isOwner) {
       return [
-        { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-        { label: 'Members', path: '/users', icon: Users },
-        { label: 'Courts', path: '/courts', icon: Calendar },
-        { label: 'Bookings', path: '/courts', icon: Calendar, badge: 'Live' },
-        { label: 'Shop', path: '/shop', icon: ShoppingBag },
-        { label: 'Canteen', path: '/canteen', icon: Coffee },
-        { label: 'Finance', path: '/finance-analytics', icon: TrendingUp },
-        { label: 'Reports', path: '/finance-analytics', icon: BarChart3 },
-        { label: 'Staff', path: '/staff-roster', icon: Briefcase },
-        { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
+        { label: 'Dashboard', path: '/manager/dashboard', icon: LayoutDashboard },
+        { label: 'Members', path: '/manager/members', icon: Users },
+        { label: 'Memberships', path: '/manager/memberships', icon: Crown },
+        { label: 'Employees', path: '/manager/employees', icon: Briefcase },
+        { label: 'Courts', path: '/manager/courts', icon: Calendar },
+        { label: 'Sports Shop', path: '/manager/shop', icon: ShoppingBag },
+        { label: 'Settings', path: '/manager/settings', icon: SlidersHorizontal },
       ];
     }
 
@@ -53,41 +53,41 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
     if (isStaff && !isMember) {
       if (isFrontDesk) {
         return [
-          { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-          { label: 'Courts', path: '/courts', icon: Calendar },
-          { label: 'Bookings', path: '/courts', icon: Calendar, badge: 'Live' },
-          { label: 'Members', path: '/users', icon: Users },
-          { label: 'Staff Roster', path: '/staff-roster', icon: Briefcase },
-          { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
+          { label: 'Dashboard', path: '/staff/front-desk', icon: LayoutDashboard },
+          { label: 'Member Lookup', path: '/staff/front-desk?tab=members', icon: Users },
+          { label: 'Court Schedule', path: '/staff/front-desk?tab=courts', icon: Calendar },
+          { label: 'Bookings & Walk-ins', path: '/staff/front-desk?tab=bookings', icon: CheckCircle2 },
+          { label: 'Front Desk Payments', path: '/staff/front-desk?tab=payments', icon: Receipt },
+          { label: 'My Profile & Shift', path: '/staff/profile', icon: User },
         ];
       }
       if (isShopStaff) {
         return [
-          { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-          { label: 'Products', path: '/shop', icon: Package },
-          { label: 'Orders', path: '/shop', icon: ShoppingBag },
-          { label: 'Staff Roster', path: '/staff-roster', icon: Briefcase },
-          { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
+          { label: 'Dashboard', path: '/staff/shop', icon: LayoutDashboard },
+          { label: 'Products', path: '/staff/shop?tab=products', icon: ShoppingBag },
+          { label: 'Inventory & Stock', path: '/staff/shop?tab=inventory', icon: Package },
+          { label: 'Counter POS Sales', path: '/staff/shop?tab=sales', icon: Receipt },
+          { label: 'Online Orders', path: '/staff/shop?tab=orders', icon: Package },
+          { label: 'Shop Payments', path: '/staff/shop?tab=payments', icon: Receipt },
+          { label: 'My Profile & Shift', path: '/staff/profile', icon: User },
         ];
       }
       if (isCanteenStaff) {
         return [
-          { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-          { label: 'Menu & Tables', path: '/canteen', icon: UtensilsCrossed },
-          { label: 'Orders & Tabs', path: '/canteen', icon: Coffee },
-          { label: 'Staff Roster', path: '/staff-roster', icon: Briefcase },
-          { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
+          { label: 'Dashboard', path: '/staff/canteen', icon: LayoutDashboard },
+          { label: 'Menu Items', path: '/staff/canteen?tab=menu', icon: UtensilsCrossed },
+          { label: 'Table Layout', path: '/staff/canteen?tab=tables', icon: Building2 },
+          { label: 'Kitchen Queue', path: '/staff/canteen?tab=orders', icon: Coffee },
+          { label: 'Table Tabs & Bills', path: '/staff/canteen?tab=tabs', icon: Receipt },
+          { label: 'Canteen Payments', path: '/staff/canteen?tab=payments', icon: Receipt },
+          { label: 'My Profile & Shift', path: '/staff/profile', icon: User },
         ];
       }
 
       // Generic Staff fallback
       return [
-        { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-        { label: 'Courts & Bookings', path: '/courts', icon: Calendar },
-        { label: 'Shop Operations', path: '/shop', icon: ShoppingBag },
-        { label: 'Canteen & Bar', path: '/canteen', icon: Coffee },
-        { label: 'Staff Roster', path: '/staff-roster', icon: Briefcase },
-        { label: 'Settings', path: '/profile', icon: SlidersHorizontal },
+        { label: 'Staff Terminal', path: '/staff/front-desk', icon: LayoutDashboard },
+        { label: 'My Profile & Shift', path: '/staff/profile', icon: User },
       ];
     }
 
@@ -97,7 +97,6 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
       { label: 'Book Court', path: '/courts', icon: Calendar },
       { label: 'Shop', path: '/shop', icon: ShoppingBag },
       { label: 'Canteen', path: '/canteen', icon: Coffee },
-      { label: 'My Orders', path: '/shop', icon: Receipt },
       { label: 'Membership', path: '/memberships', icon: Crown },
       { label: 'Profile', path: '/profile', icon: User },
     ];

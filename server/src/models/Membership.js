@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 /**
  * Membership Schema - Represents active/expired membership subscriptions
+ * Links a User (Member) to a MembershipPlan with valid date range and payment status.
  */
 const membershipSchema = new mongoose.Schema(
   {
@@ -9,6 +10,11 @@ const membershipSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+    },
+
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
 
     plan: {
@@ -21,6 +27,10 @@ const membershipSchema = new mongoose.Schema(
       type: Date,
       required: true,
       default: Date.now,
+    },
+
+    endDate: {
+      type: Date,
     },
 
     expiryDate: {
@@ -42,12 +52,17 @@ const membershipSchema = new mongoose.Schema(
     paymentStatus: {
       type: String,
       enum: ['PENDING', 'PAID', 'FAILED', 'REFUNDED'],
-      default: 'PENDING',
+      default: 'PAID',
+    },
+
+    paymentMethod: {
+      type: String,
+      default: 'UPI',
     },
 
     amountPaid: {
       type: Number,
-      required: true,
+      default: 0,
       min: 0,
     },
   },
@@ -56,9 +71,26 @@ const membershipSchema = new mongoose.Schema(
   }
 );
 
+// Ensure user & endDate are synced with member & expiryDate
+membershipSchema.pre('save', function (next) {
+  if (this.member && !this.user) {
+    this.user = this.member;
+  }
+  if (this.user && !this.member) {
+    this.member = this.user;
+  }
+  if (this.expiryDate && !this.endDate) {
+    this.endDate = this.expiryDate;
+  }
+  if (this.endDate && !this.expiryDate) {
+    this.expiryDate = this.endDate;
+  }
+  next();
+});
+
 // Automatic check for expired status on retrieve
 membershipSchema.methods.isExpired = function () {
-  return new Date() > this.expiryDate;
+  return new Date() > (this.expiryDate || this.endDate);
 };
 
 export const Membership =
