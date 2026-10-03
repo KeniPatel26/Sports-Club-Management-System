@@ -20,6 +20,7 @@ import {
   Trophy,
   Building2,
   Award,
+  Menu,
 } from 'lucide-react';
 import NotificationDropdown from '../common/NotificationDropdown';
 import Button from '../ui/Button';
@@ -87,7 +88,7 @@ export const Navbar = ({ onToggleSidebar }) => {
         height: '64px',
         display: 'flex',
         alignItems: 'center',
-        padding: '0 1.5rem',
+        padding: '0 1.25rem',
       }}
     >
       <div
@@ -98,8 +99,31 @@ export const Navbar = ({ onToggleSidebar }) => {
           width: '100%',
         }}
       >
-        {/* Left: Brand Logo & Links */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.75rem' }}>
+        {/* Left: Hamburger & Brand Logo & Links */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {onToggleSidebar && (
+            <button
+              type="button"
+              className="navbar-hamburger-btn"
+              onClick={onToggleSidebar}
+              aria-label="Toggle Navigation Drawer"
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--text-main)',
+                width: '38px',
+                height: '38px',
+                display: 'none',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <Menu size={20} />
+            </button>
+          )}
+
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <div
               style={{
@@ -114,6 +138,7 @@ export const Navbar = ({ onToggleSidebar }) => {
                 fontWeight: 800,
                 fontSize: '1.1rem',
                 boxShadow: 'var(--shadow-sm)',
+                flexShrink: 0,
               }}
             >
               <Trophy size={19} />
@@ -123,6 +148,7 @@ export const Navbar = ({ onToggleSidebar }) => {
                 Sports<span style={{ color: 'var(--primary)' }}>Club</span>
               </span>
               <span
+                className="desktop-live-badge"
                 style={{
                   marginLeft: '6px',
                   fontSize: '0.65rem',
@@ -138,7 +164,7 @@ export const Navbar = ({ onToggleSidebar }) => {
             </div>
           </Link>
 
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <nav className="navbar-desktop-links" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginLeft: '1rem' }}>
             <Link
               to="/courts"
               style={{
@@ -265,20 +291,12 @@ export const Navbar = ({ onToggleSidebar }) => {
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Button
-                variant="ghost"
+                variant="primary"
                 size="sm"
                 icon={LogIn}
                 onClick={() => navigate('/login')}
               >
-                Login
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                icon={UserPlus}
-                onClick={() => navigate('/register')}
-              >
-                Sign Up
+                Club Login
               </Button>
             </div>
           )}

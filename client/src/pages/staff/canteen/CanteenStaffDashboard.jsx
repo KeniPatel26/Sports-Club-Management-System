@@ -406,7 +406,12 @@ export const CanteenStaffDashboard = () => {
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <Coffee size={24} color="var(--primary-navy)" />
+            {activeTab === 'menu' && <UtensilsCrossed size={24} color="var(--primary-navy)" />}
+            {activeTab === 'tables' && <Building2 size={24} color="var(--primary-navy)" />}
+            {activeTab === 'orders' && <ChefHat size={24} color="var(--primary-navy)" />}
+            {activeTab === 'tabs' && <Receipt size={24} color="var(--primary-navy)" />}
+            {activeTab === 'payments' && <DollarSign size={24} color="var(--primary-navy)" />}
+            {activeTab === 'dashboard' && <Coffee size={24} color="var(--primary-navy)" />}
             <h1
               style={{
                 fontSize: '1.65rem',
@@ -416,7 +421,12 @@ export const CanteenStaffDashboard = () => {
                 margin: 0,
               }}
             >
-              Canteen & Bar Operations
+              {activeTab === 'menu' && 'Menu & Item Availability'}
+              {activeTab === 'tables' && 'Table Layout & Seating Status'}
+              {activeTab === 'orders' && 'Kitchen Order Display (KOD)'}
+              {activeTab === 'tabs' && 'Open Table Tabs & Bill Settlement'}
+              {activeTab === 'payments' && 'Canteen Payments & Daily Closing'}
+              {activeTab === 'dashboard' && 'Canteen & Bar Dashboard'}
             </h1>
             <span
               style={{
@@ -429,11 +439,21 @@ export const CanteenStaffDashboard = () => {
                 border: '1px solid var(--border)',
               }}
             >
-              KITCHEN & TABS
+              {activeTab === 'menu' && 'MENU'}
+              {activeTab === 'tables' && 'TABLES'}
+              {activeTab === 'orders' && 'KITCHEN QUEUE'}
+              {activeTab === 'tabs' && 'TABS & BILLS'}
+              {activeTab === 'payments' && 'TRANSACTIONS'}
+              {activeTab === 'dashboard' && 'DASHBOARD'}
             </span>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>
-            Table Management • Running Tabs & Bills • Kitchen Queue Pipeline • Menu Availability
+            {activeTab === 'menu' && 'Manage menu catalog, prices, categories, and 1-click 86 / out-of-stock toggle'}
+            {activeTab === 'tables' && 'Visual dining table grid, seating capacity, active tabs, and occupancy management'}
+            {activeTab === 'orders' && 'Live order pipeline for chef and kitchen staff (Received → Cooking → Ready → Served)'}
+            {activeTab === 'tabs' && 'Manage running customer tabs, bill generation, and checkout settlement'}
+            {activeTab === 'payments' && 'Complete payment history, payment method breakdown, and daily sales register'}
+            {activeTab === 'dashboard' && `Logged in as ${user?.firstName || 'Staff'} • Table Management • Running Tabs & Bills • Kitchen Queue Pipeline`}
           </p>
         </div>
 
@@ -559,108 +579,107 @@ export const CanteenStaffDashboard = () => {
         </div>
       )}
 
-      {/* 4 KPIs - Always Visible */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1.75rem',
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            padding: '1.15rem 1.25rem',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              ACTIVE ORDERS
-            </span>
-            <ChefHat size={18} color="var(--primary-navy)" />
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary-navy)', marginTop: '0.4rem' }}>
-            {overview?.kpi?.activeOrdersCount || 12}
-          </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>
-            Live in kitchen queue
-          </span>
-        </div>
-
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            padding: '1.15rem 1.25rem',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              PREPARING
-            </span>
-            <Clock size={18} color="var(--warning)" />
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--warning)', marginTop: '0.4rem' }}>
-            {overview?.kpi?.preparingCount || 6}
-          </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-            Cooking in progress
-          </span>
-        </div>
-
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            padding: '1.15rem 1.25rem',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              READY TO SERVE
-            </span>
-            <CheckCircle size={18} color="var(--success)" />
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--success)', marginTop: '0.4rem' }}>
-            {overview?.kpi?.readyCount || 3}
-          </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-            Ready for runner dispatch
-          </span>
-        </div>
-
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            padding: '1.15rem 1.25rem',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              OCCUPIED TABLES
-            </span>
-            <Users size={18} color="var(--primary-peach)" />
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary-peach)', marginTop: '0.4rem' }}>
-            {overview?.kpi?.occupiedTablesCount || 8}
-          </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-            Seated dining guests
-          </span>
-        </div>
-      </div>
-
       {/* ======================================================== */}
       {/* TAB 1: CANTEEN DASHBOARD OVERVIEW */}
       {/* ======================================================== */}
       {activeTab === 'dashboard' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+          {/* 4 KPIs - Displayed only on Dashboard */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '1rem',
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)',
+                padding: '1.15rem 1.25rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                  ACTIVE ORDERS
+                </span>
+                <ChefHat size={18} color="var(--primary-navy)" />
+              </div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary-navy)', marginTop: '0.4rem' }}>
+                {overview?.kpi?.activeOrdersCount || 12}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 600 }}>
+                Live in kitchen queue
+              </span>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)',
+                padding: '1.15rem 1.25rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                  PREPARING
+                </span>
+                <Clock size={18} color="var(--warning)" />
+              </div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--warning)', marginTop: '0.4rem' }}>
+                {overview?.kpi?.preparingCount || 6}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                Cooking in progress
+              </span>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)',
+                padding: '1.15rem 1.25rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                  READY TO SERVE
+                </span>
+                <CheckCircle size={18} color="var(--success)" />
+              </div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--success)', marginTop: '0.4rem' }}>
+                {overview?.kpi?.readyCount || 3}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                Ready for runner dispatch
+              </span>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border)',
+                padding: '1.15rem 1.25rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-muted)' }}>
+                  OCCUPIED TABLES
+                </span>
+                <Users size={18} color="var(--primary-peach)" />
+              </div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary-peach)', marginTop: '0.4rem' }}>
+                {overview?.kpi?.occupiedTablesCount || 8}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                Seated dining guests
+              </span>
+            </div>
+          </div>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
           {/* Live Kitchen Queue */}
           <div
@@ -898,6 +917,7 @@ export const CanteenStaffDashboard = () => {
             </div>
           </div>
         </div>
+      </div>
       )}
 
       {/* ======================================================== */}

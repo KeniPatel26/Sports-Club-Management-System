@@ -212,7 +212,7 @@ export const createCanteenOrder = async (req, res) => {
       memberUser = await User.findById(memberId);
       if (memberUser) {
         const activeMembership = await Membership.findOne({
-          user: memberUser._id,
+          $or: [{ user: memberUser._id }, { member: memberUser._id }],
           status: 'ACTIVE',
         }).populate('plan');
 

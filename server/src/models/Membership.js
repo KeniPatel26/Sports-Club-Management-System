@@ -71,8 +71,8 @@ const membershipSchema = new mongoose.Schema(
   }
 );
 
-// Ensure user & endDate are synced with member & expiryDate
-membershipSchema.pre('save', function (next) {
+// Ensure user & endDate are synced with member & expiryDate before validation runs
+membershipSchema.pre('validate', function (next) {
   if (this.member && !this.user) {
     this.user = this.member;
   }
@@ -84,6 +84,11 @@ membershipSchema.pre('save', function (next) {
   }
   if (this.endDate && !this.expiryDate) {
     this.expiryDate = this.endDate;
+  }
+  if (!this.expiryDate && !this.endDate) {
+    const start = this.startDate || new Date();
+    this.expiryDate = new Date(start.getTime() + 365 * 24 * 60 * 60 * 1000);
+    this.endDate = this.expiryDate;
   }
   next();
 });

@@ -79,6 +79,8 @@ const router = express.Router();
 // 1. DASHBOARD OVERVIEW
 // ============================================
 router.get('/dashboard', authenticate, requirePermission('MEMBER_VIEW'), getDashboardOverview);
+router.get('/dashboard/overview', authenticate, requirePermission('MEMBER_VIEW'), getDashboardOverview);
+router.get('/overview', authenticate, requirePermission('MEMBER_VIEW'), getDashboardOverview);
 
 // ============================================
 // 2. MEMBER MANAGEMENT

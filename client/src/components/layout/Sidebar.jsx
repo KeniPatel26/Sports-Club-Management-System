@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Calendar,
@@ -22,16 +22,35 @@ import {
   SlidersHorizontal,
   CheckCircle2,
   Building2,
+  Bell,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
+export const Sidebar = ({ collapsed = false, onToggleCollapse, mobileOpen = false, onCloseMobile }) => {
   const { user, isManager, isOwner, isStaff, isFrontDesk, isShopStaff, isCanteenStaff, isMember, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const isItemActive = (itemPath) => {
+    if (itemPath.includes('?')) {
+      const [basePath, queryString] = itemPath.split('?');
+      if (location.pathname !== basePath) return false;
+      const currentParams = new URLSearchParams(location.search);
+      const itemParams = new URLSearchParams(queryString);
+      const itemTab = itemParams.get('tab');
+      return currentParams.get('tab') === itemTab;
+    }
+    if (location.pathname === itemPath) {
+      const currentTab = new URLSearchParams(location.search).get('tab');
+      return !currentTab || currentTab === 'dashboard';
+    }
+    return false;
   };
 
   // Determine Nav Items based on Role (Member, Owner/Manager, Staff)
@@ -54,10 +73,11 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
       if (isFrontDesk) {
         return [
           { label: 'Dashboard', path: '/staff/front-desk', icon: LayoutDashboard },
-          { label: 'Member Lookup', path: '/staff/front-desk?tab=members', icon: Users },
-          { label: 'Court Schedule', path: '/staff/front-desk?tab=courts', icon: Calendar },
-          { label: 'Bookings & Walk-ins', path: '/staff/front-desk?tab=bookings', icon: CheckCircle2 },
-          { label: 'Front Desk Payments', path: '/staff/front-desk?tab=payments', icon: Receipt },
+          { label: 'Search Members', path: '/staff/front-desk?tab=members', icon: Users },
+          { label: 'Court Availability', path: '/staff/front-desk?tab=courts', icon: Calendar },
+          { label: "Today's Bookings", path: '/staff/front-desk?tab=bookings', icon: CheckCircle2 },
+          { label: 'Booking Payments', path: '/staff/front-desk?tab=payments', icon: Receipt },
+          { label: 'Notifications', path: '/staff/front-desk?tab=notifications', icon: Bell },
           { label: 'My Profile & Shift', path: '/staff/profile', icon: User },
         ];
       }
@@ -105,7 +125,7 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
   const navItems = getNavItems();
 
   return (
-    <aside className={`sidebar-wrapper ${collapsed ? 'collapsed' : ''}`}>
+    <aside className={`sidebar-wrapper ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
       {/* Brand Header */}
       <div
         style={{
@@ -149,27 +169,54 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
           </div>
         )}
 
-        {onToggleCollapse && (
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: 'none',
-              color: 'var(--sidebar-text)',
-              borderRadius: 'var(--radius-sm)',
-              width: '26px',
-              height: '26px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'var(--transition)',
-            }}
-          >
-            {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          {/* Mobile Close Button (Visible on Mobile) */}
+          {onCloseMobile && (
+            <button
+              type="button"
+              className="sidebar-mobile-close-btn"
+              onClick={onCloseMobile}
+              aria-label="Close sidebar"
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: 'none',
+                color: 'var(--sidebar-text)',
+                borderRadius: 'var(--radius-sm)',
+                width: '28px',
+                height: '28px',
+                display: 'none',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <X size={16} />
+            </button>
+          )}
+
+          {onToggleCollapse && (
+            <button
+              type="button"
+              className="sidebar-collapse-toggle-btn"
+              onClick={onToggleCollapse}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: 'none',
+                color: 'var(--sidebar-text)',
+                borderRadius: 'var(--radius-sm)',
+                width: '26px',
+                height: '26px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'var(--transition)',
+              }}
+            >
+              {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Navigation Links */}
@@ -177,28 +224,31 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           {navItems.map((item) => {
             const Icon = item.icon;
+            const active = isItemActive(item.path);
             return (
               <NavLink
                 key={item.label + item.path}
                 to={item.path}
                 title={collapsed ? item.label : undefined}
-                style={({ isActive }) => ({
+                onClick={() => onCloseMobile?.()}
+                style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: collapsed ? 'center' : 'space-between',
                   padding: '0.65rem 0.85rem',
                   borderRadius: 'var(--radius-md)',
                   fontSize: '0.875rem',
-                  fontWeight: isActive ? 600 : 500,
-                  color: isActive ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)',
-                  backgroundColor: isActive ? 'var(--sidebar-active-bg)' : 'transparent',
-                  transition: 'var(--transition)',
+                  fontWeight: active ? 700 : 500,
+                  color: active ? '#FFFFFF' : 'var(--sidebar-text)',
+                  backgroundColor: active ? 'var(--sidebar-active-bg)' : 'transparent',
+                  borderLeft: active ? '3px solid var(--primary-peach)' : '3px solid transparent',
+                  transition: 'all 0.15s ease-in-out',
                   textDecoration: 'none',
                   fontFamily: 'var(--font-family-body)',
-                })}
+                }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <Icon size={17} style={{ flexShrink: 0 }} />
+                  <Icon size={17} style={{ flexShrink: 0, color: active ? 'var(--primary-peach)' : 'inherit' }} />
                   {!collapsed && <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>}
                 </div>
 
@@ -234,7 +284,10 @@ export const Sidebar = ({ collapsed = false, onToggleCollapse }) => {
       >
         <button
           type="button"
-          onClick={handleLogout}
+          onClick={() => {
+            onCloseMobile?.();
+            handleLogout();
+          }}
           style={{
             display: 'flex',
             alignItems: 'center',

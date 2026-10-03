@@ -32,6 +32,22 @@ const inventoryTransactionSchema = new mongoose.Schema(
       required: true,
     },
 
+    supplier: {
+      type: String,
+      default: '',
+    },
+
+    invoiceNumber: {
+      type: String,
+      default: '',
+    },
+
+    adjustmentType: {
+      type: String,
+      enum: ['DAMAGED', 'MISSING', 'WRONG_COUNT', 'RETURNED', 'RECEIVED', 'MANUAL'],
+      default: 'MANUAL',
+    },
+
     referenceOrder: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Order',
@@ -53,6 +69,7 @@ const inventoryTransactionSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
 
 export const InventoryTransaction =
   mongoose.models.InventoryTransaction ||
