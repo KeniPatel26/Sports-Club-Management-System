@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Download,
 } from 'lucide-react';
+import ChartCard from '../../../components/ui/ChartCard';
 
 export const Reports = () => {
   const { toastSuccess, toastError } = useToast();
@@ -141,19 +142,7 @@ export const Reports = () => {
             <TrendingUp size={18} color="#D98E68" />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            {revenue.breakdown?.map((b, idx) => (
-              <div key={idx}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.3rem' }}>
-                  <span style={{ color: '#354962' }}>{b.name} ({b.percentage}%)</span>
-                  <span style={{ color: '#17263B' }}>₹{b.amount?.toLocaleString('en-IN')}</span>
-                </div>
-                <div style={{ height: '8px', backgroundColor: '#F4F6FC', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${b.percentage}%`, backgroundColor: b.color, borderRadius: '4px' }} />
-                </div>
-              </div>
-            ))}
-          </div>
+          <ChartCard bare type="doughnut" height={250} showLegend data={revenue.breakdown?.map((b) => ({ label: b.name, value: b.amount, color: b.color })) || []} />
         </div>
 
         {/* 2. Membership Retention Report */}
@@ -176,14 +165,7 @@ export const Reports = () => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
-            {membership.tierDistribution?.map((td, idx) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0.75rem', backgroundColor: '#F4F6FC', borderRadius: '8px' }}>
-                <span style={{ color: '#354962', fontWeight: 600 }}>{td.tier}</span>
-                <strong>{td.count} athletes ({td.share})</strong>
-              </div>
-            ))}
-          </div>
+          <ChartCard bare type="pie" height={220} showLegend data={membership.tierDistribution?.map((td) => ({ label: td.tier, value: td.count })) || []} />
         </div>
 
         {/* 3. Court Utilization Report */}
@@ -198,19 +180,7 @@ export const Reports = () => {
             <Calendar size={18} color="#38bdf8" />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            {court.utilizationList?.map((c, idx) => (
-              <div key={idx}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-                  <span style={{ color: '#354962' }}>{c.court}</span>
-                  <span style={{ color: '#D98E68' }}>{c.utilization}%</span>
-                </div>
-                <div style={{ height: '7px', backgroundColor: '#F4F6FC', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${c.utilization}%`, backgroundColor: '#8FAF98', borderRadius: '4px' }} />
-                </div>
-              </div>
-            ))}
-          </div>
+          <ChartCard bare type="bar" horizontal height={250} data={court.utilizationList?.map((c) => ({ label: c.court, value: c.utilization, color: '#8FAF98' })) || []} />
         </div>
 
         {/* 4. Pro Shop Sales Report */}
@@ -222,17 +192,7 @@ export const Reports = () => {
             <ShoppingBag size={18} color="#354962" />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {shop.topProducts?.map((p, idx) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.65rem 0.85rem', backgroundColor: '#F4F6FC', borderRadius: '8px', fontSize: '0.85rem' }}>
-                <div>
-                  <div style={{ fontWeight: 700, color: '#17263B' }}>{p.name}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748B' }}>{p.unitsSold} units sold this month</div>
-                </div>
-                <strong style={{ color: '#D98E68' }}>₹{p.revenue?.toLocaleString('en-IN')}</strong>
-              </div>
-            ))}
-          </div>
+          <ChartCard bare type="bar" horizontal currency height={250} data={shop.topProducts?.map((p) => ({ label: p.name, value: p.revenue })) || []} />
         </div>
 
         {/* 5. Canteen Report */}
@@ -247,17 +207,7 @@ export const Reports = () => {
             <Coffee size={18} color="#D98E68" />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {canteen.topItems?.map((it, idx) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.65rem 0.85rem', backgroundColor: '#F4F6FC', borderRadius: '8px', fontSize: '0.85rem' }}>
-                <div>
-                  <div style={{ fontWeight: 700, color: '#17263B' }}>{it.name}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748B' }}>{it.orders} servings prepared</div>
-                </div>
-                <strong style={{ color: '#17263B' }}>₹{it.revenue?.toLocaleString('en-IN')}</strong>
-              </div>
-            ))}
-          </div>
+          <ChartCard bare type="bar" horizontal currency height={250} data={canteen.topItems?.map((item) => ({ label: item.name, value: item.revenue })) || []} />
         </div>
 
         {/* 6. Employee Report */}

@@ -111,6 +111,16 @@ export const staffService = {
     return res.data;
   },
 
+  createShopProduct: async (productData) => {
+    const res = await api.post('/staff/sports-shop/products', productData);
+    return res.data;
+  },
+
+  updateShopProduct: async (productId, productData) => {
+    const res = await api.patch(`/staff/sports-shop/products/${productId}`, productData);
+    return res.data;
+  },
+
   receiveStock: async (stockData) => {
     const res = await api.post('/staff/sports-shop/inventory/receive', stockData);
     return res.data;
@@ -226,4 +236,3 @@ export const staffService = {
 };
 
 export default staffService;
-

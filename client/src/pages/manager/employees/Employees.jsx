@@ -21,6 +21,7 @@ import {
   FileText,
   RotateCcw,
 } from 'lucide-react';
+import FilterDropdown from '../../../components/ui/FilterDropdown';
 
 export const Employees = () => {
   const { toastSuccess, toastError } = useToast();
@@ -223,10 +224,17 @@ export const Employees = () => {
 
   return (
     <div style={{ padding: '1.5rem', maxWidth: '1440px', margin: '0 auto', fontFamily: "'Space Grotesk', sans-serif" }}>
-      {/* Subtitle & Quick Add Staff CTA */}
+      {/* Heading & Quick Add Staff CTA */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <p style={{ color: '#64748B', margin: 0, fontSize: '0.95rem' }}>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'var(--font-family-display)', margin: 0 }}>
+            {activeTab === 'attendance' && 'Employee Attendance'}
+            {activeTab === 'staff' && 'Employees & Staff Directory'}
+            {activeTab === 'shifts' && 'Staff Shifts & Rosters'}
+            {activeTab === 'leave' && 'Leave Requests'}
+            {activeTab === 'payroll' && 'Payroll & Compensation'}
+          </h1>
+          <p style={{ color: 'var(--text-muted)', margin: '0.35rem 0 0 0', fontSize: '0.92rem' }}>
             {activeTab === 'attendance' && 'Monitor employee live attendance, shifts, working hours, and manual adjustments.'}
             {activeTab === 'staff' && 'All active club personnel across Front Desk, Sports Shop, and Canteen departments.'}
             {activeTab === 'shifts' && 'Scheduled rosters and operational duty hours.'}
@@ -377,52 +385,19 @@ export const Employees = () => {
                 />
               </div>
 
-              {/* Department Filter */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748B' }}>Department:</span>
-                <select
-                  value={attDept}
-                  onChange={(e) => setAttDept(e.target.value)}
-                  style={{
-                    padding: '0.45rem 0.75rem',
-                    borderRadius: '8px',
-                    border: '1px solid #E2E8F0',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    color: '#354962',
-                    backgroundColor: '#F4F6FC',
-                  }}
-                >
-                  <option value="ALL">All Departments</option>
-                  <option value="FRONT_DESK">Front Desk</option>
-                  <option value="SPORTS_SHOP">Sports Shop</option>
-                  <option value="CANTEEN">Canteen & Bar</option>
-                </select>
-              </div>
-
-              {/* Status Filter */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748B' }}>Status:</span>
-                <select
-                  value={attStatus}
-                  onChange={(e) => setAttStatus(e.target.value)}
-                  style={{
-                    padding: '0.45rem 0.75rem',
-                    borderRadius: '8px',
-                    border: '1px solid #E2E8F0',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    color: '#354962',
-                    backgroundColor: '#F4F6FC',
-                  }}
-                >
-                  <option value="ALL">All Statuses</option>
-                  <option value="PRESENT">Present</option>
-                  <option value="LATE">Late</option>
-                  <option value="LEAVE">On Leave</option>
-                  <option value="ABSENT">Absent</option>
-                </select>
-              </div>
+              <FilterDropdown label="Department" value={attDept} onChange={(e) => setAttDept(e.target.value)} options={[
+                { value: 'ALL', label: 'All departments' },
+                { value: 'FRONT_DESK', label: 'Front desk' },
+                { value: 'SPORTS_SHOP', label: 'Sports shop' },
+                { value: 'CANTEEN', label: 'Canteen & bar' },
+              ]} />
+              <FilterDropdown label="Status" value={attStatus} onChange={(e) => setAttStatus(e.target.value)} options={[
+                { value: 'ALL', label: 'All statuses' },
+                { value: 'PRESENT', label: 'Present' },
+                { value: 'LATE', label: 'Late' },
+                { value: 'LEAVE', label: 'On leave' },
+                { value: 'ABSENT', label: 'Absent' },
+              ]} />
             </div>
 
             {/* Search Input */}

@@ -26,6 +26,9 @@ import {
 import {
   getShopOverview,
   getShopProducts,
+  createShopProduct,
+  updateShopProduct,
+  archiveShopProduct,
   receiveStock,
   adjustStock,
   reportDamage,
@@ -156,6 +159,24 @@ router.get(
   authenticate,
   requirePermission('PRODUCT_VIEW'),
   getShopProducts
+);
+router.post(
+  '/sports-shop/products',
+  authenticate,
+  requirePermission('PRODUCT_CREATE'),
+  createShopProduct
+);
+router.patch(
+  '/sports-shop/products/:id',
+  authenticate,
+  requirePermission('PRODUCT_UPDATE'),
+  updateShopProduct
+);
+router.delete(
+  '/sports-shop/products/:id',
+  authenticate,
+  requirePermission('PRODUCT_DELETE'),
+  archiveShopProduct
 );
 router.post(
   '/sports-shop/inventory/receive',
@@ -290,4 +311,3 @@ router.get(
 );
 
 export default router;
-

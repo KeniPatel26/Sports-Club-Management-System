@@ -4,6 +4,7 @@ import Card from '../ui/Card';
 import Button from '../ui/Button';
 import Loader from '../ui/Loader';
 import Badge from '../ui/Badge';
+import FilterDropdown from '../ui/FilterDropdown';
 
 export const MemberSlotSelector = ({
   selectedCourt,
@@ -119,35 +120,17 @@ export const MemberSlotSelector = ({
             paddingBottom: '0.85rem',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Filter Time:</span>
-            {[
-              { id: 'ALL', label: 'All Slots' },
-              { id: 'MORNING', label: 'Morning (6 AM - 12 PM)' },
-              { id: 'AFTERNOON', label: 'Afternoon (12 PM - 5 PM)' },
-              { id: 'EVENING', label: 'Evening (5 PM - 10 PM)' },
-            ].map((period) => (
-              <button
-                key={period.id}
-                type="button"
-                onClick={() => setTimeOfDayFilter(period.id)}
-                style={{
-                  padding: '0.3rem 0.65rem',
-                  borderRadius: 'var(--radius-full)',
-                  border: '1px solid',
-                  borderColor: timeOfDayFilter === period.id ? 'var(--primary)' : 'var(--border-color)',
-                  backgroundColor: timeOfDayFilter === period.id ? 'var(--primary-light)' : 'var(--bg-card)',
-                  color: timeOfDayFilter === period.id ? 'var(--primary)' : 'var(--text-muted)',
-                  fontSize: '0.775rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'var(--transition)',
-                }}
-              >
-                {period.label}
-              </button>
-            ))}
-          </div>
+          <FilterDropdown
+            label="Filter time"
+            value={timeOfDayFilter}
+            onChange={(event) => setTimeOfDayFilter(event.target.value)}
+            options={[
+              { value: 'ALL', label: 'All slots' },
+              { value: 'MORNING', label: 'Morning (6 AM - 12 PM)' },
+              { value: 'AFTERNOON', label: 'Afternoon (12 PM - 5 PM)' },
+              { value: 'EVENING', label: 'Evening (5 PM - 10 PM)' },
+            ]}
+          />
 
           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
             {filteredAvailableSlots.length} Available Slots Open

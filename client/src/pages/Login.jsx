@@ -14,6 +14,7 @@ import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import AuthLayout from '../components/layout/AuthLayout';
 import { isValidEmail } from '../utils/validators';
+import { isManagerRole, normalizeRole } from '../utils/roles';
 
 export const Login = () => {
   const [email, setEmail] = useState('');
@@ -50,12 +51,12 @@ export const Login = () => {
       setLoading(true);
       const res = await login(email.trim(), password);
       const u = res.user || res.data?.user || res.data;
-      const r = u?.role?.toUpperCase();
-      const d = u?.department?.toUpperCase();
+      const r = normalizeRole(u?.role);
+      const d = normalizeRole(u?.department);
 
       toastSuccess(`Welcome back, ${u?.firstName || u?.name || 'Member'}!`, 'Signed In');
 
-      if (r === 'CLUB_MANAGER' || r === 'OWNER' || r === 'ADMIN') {
+      if (isManagerRole(r)) {
         navigate('/manager/dashboard');
       } else if (d === 'FRONT_DESK' || r === 'FRONT_DESK') {
         navigate('/staff/front-desk');

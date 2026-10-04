@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Badge from '../ui/Badge';
 import Button from '../ui/Button';
+import FilterDropdown from '../ui/FilterDropdown';
 
 export const MemberCourtGrid = ({
   courts = [],
@@ -24,13 +25,7 @@ export const MemberCourtGrid = ({
   userDiscount = 100,
   onContinue,
 }) => {
-  const sportsList = [
-    { id: 'ALL', label: 'All Courts', icon: Trophy },
-    { id: 'TENNIS', label: 'Tennis', icon: Activity },
-    { id: 'PADEL', label: 'Padel Arenas', icon: Flame },
-    { id: 'CRICKET', label: 'Cricket Turf', icon: Target },
-    { id: 'BADMINTON', label: 'Badminton', icon: Zap },
-  ];
+  const sportsList = ['ALL', ...new Set(courts.map((court) => court.type?.toUpperCase()).filter(Boolean))];
 
   const filteredCourts = courts.filter(
     (c) => selectedSport === 'ALL' || c.type?.toUpperCase() === selectedSport.toUpperCase()
@@ -38,29 +33,12 @@ export const MemberCourtGrid = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      {/* Sport Selector Filter Pills (Professional Icons Only, No Emojis) */}
-      <div className="filter-pills-row">
-        {sportsList.map((sport) => {
-          const Icon = sport.icon;
-          const isActive = selectedSport === sport.id;
-          return (
-            <button
-              key={sport.id}
-              type="button"
-              className={`filter-pill ${isActive ? 'active' : ''}`}
-              onClick={() => onSelectSport(sport.id)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-              }}
-            >
-              <Icon size={15} />
-              <span>{sport.label}</span>
-            </button>
-          );
-        })}
-      </div>
+      <FilterDropdown
+        label="Court type"
+        value={selectedSport}
+        onChange={(event) => onSelectSport(event.target.value)}
+        options={sportsList.map((sport) => ({ value: sport, label: sport === 'ALL' ? 'All courts' : sport }))}
+      />
 
       {/* Courts Cards Grid */}
       <div

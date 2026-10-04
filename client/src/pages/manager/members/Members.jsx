@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import managerService from '../../../services/managerService';
 import { useToast } from '../../../context/ToastContext';
+import FilterDropdown from '../../../components/ui/FilterDropdown';
 import {
   Users,
   Search,
@@ -208,24 +209,11 @@ export const Members = () => {
           </button>
         </form>
 
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          style={{
-            padding: '0.6rem 0.85rem',
-            backgroundColor: '#F4F6FC',
-            border: '1px solid #DDE2EC',
-            borderRadius: '8px',
-            fontSize: '0.85rem',
-            color: '#354962',
-            fontWeight: 600,
-            outline: 'none',
-          }}
-        >
-          <option value="">All Statuses</option>
-          <option value="ACTIVE">Active Only</option>
-          <option value="INACTIVE">Inactive Only</option>
-        </select>
+        <FilterDropdown label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} options={[
+          { value: '', label: 'All statuses' },
+          { value: 'ACTIVE', label: 'Active only' },
+          { value: 'INACTIVE', label: 'Inactive only' },
+        ]} />
       </div>
 
       {/* Members Datatable */}

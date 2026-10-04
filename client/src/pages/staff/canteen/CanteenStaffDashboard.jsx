@@ -23,19 +23,7 @@ import { managerService } from '../../../services/managerService';
 import { useAuth } from '../../../context/AuthContext';
 import Loader from '../../../components/ui/Loader';
 import Alert from '../../../components/ui/Alert';
-
-const getCanteenCustomerName = (name) => {
-  const value = String(name || '').trim();
-  return !value || /^table\s+\S+\s+guest$/i.test(value) ? 'Guest Customer' : value;
-};
-
-const formatMembershipDate = (value) => {
-  if (!value) return 'Not available';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Not available' : date.toLocaleDateString(undefined, {
-    day: 'numeric', month: 'short', year: 'numeric',
-  });
-};
+import FilterDropdown from '../../../components/ui/FilterDropdown';
 
 export const CanteenStaffDashboard = () => {
   const { user } = useAuth();
@@ -449,8 +437,8 @@ export const CanteenStaffDashboard = () => {
   }
 
   return (
-    <div className="canteen-staff-page">
-      {/* Top Header */}
+    <div style={{ padding: '1.75rem', maxWidth: '1440px', margin: '0 auto' }}>
+      {/* Dynamic Page Header */}
       <div
         style={{
           display: 'flex',
@@ -458,54 +446,32 @@ export const CanteenStaffDashboard = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '1rem',
-          marginBottom: '1.25rem',
+          marginBottom: '1.5rem',
         }}
       >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <Coffee size={24} color="var(--primary)" />
-            <h1
-              style={{
-                fontSize: '1.65rem',
-                fontWeight: 700,
-                color: 'var(--text-main)',
-                fontFamily: 'var(--font-family-display)',
-                margin: 0,
-              }}
-            >
-              Canteen & Bar Operations
-            </h1>
-            <span
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                backgroundColor: 'var(--bg-subtle)',
-                color: 'var(--text-main)',
-                padding: '3px 10px',
-                borderRadius: 'var(--radius-full)',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              KITCHEN & TABS
-            </span>
-          </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>
-            Kitchen Queue • Orders & Bills • Menu Items
-          </p>
-        </div>
-
-        {/* Action Controls */}
-        <div className="canteen-header-actions" style={{ display: activeTab === 'profile' ? 'none' : undefined }}>
-          <button
-            type="button"
-            className="btn btn-primary btn-md"
-            onClick={() => {
-              setShowOrderModal(true);
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {activeTab === 'menu' && <UtensilsCrossed size={28} color="var(--primary-navy)" />}
+          {activeTab === 'tables' && <Building2 size={28} color="var(--primary-navy)" />}
+          {activeTab === 'orders' && <ChefHat size={28} color="var(--primary-navy)" />}
+          {activeTab === 'tabs' && <Receipt size={28} color="var(--primary-navy)" />}
+          {activeTab === 'payments' && <DollarSign size={28} color="var(--primary-navy)" />}
+          {activeTab === 'dashboard' && <Coffee size={28} color="var(--primary-navy)" />}
+          <h1
+            style={{
+              fontSize: '1.75rem',
+              fontWeight: 800,
+              color: 'var(--text-main)',
+              fontFamily: 'var(--font-family-display)',
+              margin: 0,
             }}
           >
-            <Plus size={16} />
-            New Kitchen Order / Tab
-          </button>
+            {activeTab === 'menu' && 'Menu & Item Availability'}
+            {activeTab === 'tables' && 'Table Floor Map'}
+            {activeTab === 'orders' && 'Kitchen Order Queue'}
+            {activeTab === 'tabs' && 'Open Tabs & Running Bills'}
+            {activeTab === 'payments' && 'Canteen Payments'}
+            {activeTab === 'dashboard' && 'Canteen & Bar Dashboard'}
+          </h1>
         </div>
       </div>
 
@@ -706,6 +672,59 @@ export const CanteenStaffDashboard = () => {
                       </div>
                     </div>
 
+                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      {order.status === 'pending' && (
+                        <button
+                          onClick={() => handleOrderStatusUpdate(order._id, 'preparing')}
+                          style={{
+                            padding: '0.45rem 0.85rem',
+                            backgroundColor: 'var(--primary)',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Start Preparing
+                        </button>
+                      )}
+                      {order.status === 'preparing' && (
+                        <button
+                          onClick={() => handleOrderStatusUpdate(order._id, 'ready')}
+                          style={{
+                            padding: '0.45rem 0.85rem',
+                            backgroundColor: 'var(--warning)',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Mark Ready
+                        </button>
+                      )}
+                      {order.status === 'ready' && (
+                        <button
+                          onClick={() => handleOrderStatusUpdate(order._id, 'completed')}
+                          style={{
+                            padding: '0.45rem 0.85rem',
+                            backgroundColor: 'var(--success)',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Served & Complete
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))
               ) : (
@@ -761,47 +780,258 @@ export const CanteenStaffDashboard = () => {
               gap: '1.25rem',
             }}
           >
-            {menu.length ? menu.map((item) => (
-              <div
-                key={item._id}
-                style={{
-                  border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '1.15rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  gap: '0.4rem',
-                  backgroundColor: 'var(--bg-card)',
-                }}
-              >
-                <div>
-                  <span
-                    style={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
-                      backgroundColor: 'var(--bg-main)',
-                      color: 'var(--text-muted)',
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                    }}
-                  >
-                    {item.category}
-                  </span>
-                  <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: '0.4rem 0 0.2rem 0' }}>
-                    {item.name}
-                  </h4>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
-                    ₹{item.price}
+            {menu.length ? (
+              menu.map((item) => (
+                <div
+                  key={item._id}
+                  style={{
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '1.15rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    gap: '0.4rem',
+                    backgroundColor: 'var(--bg-card)',
+                  }}
+                >
+                  <div>
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        backgroundColor: 'var(--bg-main)',
+                        color: 'var(--text-muted)',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                      }}
+                    >
+                      {item.category}
+                    </span>
+                    <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', margin: '0.4rem 0 0.2rem 0' }}>
+                      {item.name}
+                    </h4>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                      ₹{item.price}
+                    </div>
                   </div>
                 </div>
-
-              </div>
-            )) : (
+              ))
+            ) : (
               <div style={{ gridColumn: '1 / -1', padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                 No menu items yet. Add a menu item to get started.
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* TAB 3: TABLE MANAGEMENT & STATUS LIFECYCLE */}
+      {/* ======================================================== */}
+      {activeTab === 'tables' && (
+        <div
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--border)',
+            padding: '1.5rem',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              borderBottom: '1px solid var(--border)',
+              paddingBottom: '1rem',
+              marginBottom: '1.25rem',
+              flexWrap: 'wrap',
+              gap: '1rem',
+            }}
+          >
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                Visual Dining & Bar Table Layout
+              </h3>
+              <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                Lifecycle: 🟢 AVAILABLE ➔ 🔴 OCCUPIED ➔ 🟡 CLEANING ➔ 🟢 AVAILABLE
+              </p>
+            </div>
+
+            {/* Status Legend */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.8rem', fontWeight: 600 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--success)' }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: 'var(--success)' }} />
+                Available
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--danger)' }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: 'var(--danger)' }} />
+                Occupied
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--warning)' }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: 'var(--warning)' }} />
+                Cleaning
+              </span>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+              gap: '1.25rem',
+            }}
+          >
+            {tables.map((t) => {
+              const isAvail = t.status === 'AVAILABLE';
+              const isOccupied = t.status === 'OCCUPIED';
+              const isCleaning = t.status === 'CLEANING';
+
+              return (
+                <div
+                  key={t._id}
+                  style={{
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '1.25rem',
+                    backgroundColor: isAvail
+                      ? '#FFFFFF'
+                      : isOccupied
+                      ? 'rgba(239, 68, 68, 0.04)'
+                      : 'rgba(245, 158, 11, 0.04)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
+                        {t.tableNumber}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.725rem',
+                          fontWeight: 700,
+                          padding: '3px 8px',
+                          borderRadius: 'var(--radius-full)',
+                          backgroundColor: isAvail
+                            ? 'var(--light-green)'
+                            : isOccupied
+                            ? 'var(--light-danger)'
+                            : 'var(--light-warning)',
+                          color: isAvail ? 'var(--success)' : isOccupied ? 'var(--danger)' : 'var(--warning)',
+                        }}
+                      >
+                        {t.status}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+                      Capacity: {t.capacity || 4} Seats • Section: {t.section || 'INDOOR_CAFE'}
+                    </div>
+
+                    {isOccupied && (
+                      <div
+                        style={{
+                          marginTop: '0.75rem',
+                          backgroundColor: 'var(--lavender)',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.8rem',
+                        }}
+                      >
+                        Guest: <strong>{t.currentCustomer?.name || 'Seated Guest'}</strong>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Operational Transition Buttons */}
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                    {isAvail && (
+                      <button
+                        onClick={() => {
+                          setSelectedTableNum(t.tableNumber);
+                          setShowOrderModal(true);
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '0.5rem',
+                          backgroundColor: 'var(--primary)',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Seat & Open Tab
+                      </button>
+                    )}
+
+                    {isOccupied && (
+                      <button
+                        onClick={() => handleQuickTableTransition(t, 'CLEANING')}
+                        style={{
+                          flex: 1,
+                          padding: '0.5rem',
+                          backgroundColor: 'var(--warning)',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Move to Cleaning
+                      </button>
+                    )}
+
+                    {isCleaning && (
+                      <button
+                        onClick={() => handleQuickTableTransition(t, 'AVAILABLE')}
+                        style={{
+                          flex: 1,
+                          padding: '0.5rem',
+                          backgroundColor: 'var(--success)',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.8rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Mark Clean & Ready
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => {
+                        setSelectedTable(t);
+                        setTableStatus(t.status);
+                        setSeatedGuest(t.currentCustomer?.name || '');
+                        setShowTableModal(true);
+                      }}
+                      style={{
+                        padding: '0.5rem 0.75rem',
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -838,33 +1068,13 @@ export const CanteenStaffDashboard = () => {
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-              {[
-                { id: 'ALL', label: 'All Orders' },
-                { id: 'pending', label: 'New Tickets' },
-                { id: 'preparing', label: 'Preparing' },
-                { id: 'ready', label: 'Ready for Service' },
-                { id: 'completed', label: 'Completed' },
-                { id: 'cancelled', label: 'Cancelled' },
-              ].map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => setOrderStageFilter(f.id)}
-                  style={{
-                    padding: '0.4rem 0.8rem',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-color)',
-                    backgroundColor: orderStageFilter === f.id ? 'var(--primary)' : 'var(--bg-card)',
-                    color: orderStageFilter === f.id ? 'var(--primary-text)' : 'var(--text-muted)',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
+            <FilterDropdown label="Order status" value={orderStageFilter} onChange={(event) => setOrderStageFilter(event.target.value)} options={[
+              { value: 'ALL', label: 'All orders' },
+              { value: 'pending', label: 'New tickets' },
+              { value: 'preparing', label: 'Preparing' },
+              { value: 'ready', label: 'Ready for service' },
+              { value: 'completed', label: 'Completed' },
+            ]} />
           </div>
 
           <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -936,7 +1146,7 @@ export const CanteenStaffDashboard = () => {
                         style={{
                           padding: '0.55rem 1.15rem',
                           backgroundColor: 'var(--primary)',
-                          color: 'var(--primary-text)',
+                          color: '#FFFFFF',
                           border: 'none',
                           borderRadius: 'var(--radius-md)',
                           fontWeight: 700,
@@ -1635,8 +1845,19 @@ export const CanteenStaffDashboard = () => {
                 type="submit"
                 className="btn btn-primary btn-md canteen-modal-primary-action"
                 disabled={submittingSettle}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  backgroundColor: 'var(--primary)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  cursor: submittingSettle ? 'not-allowed' : 'pointer',
+                }}
               >
-                {submittingSettle ? 'Processing Payment...' : `Confirm Payment - \u20B9${settleOrder.total}`}
+                {submittingSettle ? 'Settling Tab...' : `Collect ₹${settleOrder.total} & Move Table to Cleaning`}
               </button>
             </form>
           </div>
@@ -1717,6 +1938,16 @@ export const CanteenStaffDashboard = () => {
               type="button"
               className="btn btn-primary btn-md canteen-modal-primary-action"
               onClick={() => setSettleReceipt(null)}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                backgroundColor: 'var(--primary)',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
             >
               Close Receipt
             </button>
@@ -1724,6 +1955,98 @@ export const CanteenStaffDashboard = () => {
         </div>
       )}
 
+      {/* ======================================================== */}
+      {/* TABLE STATUS EDIT MODAL */}
+      {/* ======================================================== */}
+      {showTableModal && selectedTable && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(23, 38, 59, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 'var(--radius-lg)',
+              maxWidth: '420px',
+              width: '100%',
+              padding: '1.5rem',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary-navy)' }}>
+                Manage {selectedTable.tableNumber}
+              </h3>
+              <button onClick={() => setShowTableModal(false)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateTable}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Table Status</label>
+                <select
+                  value={tableStatus}
+                  onChange={(e) => setTableStatus(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)',
+                    marginTop: '0.25rem',
+                  }}
+                >
+                  <option value="AVAILABLE">AVAILABLE (🟢 Free for guests)</option>
+                  <option value="OCCUPIED">OCCUPIED (🔴 Dining in progress)</option>
+                  <option value="CLEANING">CLEANING (🟡 Sanitizing / Clearing)</option>
+                </select>
+              </div>
+
+              {tableStatus === 'OCCUPIED' && (
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Seated Customer Name</label>
+                  <input
+                    type="text"
+                    placeholder="Guest Name"
+                    value={seatedGuest}
+                    onChange={(e) => setSeatedGuest(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)',
+                      marginTop: '0.25rem',
+                    }}
+                  />
+                </div>
+              )}
+
+              <button
+                type="submit"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  backgroundColor: 'var(--primary)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Update Table State
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

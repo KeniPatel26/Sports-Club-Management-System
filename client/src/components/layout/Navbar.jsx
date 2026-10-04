@@ -30,31 +30,32 @@ const resolvePageTitle = (pathname, search) => {
 
   // Staff Front Desk
   if (pathname === '/staff/front-desk') {
-    if (tab === 'courts') return 'Court Availability';
-    if (tab === 'bookings') return 'Front Desk Bookings';
+    if (tab === 'courts') return 'Court Availability Matrix';
+    if (tab === 'bookings') return "Today's Bookings";
     if (tab === 'members') return 'Member Directory';
-    if (tab === 'payments') return 'Desk Payments';
-    return 'Front Desk';
+    if (tab === 'payments') return 'Booking Payments';
+    if (tab === 'notifications') return 'Operational Alerts';
+    return 'Front Desk Dashboard';
   }
 
   // Staff Sports Shop
   if (pathname === '/staff/shop') {
-    if (tab === 'orders') return 'Online Orders';
+    if (tab === 'products') return 'Product Catalog';
     if (tab === 'inventory') return 'Inventory & Stock';
     if (tab === 'sales') return 'Counter POS Sales';
-    if (tab === 'products') return 'Product Catalog';
+    if (tab === 'orders') return 'Online Orders';
     if (tab === 'payments') return 'Shop Payments';
-    return 'Sports Shop';
+    return 'Sports Shop Dashboard';
   }
 
   // Staff Canteen & Bar
   if (pathname === '/staff/canteen') {
+    if (tab === 'menu') return 'Menu & Item Availability';
     if (tab === 'tables') return 'Table Floor Map';
-    if (tab === 'orders') return 'Kitchen Queue';
-    if (tab === 'tabs') return 'Running Bar Tabs';
-    if (tab === 'menu') return 'Menu Availability';
+    if (tab === 'orders') return 'Kitchen Order Queue';
+    if (tab === 'tabs') return 'Open Tabs & Running Bills';
     if (tab === 'payments') return 'Canteen Payments';
-    return 'Canteen & Bar';
+    return 'Canteen & Bar Dashboard';
   }
 
   // Staff Profile & Shift
@@ -63,26 +64,26 @@ const resolvePageTitle = (pathname, search) => {
   }
 
   // Manager ERP Dedicated Modules
-  if (pathname === '/manager/dashboard') return 'Dashboard';
-  if (pathname === '/manager/members') return 'Members';
-  if (pathname === '/manager/memberships') return 'Memberships';
+  if (pathname === '/manager/dashboard') return 'Manager Dashboard';
+  if (pathname === '/manager/members') return 'Member Directory';
+  if (pathname === '/manager/memberships') return 'Membership Plans';
   if (pathname === '/manager/employees') {
     if (tab === 'attendance') return 'Employee Attendance';
     if (tab === 'shifts') return 'Staff Shifts';
     if (tab === 'leave') return 'Leave Requests';
     if (tab === 'payroll') return 'Payroll & Compensation';
-    return 'Employees';
+    return 'Employees & Staff';
   }
-  if (pathname === '/manager/courts') return 'Courts';
-  if (pathname === '/manager/shop') return 'Sports Shop & Stock';
-  if (pathname === '/manager/canteen') return 'Canteen & Tables';
-  if (pathname === '/manager/finance') return 'Finance';
-  if (pathname === '/manager/reports') return 'Reports';
+  if (pathname === '/manager/courts') return 'Courts Management';
+  if (pathname === '/manager/shop') return 'Sports Shop Management';
+  if (pathname === '/manager/canteen') return 'Canteen & Bar Management';
+  if (pathname === '/manager/finance') return 'Finance & Transactions';
+  if (pathname === '/manager/reports') return 'Reports & Analytics';
   if (pathname === '/manager/leads') return 'CRM Leads';
   if (pathname === '/manager/settings') return 'Club Settings';
 
   // Member & Shared Portals
-  if (pathname === '/dashboard') return 'Dashboard';
+  if (pathname === '/dashboard') return 'Member Dashboard';
   if (pathname === '/courts') return 'Book a Court';
   if (pathname === '/booking-history') return 'Booking History';
   if (pathname === '/shop') return 'Pro Shop';

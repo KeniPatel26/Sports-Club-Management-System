@@ -18,6 +18,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { formatDate } from '../../utils/formatDate';
+import FilterDropdown from '../ui/FilterDropdown';
 
 export const MemberBookingsList = ({
   bookings = [],
@@ -30,10 +31,18 @@ export const MemberBookingsList = ({
   const [qrModalBooking, setQrModalBooking] = useState(null);
   const [cancellingBooking, setCancellingBooking] = useState(null);
 
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const isUpcoming = (booking) => {
+    const bookingDay = new Date(booking.date);
+    bookingDay.setHours(0, 0, 0, 0);
+    return booking.status === 'CONFIRMED' && bookingDay >= todayStart;
+  };
+
   const filteredBookings = bookings.filter((b) => {
     // Tab Filter
     let matchesTab = true;
-    if (activeTab === 'UPCOMING') matchesTab = b.status === 'CONFIRMED';
+    if (activeTab === 'UPCOMING') matchesTab = isUpcoming(b);
     else if (activeTab === 'COMPLETED') matchesTab = b.status === 'COMPLETED';
     else if (activeTab === 'CANCELLED') matchesTab = b.status === 'CANCELLED';
 
@@ -49,7 +58,7 @@ export const MemberBookingsList = ({
     return matchesTab && matchesSearch;
   });
 
-  const upcomingCount = bookings.filter((b) => b.status === 'CONFIRMED').length;
+  const upcomingCount = bookings.filter(isUpcoming).length;
   const completedCount = bookings.filter((b) => b.status === 'COMPLETED').length;
   const cancelledCount = bookings.filter((b) => b.status === 'CANCELLED').length;
 
@@ -71,52 +80,16 @@ export const MemberBookingsList = ({
           <Card.Description>Review future scheduled games and past match history.</Card.Description>
         </div>
 
-        {/* Status Filter Tabs (Zero Emojis, Clean Professional Badges) */}
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-          {[
-            { id: 'UPCOMING', label: 'Future Reservations', count: upcomingCount, icon: Calendar },
-            { id: 'COMPLETED', label: 'Past History', count: completedCount, icon: History },
-            { id: 'CANCELLED', label: 'Cancelled', count: cancelledCount, icon: XCircle },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.45rem',
-                  padding: '0.4rem 0.85rem',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  border: isActive ? '1px solid var(--secondary)' : '1px solid var(--border-color)',
-                  backgroundColor: isActive ? 'var(--secondary)' : 'var(--bg-card)',
-                  color: isActive ? '#FFFFFF' : 'var(--text-main)',
-                  cursor: 'pointer',
-                  transition: 'var(--transition)',
-                }}
-              >
-                <Icon size={14} />
-                <span>{tab.label}</span>
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    padding: '1px 6px',
-                    borderRadius: 'var(--radius-full)',
-                    backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : 'var(--bg-subtle)',
-                    color: isActive ? '#FFFFFF' : 'var(--text-muted)',
-                  }}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <FilterDropdown
+          label="Booking status"
+          value={activeTab}
+          onChange={(event) => setActiveTab(event.target.value)}
+          options={[
+            { value: 'UPCOMING', label: `Future Reservations (${upcomingCount})` },
+            { value: 'COMPLETED', label: `Past History (${completedCount})` },
+            { value: 'CANCELLED', label: `Cancelled (${cancelledCount})` },
+          ]}
+        />
       </Card.Header>
 
       <Card.Content>

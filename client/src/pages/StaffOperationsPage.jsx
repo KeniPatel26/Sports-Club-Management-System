@@ -17,6 +17,7 @@ import {
   Layers,
   Filter,
 } from 'lucide-react';
+import FilterDropdown from '../components/ui/FilterDropdown';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import staffService from '../services/staffService';
@@ -317,29 +318,12 @@ export const StaffOperationsPage = () => {
           </button>
         </div>
 
-        {/* Department Filter Pills */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Department:</span>
-          {['ALL', 'FRONT_DESK', 'SPORTS_SHOP', 'CANTEEN'].map((dept) => (
-            <button
-              key={dept}
-              type="button"
-              onClick={() => setDepartmentFilter(dept)}
-              style={{
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-full)',
-                border: departmentFilter === dept ? '1px solid var(--primary)' : '1px solid var(--border-color)',
-                background: departmentFilter === dept ? 'var(--primary-light)' : 'var(--bg-card)',
-                color: departmentFilter === dept ? 'var(--primary)' : 'var(--text-muted)',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {dept.replace('_', ' ')}
-            </button>
-          ))}
-        </div>
+        <FilterDropdown label="Department" value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)} options={[
+          { value: 'ALL', label: 'All departments' },
+          { value: 'FRONT_DESK', label: 'Front desk' },
+          { value: 'SPORTS_SHOP', label: 'Sports shop' },
+          { value: 'CANTEEN', label: 'Canteen' },
+        ]} />
       </div>
 
       {loading ? (

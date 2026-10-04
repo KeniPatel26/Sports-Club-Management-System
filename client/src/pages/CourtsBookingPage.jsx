@@ -9,6 +9,7 @@ import Badge from '../components/ui/Badge';
 import Input from '../components/ui/Input';
 import Modal from '../components/ui/Modal';
 import Loader from '../components/ui/Loader';
+import FilterDropdown from '../components/ui/FilterDropdown';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import courtBookingService from '../services/courtBookingService';
@@ -122,7 +123,7 @@ export const CourtsBookingPage = () => {
     {isMember && discount > 0 && <div className="court-member-discount"><span className="court-member-discount-icon"><ShieldCheck size={19} /></span><div><strong>{membershipPlanName} court benefit</strong><span>{discount === 100 ? 'Your membership covers the full court fee.' : `${discount}% membership discount is applied automatically to your court booking.`}</span></div><b>{discount}% off</b></div>}
 
     {step === 1 && <>
-      <div className="court-sport-filters">{categories.map((item) => <button className={`court-filter ${sport === item ? 'is-active' : ''}`} key={item} type="button" onClick={() => setSport(item)}>{item === 'ALL' ? 'All sports' : item}</button>)}</div>
+      <div className="court-sport-filters"><FilterDropdown label="Sport" value={sport} onChange={(event) => setSport(event.target.value)} options={categories.map((item) => ({ value: item, label: item === 'ALL' ? 'All sports' : item }))} /></div>
       {visibleCourts.length ? <div className="court-card-grid">{visibleCourts.map((item) => <Card key={item._id} hoverable className="court-select-card">
         <div className="court-card-media">{item.image ? <img src={item.image} alt={`${item.name} court`} loading="lazy" /> : <div className="court-image-placeholder"><MapPin size={34} /><span>Club court</span></div>}<Badge variant="primary">{item.type}</Badge></div>
         <Card.Content className="court-card-content"><div className="court-card-meta"><Badge variant={item.isIndoor ? 'purple' : 'info'}>{item.isIndoor ? 'Indoor' : 'Outdoor'}</Badge><span>{item.isIndoor ? 'All-weather facility' : 'Open-air court'}</span></div><Card.Title className="court-card-title">{item.name}</Card.Title><div className="court-card-bottom"><div className="court-card-price"><small>{discount > 0 ? `${membershipPlanName} member price` : 'Starting at'}</small><div className="court-card-price-values">{discount > 0 && <del>{money(item.hourlyRate)}</del>}<strong>{money(Math.max(0, item.hourlyRate * (1 - discount / 100)))}</strong><span>/ hour</span></div></div><Button variant="primary" size="sm" onClick={() => chooseCourt(item)}>Choose court <ArrowRight size={15} /></Button></div></Card.Content>

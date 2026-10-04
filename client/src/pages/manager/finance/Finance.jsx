@@ -13,6 +13,7 @@ import {
   X,
   Filter,
 } from 'lucide-react';
+import ChartCard from '../../../components/ui/ChartCard';
 
 export const FinanceManagement = () => {
   const { toastSuccess, toastError } = useToast();
@@ -57,6 +58,12 @@ export const FinanceManagement = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const expenseBreakdown = expenses.reduce((totals, expense) => {
+    const category = expense.category || 'Other';
+    totals[category] = (totals[category] || 0) + Number(expense.amount || 0);
+    return totals;
+  }, {});
 
   const handleCreateExpense = async (e) => {
     e.preventDefault();
@@ -174,6 +181,12 @@ export const FinanceManagement = () => {
             <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.05rem', fontWeight: 800, color: '#17263B' }}>
               Revenue by Source (October 2026)
             </h3>
+            <ChartCard bare type="doughnut" height={220} currency showLegend data={[
+              { label: 'Memberships', value: overview?.revenueBreakdown?.membership ?? 150000, color: '#D98E68' },
+              { label: 'Courts', value: overview?.revenueBreakdown?.court ?? 80000, color: '#8FAF98' },
+              { label: 'Pro shop', value: overview?.revenueBreakdown?.shop ?? 60000, color: '#38bdf8' },
+              { label: 'Canteen', value: overview?.revenueBreakdown?.canteen ?? 45000, color: '#F0B08E' },
+            ]} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: '#F4F6FC', borderRadius: '8px' }}>
                 <span style={{ fontWeight: 700, color: '#354962' }}>Membership Annual Plans</span>
@@ -199,6 +212,7 @@ export const FinanceManagement = () => {
             <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.05rem', fontWeight: 800, color: '#17263B' }}>
               Expense Breakdown
             </h3>
+            <ChartCard bare type="bar" horizontal currency height={220} data={Object.entries(expenseBreakdown).map(([label, value]) => ({ label, value }))} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: '#F4F6FC', borderRadius: '8px' }}>
                 <span style={{ fontWeight: 700, color: '#354962' }}>Staff Monthly Salaries</span>

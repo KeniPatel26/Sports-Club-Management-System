@@ -6,6 +6,7 @@ import PageHeader from '../components/layout/PageHeader';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
+import FilterDropdown from '../components/ui/FilterDropdown';
 import Loader from '../components/ui/Loader';
 import { useToast } from '../context/ToastContext';
 import courtBookingService from '../services/courtBookingService';
@@ -68,11 +69,13 @@ export const BookingHistoryPage = () => {
   return <DashboardLayout>
     <PageHeader title="Court Booking History" subtitle="Review your future court sessions and past bookings." breadcrumbs={[{ label: 'Dashboard', path: '/dashboard' }, { label: 'Courts', path: '/courts' }, { label: 'Booking history' }]} action={<div style={{ display: 'flex', gap: '0.5rem' }}><Button variant="outline" icon={RefreshCw} disabled={refreshing} onClick={() => loadBookings()}>{refreshing ? 'Refreshing' : 'Refresh'}</Button><Button variant="primary" onClick={() => navigate('/courts')}>Book a court</Button></div>} />
 
-    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>{[
-      { id: 'UPCOMING', label: 'Upcoming', Icon: CalendarDays },
-      { id: 'PAST', label: 'Past bookings', Icon: History },
-      { id: 'CANCELLED', label: 'Cancelled', Icon: XCircle },
-    ].map(({ id, label, Icon }) => <button key={id} type="button" onClick={() => setFilter(id)} style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.55rem 0.85rem', borderRadius: 'var(--radius-md)', border: `1px solid ${filter === id ? 'var(--primary)' : 'var(--border-color)'}`, background: filter === id ? 'var(--primary)' : 'var(--bg-card)', color: filter === id ? '#fff' : 'var(--text-main)', fontWeight: 600, cursor: 'pointer' }}><Icon size={15} />{label}<span>{grouped[id].length}</span></button>)}</div>
+    <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <FilterDropdown label="Booking status" value={filter} onChange={(event) => setFilter(event.target.value)} options={[
+        { value: 'UPCOMING', label: `Upcoming (${grouped.UPCOMING.length})` },
+        { value: 'PAST', label: `Past bookings (${grouped.PAST.length})` },
+        { value: 'CANCELLED', label: `Cancelled (${grouped.CANCELLED.length})` },
+      ]} />
+    </div>
 
     {location.state?.newBooking && <Card style={{ marginBottom: '1rem', borderColor: 'var(--primary)' }}><Card.Content><div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}><Badge variant="success">Confirmed</Badge><strong>Your booking has been added to upcoming sessions.</strong></div></Card.Content></Card>}
 

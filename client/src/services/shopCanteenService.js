@@ -21,6 +21,11 @@ export const shopCanteenService = {
     return res.data;
   },
 
+  getOpenTabs: async (params = {}) => {
+    const res = await api.get('/orders', { params: { isTab: true, ...params } });
+    return res.data;
+  },
+
   createOrder: async (orderData) => {
     const res = await api.post('/orders', orderData);
     return res.data;

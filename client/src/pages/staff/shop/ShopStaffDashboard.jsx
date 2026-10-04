@@ -30,11 +30,13 @@ import {
   LayoutGrid,
   List,
   Eye,
+  Pencil,
 } from 'lucide-react';
 import staffService from '../../../services/staffService';
 import { useAuth } from '../../../context/AuthContext';
 import Loader from '../../../components/ui/Loader';
 import Alert from '../../../components/ui/Alert';
+import FilterDropdown from '../../../components/ui/FilterDropdown';
 
 export const ShopStaffDashboard = () => {
   const { user } = useAuth();
@@ -45,6 +47,13 @@ export const ShopStaffDashboard = () => {
   const [overview, setOverview] = useState(null);
   const [products, setProducts] = useState([]);
   const [alert, setAlert] = useState(null);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [productForm, setProductForm] = useState({
+    name: '', category: 'Rackets', sku: '', brand: '', description: '',
+    price: '', stock: 0, lowStockThreshold: 5, image: '', isAvailable: true,
+  });
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -146,6 +155,54 @@ export const ShopStaffDashboard = () => {
       setAlert({ type: 'danger', message: 'Failed to load shop inventory data.' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openProductEditor = (product = null) => {
+    setEditingProduct(product);
+    setProductForm(product ? {
+      name: product.name || '',
+      category: product.category || 'General',
+      sku: product.sku || '',
+      brand: product.brand || '',
+      description: product.description || '',
+      price: product.price ?? '',
+      stock: product.stock ?? 0,
+      lowStockThreshold: product.lowStockThreshold ?? 5,
+      image: product.image || '',
+      isAvailable: product.isAvailable !== false,
+    } : {
+      name: '', category: 'Rackets', sku: '', brand: '', description: '',
+      price: '', stock: 0, lowStockThreshold: 5, image: '', isAvailable: true,
+    });
+    setShowProductModal(true);
+  };
+
+  const handleSaveProduct = async (event) => {
+    event.preventDefault();
+    setSavingProduct(true);
+    try {
+      const save = editingProduct
+        ? staffService.updateShopProduct(editingProduct._id, productForm)
+        : staffService.createShopProduct(productForm);
+      const response = await save;
+      setAlert({ type: 'success', message: response.message || 'Product saved.' });
+      setShowProductModal(false);
+      await fetchShopData();
+    } catch (error) {
+      setAlert({ type: 'danger', message: error.response?.data?.message || 'Could not save the product.' });
+    } finally {
+      setSavingProduct(false);
+    }
+  };
+
+  const handleProductAvailability = async (product) => {
+    try {
+      const response = await staffService.updateShopProduct(product._id, { isAvailable: !product.isAvailable });
+      setProducts((current) => current.map((item) => item._id === product._id ? response.data : item));
+      setAlert({ type: 'success', message: response.message || 'Product availability updated.' });
+    } catch (error) {
+      setAlert({ type: 'danger', message: error.response?.data?.message || 'Could not update product availability.' });
     }
   };
 
@@ -353,6 +410,10 @@ export const ShopStaffDashboard = () => {
 
   // Cart operations
   const addToCart = (product) => {
+    if (product.isAvailable === false || product.stock < 1) {
+      setAlert({ type: 'warning', message: 'This product is not currently available for sale.' });
+      return;
+    }
     setCart((prev) => {
       const existing = prev.find((item) => item.productId === product._id);
       if (existing) {
@@ -424,14 +485,15 @@ export const ShopStaffDashboard = () => {
       const res = await staffService.processCounterSale(payload);
       if (res.success) {
         setPosSuccessReceipt({
-          orderId: res.data._id,
-          customerName: payload.customerName,
-          items: [...cart],
-          subtotal: cartSubtotal,
-          discount: posDiscountAmount,
-          total: posFinalTotal,
-          paymentMethod: posPaymentMethod,
-          date: new Date().toLocaleString(),
+          ...(res.data.receipt || {}),
+          orderId: res.data.order?._id || res.data._id,
+          customerName: res.data.receipt?.customerName || payload.customerName,
+          items: res.data.receipt?.items || [...cart],
+          subtotal: res.data.receipt?.subtotal ?? cartSubtotal,
+          discount: res.data.receipt?.discountAmount ?? posDiscountAmount,
+          total: res.data.receipt?.total ?? posFinalTotal,
+          paymentMethod: res.data.receipt?.paymentMethod || posPaymentMethod,
+          date: res.data.receipt?.date || new Date().toLocaleString(),
         });
         setCart([]);
         setSelectedMember(null);
@@ -484,8 +546,8 @@ export const ShopStaffDashboard = () => {
   }
 
   return (
-    <div style={{ padding: '1.75rem', maxWidth: '1440px', margin: '0 auto' }}>
-      {/* Top Header */}
+    <div className="shop-staff-dashboard" style={{ width: '100%', minWidth: 0 }}>
+      {/* Dynamic Page Header */}
       <div
         style={{
           display: 'flex',
@@ -493,144 +555,32 @@ export const ShopStaffDashboard = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '1rem',
-          marginBottom: '1.25rem',
+          marginBottom: '1.5rem',
         }}
       >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            {activeTab === 'products' && <ShoppingBag size={24} color="var(--primary-navy)" />}
-            {activeTab === 'inventory' && <Package size={24} color="var(--primary-navy)" />}
-            {activeTab === 'sales' && <ShoppingCart size={24} color="var(--primary-navy)" />}
-            {activeTab === 'orders' && <Truck size={24} color="var(--primary-navy)" />}
-            {activeTab === 'payments' && <Receipt size={24} color="var(--primary-navy)" />}
-            {activeTab === 'dashboard' && <TrendingUp size={24} color="var(--primary-navy)" />}
-            <h1
-              style={{
-                fontSize: '1.65rem',
-                fontWeight: 700,
-                color: 'var(--text-main)',
-                fontFamily: 'var(--font-family-display)',
-                margin: 0,
-              }}
-            >
-              {activeTab === 'products' && 'Product Catalog & Stock Levels'}
-              {activeTab === 'inventory' && 'Inventory & Stock Management'}
-              {activeTab === 'sales' && 'Counter POS Checkout'}
-              {activeTab === 'orders' && 'Online Orders & Fulfillment'}
-              {activeTab === 'payments' && 'Shop Transaction Ledger & Receipts'}
-              {activeTab === 'dashboard' && 'Sports Shop Dashboard'}
-            </h1>
-            <span
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                backgroundColor: 'var(--lavender)',
-                color: 'var(--primary-navy)',
-                padding: '3px 10px',
-                borderRadius: 'var(--radius-full)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              {activeTab === 'products' && 'CATALOG'}
-              {activeTab === 'inventory' && 'INVENTORY'}
-              {activeTab === 'sales' && 'POINT OF SALE'}
-              {activeTab === 'orders' && 'FULFILLMENT'}
-              {activeTab === 'payments' && 'TRANSACTIONS'}
-              {activeTab === 'dashboard' && 'DASHBOARD'}
-            </span>
-          </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: '0.25rem 0 0 0' }}>
-            {activeTab === 'products' && 'Browse sports catalog, stock levels, and product prices'}
-            {activeTab === 'inventory' && 'Receive stock deliveries, record adjustments, and audit inventory logs'}
-            {activeTab === 'sales' && 'Rapid point-of-sale checkout for walk-in customers and club members'}
-            {activeTab === 'orders' && 'Track and update online order fulfillment stages (Pending → Preparing → Ready → Delivered)'}
-            {activeTab === 'payments' && 'Review point-of-sale payments, order invoices, and payment method totals'}
-            {activeTab === 'dashboard' && `Logged in as ${user?.firstName || 'Staff'} • Daily sales metrics, order queue, and inventory alerts`}
-          </p>
-        </div>
-
-        {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {/* Shift Attendance Card */}
-          <div
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {activeTab === 'products' && <ShoppingBag size={28} color="var(--primary-navy)" />}
+          {activeTab === 'inventory' && <Package size={28} color="var(--primary-navy)" />}
+          {activeTab === 'sales' && <ShoppingCart size={28} color="var(--primary-navy)" />}
+          {activeTab === 'orders' && <Truck size={28} color="var(--primary-navy)" />}
+          {activeTab === 'payments' && <Receipt size={28} color="var(--primary-navy)" />}
+          {activeTab === 'dashboard' && <TrendingUp size={28} color="var(--primary-navy)" />}
+          <h1
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.65rem',
-              backgroundColor: '#FFFFFF',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '0.45rem 0.85rem',
-            }}
-          >
-            <div
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: checkedIn ? 'var(--success)' : 'var(--danger)',
-              }}
-            />
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)' }}>
-              Shift: 09:00 - 18:00 {checkedIn && `(In: ${checkInTime})`}
-            </span>
-            <button
-              onClick={handleAttendanceToggle}
-              style={{
-                border: 'none',
-                background: checkedIn ? 'var(--light-danger)' : 'var(--light-green)',
-                color: checkedIn ? 'var(--danger)' : 'var(--success)',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                padding: '3px 8px',
-                borderRadius: 'var(--radius-sm)',
-                cursor: 'pointer',
-              }}
-            >
-              {checkedIn ? 'Check Out' : 'Check In'}
-            </button>
-          </div>
-
-          <button
-            onClick={() => setShowReceiveModal(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.55rem 1rem',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: '#FFFFFF',
-              border: '1px solid var(--border)',
+              fontSize: '1.75rem',
+              fontWeight: 800,
               color: 'var(--text-main)',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              cursor: 'pointer',
+              fontFamily: 'var(--font-family-display)',
+              margin: 0,
             }}
           >
-            <Plus size={16} color="var(--success)" />
-            Receive Stock
-          </button>
-
-          <button
-            onClick={() => handleTabChange('sales')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.55rem 1.15rem',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: '#D98E68',
-              border: 'none',
-              color: '#FFFFFF',
-              fontSize: '0.875rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              boxShadow: '0 2px 8px rgba(217, 142, 104, 0.3)',
-            }}
-          >
-            <ShoppingCart size={16} color="#FFFFFF" />
-            Counter POS Sale
-          </button>
+            {activeTab === 'products' && 'Product Catalog'}
+            {activeTab === 'inventory' && 'Inventory & Stock'}
+            {activeTab === 'sales' && 'Counter POS Sales'}
+            {activeTab === 'orders' && 'Online Orders'}
+            {activeTab === 'payments' && 'Shop Payments'}
+            {activeTab === 'dashboard' && 'Sports Shop Dashboard'}
+          </h1>
         </div>
       </div>
 
@@ -863,7 +813,7 @@ export const ShopStaffDashboard = () => {
                             <button
                               onClick={() => handleOrderStatusUpdate(o._id, 'preparing')}
                               style={{
-                                backgroundColor: 'var(--primary-navy)',
+                                backgroundColor: 'var(--primary)',
                                 color: '#FFFFFF',
                                 border: 'none',
                                 padding: '4px 8px',
@@ -1003,7 +953,7 @@ export const ShopStaffDashboard = () => {
       )}
 
       {/* ======================================================== */}
-      {/* TAB 2: PRODUCT CATALOG & SEARCH (VIEW ONLY FOR STAFF) */}
+      {/* TAB 2: PRODUCT CATALOG & SEARCH */}
       {/* ======================================================== */}
       {activeTab === 'products' && (
         <div
@@ -1014,7 +964,7 @@ export const ShopStaffDashboard = () => {
             padding: '1.5rem',
           }}
         >
-          {/* Security & Access Banner */}
+          {/* Product management access */}
           <div
             style={{
               backgroundColor: 'rgba(53, 73, 98, 0.06)',
@@ -1032,12 +982,12 @@ export const ShopStaffDashboard = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
               <ShieldCheck size={18} color="var(--primary-navy)" />
               <span style={{ fontSize: '0.82rem', color: 'var(--text-main)', fontWeight: 600 }}>
-                Operational Catalog (View Only): Staff can search items, check SKU/stock, and sell via POS. Adding products or editing prices is restricted to Club Managers.
+                Manage the sports shop catalog, availability, prices, and stock details from one place.
               </span>
             </div>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary-navy)', backgroundColor: 'var(--lavender)', padding: '2px 8px', borderRadius: '4px' }}>
-              STAFF PERMISSION
-            </span>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => openProductEditor()}>
+              <Plus size={15} /> Add product
+            </button>
           </div>
 
           {/* Filters & Search */}
@@ -1072,26 +1022,10 @@ export const ShopStaffDashboard = () => {
               />
             </div>
 
-            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-              {['ALL', 'Rackets', 'Balls', 'Shoes', 'Apparel', 'Accessories', 'Sports Equipment'].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  style={{
-                    padding: '0.45rem 0.85rem',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border)',
-                    backgroundColor: selectedCategory === cat ? 'var(--primary-navy)' : '#FFFFFF',
-                    color: selectedCategory === cat ? '#FFFFFF' : 'var(--text-muted)',
-                    fontWeight: selectedCategory === cat ? 700 : 500,
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
+            <FilterDropdown label="Category" value={selectedCategory} onChange={(event) => setSelectedCategory(event.target.value)} options={[
+              { value: 'ALL', label: 'All categories' },
+              ...['Rackets', 'Balls', 'Shoes', 'Apparel', 'Accessories', 'Sports Equipment'].map((category) => ({ value: category, label: category })),
+            ]} />
           </div>
 
           <div
@@ -1140,7 +1074,7 @@ export const ShopStaffDashboard = () => {
                           color: isLow ? 'var(--danger)' : 'var(--success)',
                         }}
                       >
-                        {p.stock} in stock
+                        {p.isAvailable === false ? 'Unavailable' : `${p.stock} in stock`}
                       </span>
                     </div>
 
@@ -1156,8 +1090,10 @@ export const ShopStaffDashboard = () => {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
                     <button
+                      type="button"
+                      disabled={p.isAvailable === false || p.stock < 1}
                       onClick={() => {
                         addToCart(p);
                         handleTabChange('sales');
@@ -1165,13 +1101,14 @@ export const ShopStaffDashboard = () => {
                       style={{
                         flex: 1,
                         padding: '0.5rem',
-                        backgroundColor: 'var(--primary-peach)',
+                        backgroundColor: 'var(--primary)',
                         color: '#FFFFFF',
                         border: 'none',
                         borderRadius: 'var(--radius-sm)',
                         fontSize: '0.8rem',
                         fontWeight: 700,
-                        cursor: 'pointer',
+                        cursor: p.isAvailable === false || p.stock < 1 ? 'not-allowed' : 'pointer',
+                        opacity: p.isAvailable === false || p.stock < 1 ? 0.55 : 1,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -1180,23 +1117,11 @@ export const ShopStaffDashboard = () => {
                     >
                       <ShoppingCart size={14} /> Sell POS
                     </button>
-                    <button
-                      onClick={() => {
-                        setSelectedProductId(p._id);
-                        setShowReceiveModal(true);
-                      }}
-                      style={{
-                        padding: '0.5rem 0.75rem',
-                        backgroundColor: '#FFFFFF',
-                        border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius-sm)',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        color: 'var(--text-main)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      + Stock
+                    <button type="button" className="btn btn-outline btn-sm" onClick={() => openProductEditor(p)}>
+                      <Pencil size={14} /> Edit
+                    </button>
+                    <button type="button" className="btn btn-outline btn-sm" onClick={() => handleProductAvailability(p)}>
+                      {p.isAvailable === false ? 'Enable' : 'Disable'}
                     </button>
                   </div>
                 </div>
@@ -1266,7 +1191,7 @@ export const ShopStaffDashboard = () => {
                   alignItems: 'center',
                   gap: '0.4rem',
                   padding: '0.55rem 1rem',
-                  backgroundColor: 'var(--primary-navy)',
+                  backgroundColor: 'var(--primary)',
                   color: '#FFFFFF',
                   border: 'none',
                   borderRadius: 'var(--radius-md)',
@@ -1509,14 +1434,15 @@ export const ShopStaffDashboard = () => {
                   onClick={() => setIsMemberCustomer(false)}
                   style={{
                     flex: 1,
-                    padding: '0.45rem',
+                    padding: '0.55rem',
                     borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border)',
-                    backgroundColor: !isMemberCustomer ? 'var(--primary-navy)' : '#FFFFFF',
-                    color: !isMemberCustomer ? '#FFFFFF' : 'var(--text-muted)',
-                    fontSize: '0.75rem',
+                    border: !isMemberCustomer ? '2px solid #354962' : '1px solid #CBD5E1',
+                    backgroundColor: !isMemberCustomer ? '#354962' : '#F1F4F9',
+                    color: !isMemberCustomer ? '#FFFFFF' : '#1E293B',
+                    fontSize: '0.82rem',
                     fontWeight: 700,
                     cursor: 'pointer',
+                    transition: 'all 0.2s ease',
                   }}
                 >
                   Walk-in Customer
@@ -1526,14 +1452,15 @@ export const ShopStaffDashboard = () => {
                   onClick={() => setIsMemberCustomer(true)}
                   style={{
                     flex: 1,
-                    padding: '0.45rem',
+                    padding: '0.55rem',
                     borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border)',
-                    backgroundColor: isMemberCustomer ? 'var(--primary-navy)' : '#FFFFFF',
-                    color: isMemberCustomer ? '#FFFFFF' : 'var(--text-muted)',
-                    fontSize: '0.75rem',
+                    border: isMemberCustomer ? '2px solid #354962' : '1px solid #CBD5E1',
+                    backgroundColor: isMemberCustomer ? '#354962' : '#F1F4F9',
+                    color: isMemberCustomer ? '#FFFFFF' : '#1E293B',
+                    fontSize: '0.82rem',
                     fontWeight: 700,
                     cursor: 'pointer',
+                    transition: 'all 0.2s ease',
                   }}
                 >
                   Club Member (Discount)
@@ -1704,20 +1631,22 @@ export const ShopStaffDashboard = () => {
 
             {/* Payment Method */}
             <div style={{ marginBottom: '1rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.4rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
                 {['UPI', 'CARD', 'CASH'].map((pm) => (
                   <button
                     type="button"
                     key={pm}
                     onClick={() => setPosPaymentMethod(pm)}
                     style={{
-                      padding: '0.45rem',
+                      padding: '0.55rem',
                       borderRadius: 'var(--radius-sm)',
-                      border: posPaymentMethod === pm ? '2px solid var(--primary-navy)' : '1px solid var(--border)',
-                      backgroundColor: posPaymentMethod === pm ? '#FFFFFF' : 'var(--bg-main)',
+                      border: posPaymentMethod === pm ? '2px solid #354962' : '1px solid #CBD5E1',
+                      backgroundColor: posPaymentMethod === pm ? '#354962' : '#F1F4F9',
+                      color: posPaymentMethod === pm ? '#FFFFFF' : '#1E293B',
                       fontWeight: 700,
-                      fontSize: '0.75rem',
+                      fontSize: '0.82rem',
                       cursor: 'pointer',
+                      transition: 'all 0.2s ease',
                     }}
                   >
                     {pm}
@@ -1733,14 +1662,15 @@ export const ShopStaffDashboard = () => {
               onClick={handlePosCheckout}
               style={{
                 width: '100%',
-                padding: '0.75rem',
-                backgroundColor: 'var(--primary-peach)',
+                padding: '0.85rem',
+                backgroundColor: cart.length === 0 ? '#94A3B8' : '#D98E68',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: 'var(--radius-md)',
-                fontSize: '0.9rem',
-                fontWeight: 700,
+                fontSize: '0.95rem',
+                fontWeight: 800,
                 cursor: cart.length === 0 || submittingPos ? 'not-allowed' : 'pointer',
+                boxShadow: cart.length > 0 ? '0 4px 12px rgba(217, 142, 104, 0.4)' : 'none',
               }}
             >
               {submittingPos ? 'Processing POS...' : `Collect ₹${posFinalTotal} & Generate Invoice`}
@@ -1801,7 +1731,7 @@ export const ShopStaffDashboard = () => {
                     padding: '0.35rem 0.75rem',
                     borderRadius: 'var(--radius-sm)',
                     border: 'none',
-                    backgroundColor: orderViewMode === 'kanban' ? 'var(--primary-navy)' : 'transparent',
+                    backgroundColor: orderViewMode === 'kanban' ? 'var(--primary)' : 'transparent',
                     color: orderViewMode === 'kanban' ? '#FFFFFF' : 'var(--text-muted)',
                     fontSize: '0.78rem',
                     fontWeight: 700,
@@ -1820,7 +1750,7 @@ export const ShopStaffDashboard = () => {
                     padding: '0.35rem 0.75rem',
                     borderRadius: 'var(--radius-sm)',
                     border: 'none',
-                    backgroundColor: orderViewMode === 'table' ? 'var(--primary-navy)' : 'transparent',
+                    backgroundColor: orderViewMode === 'table' ? 'var(--primary)' : 'transparent',
                     color: orderViewMode === 'table' ? '#FFFFFF' : 'var(--text-muted)',
                     fontSize: '0.78rem',
                     fontWeight: 700,
@@ -1833,32 +1763,13 @@ export const ShopStaffDashboard = () => {
 
               {/* Status Filter for Table View */}
               {orderViewMode === 'table' && (
-                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                  {[
-                    { id: 'ALL', label: 'All' },
-                    { id: 'pending', label: 'New' },
-                    { id: 'preparing', label: 'Processing' },
-                    { id: 'ready', label: 'Ready' },
-                    { id: 'completed', label: 'Completed' },
-                  ].map((f) => (
-                    <button
-                      key={f.id}
-                      onClick={() => setOrderFilter(f.id)}
-                      style={{
-                        padding: '0.35rem 0.65rem',
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px solid var(--border)',
-                        backgroundColor: orderFilter === f.id ? 'var(--primary-navy)' : '#FFFFFF',
-                        color: orderFilter === f.id ? '#FFFFFF' : 'var(--text-muted)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
+                <FilterDropdown label="Order status" value={orderFilter} onChange={(event) => setOrderFilter(event.target.value)} options={[
+                  { value: 'ALL', label: 'All orders' },
+                  { value: 'pending', label: 'New' },
+                  { value: 'preparing', label: 'Processing' },
+                  { value: 'ready', label: 'Ready' },
+                  { value: 'completed', label: 'Completed' },
+                ]} />
               )}
 
               <button
@@ -1994,7 +1905,7 @@ export const ShopStaffDashboard = () => {
                                 handleOrderStatusUpdate(o._id, 'preparing');
                               }}
                               style={{
-                                backgroundColor: 'var(--primary-navy)',
+                                backgroundColor: 'var(--primary)',
                                 color: '#FFFFFF',
                                 border: 'none',
                                 padding: '0.4rem 0.75rem',
@@ -2370,7 +2281,7 @@ export const ShopStaffDashboard = () => {
                                   e.stopPropagation();
                                   setReturnOrderId(o._id);
                                   if (o.items && o.items.length > 0) {
-                                    setReturnProductId(o.items[0].productId?._id || o.items[0].productId);
+                                    setReturnProductId(o.items[0].product?._id || o.items[0].product);
                                     setReturnQty(o.items[0].quantity || 1);
                                     setReturnRefundAmount(o.total || 0);
                                   }
@@ -2452,7 +2363,9 @@ export const ShopStaffDashboard = () => {
                             <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>{o.customerPhone || o.member?.phone}</div>
                           </td>
                           <td style={{ padding: '0.85rem 1rem', fontSize: '0.8rem' }}>
-                            {o.items?.map((it) => `${it.quantity}x ${it.name}`).join(', ')}
+                            {o.items?.length
+                              ? o.items.map((it) => `${it.quantity} × ${it.name}`).join(', ')
+                              : 'Cart details unavailable'}
                           </td>
                           <td style={{ padding: '0.85rem 1rem' }}>
                             <span
@@ -2498,7 +2411,7 @@ export const ShopStaffDashboard = () => {
                               <button
                                 onClick={() => handleOrderStatusUpdate(o._id, 'preparing')}
                                 style={{
-                                  backgroundColor: 'var(--primary-navy)',
+                                  backgroundColor: 'var(--primary)',
                                   color: '#FFFFFF',
                                   border: 'none',
                                   padding: '4px 8px',
@@ -2550,7 +2463,7 @@ export const ShopStaffDashboard = () => {
                                 onClick={() => {
                                   setReturnOrderId(o._id);
                                   if (o.items && o.items.length > 0) {
-                                    setReturnProductId(o.items[0].productId?._id || o.items[0].productId);
+                                    setReturnProductId(o.items[0].product?._id || o.items[0].product);
                                     setReturnQty(o.items[0].quantity || 1);
                                     setReturnRefundAmount(o.total || 0);
                                   }
@@ -2719,8 +2632,14 @@ export const ShopStaffDashboard = () => {
                   <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.85rem', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
                       <span style={{ color: 'var(--text-muted)' }}>Subtotal</span>
-                      <span>₹{selectedOrderForDrawer.total}</span>
+                      <span>₹{selectedOrderForDrawer.subtotal ?? selectedOrderForDrawer.total}</span>
                     </div>
+                    {selectedOrderForDrawer.discount > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', color: 'var(--success)' }}>
+                        <span>Discount</span>
+                        <span>−₹{selectedOrderForDrawer.discount}</span>
+                      </div>
+                    )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
                       <span style={{ color: 'var(--text-muted)' }}>Status</span>
                       <span style={{ fontWeight: 700, textTransform: 'uppercase', color: 'var(--primary-navy)' }}>
@@ -2763,7 +2682,7 @@ export const ShopStaffDashboard = () => {
                       style={{
                         width: '100%',
                         padding: '0.85rem',
-                        backgroundColor: 'var(--primary-navy)',
+                        backgroundColor: 'var(--primary)',
                         color: '#FFFFFF',
                         border: 'none',
                         borderRadius: 'var(--radius-md)',
@@ -2825,7 +2744,7 @@ export const ShopStaffDashboard = () => {
                       onClick={() => {
                         setReturnOrderId(selectedOrderForDrawer._id);
                         if (selectedOrderForDrawer.items && selectedOrderForDrawer.items.length > 0) {
-                          setReturnProductId(selectedOrderForDrawer.items[0].productId?._id || selectedOrderForDrawer.items[0].productId);
+                          setReturnProductId(selectedOrderForDrawer.items[0].product?._id || selectedOrderForDrawer.items[0].product);
                           setReturnQty(selectedOrderForDrawer.items[0].quantity || 1);
                           setReturnRefundAmount(selectedOrderForDrawer.total || 0);
                         }
@@ -2969,6 +2888,52 @@ export const ShopStaffDashboard = () => {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* PRODUCT CREATE / EDIT MODAL */}
+      {/* ======================================================== */}
+      {showProductModal && (
+        <div className="shop-modal-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setShowProductModal(false);
+        }}>
+          <section className="shop-product-modal" role="dialog" aria-modal="true" aria-labelledby="shop-product-modal-title">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div>
+                <h2 id="shop-product-modal-title" style={{ margin: 0, fontSize: '1.3rem' }}>
+                  {editingProduct ? 'Edit sports product' : 'Add sports product'}
+                </h2>
+                <p style={{ margin: '0.3rem 0 0', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+                  Product updates are shared with the online shop and POS.
+                </p>
+              </div>
+              <button type="button" className="btn btn-ghost btn-sm" aria-label="Close product form" onClick={() => setShowProductModal(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveProduct} className="shop-product-form">
+              <label>Product name<input required maxLength={120} value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} /></label>
+              <label>Category<input required value={productForm.category} onChange={(e) => setProductForm({ ...productForm, category: e.target.value })} /></label>
+              <label>SKU<input value={productForm.sku} onChange={(e) => setProductForm({ ...productForm, sku: e.target.value })} /></label>
+              <label>Brand<input value={productForm.brand} onChange={(e) => setProductForm({ ...productForm, brand: e.target.value })} /></label>
+              <label>Price (₹)<input required type="number" min="0" step="0.01" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} /></label>
+              <label>Stock quantity<input required type="number" min="0" step="1" value={productForm.stock} onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })} /></label>
+              <label>Low stock alert at<input required type="number" min="0" step="1" value={productForm.lowStockThreshold} onChange={(e) => setProductForm({ ...productForm, lowStockThreshold: e.target.value })} /></label>
+              <label>Image URL<input type="url" value={productForm.image} onChange={(e) => setProductForm({ ...productForm, image: e.target.value })} /></label>
+              <label className="shop-product-form-wide">Description<textarea rows="3" value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} /></label>
+              <label className="shop-product-form-wide shop-product-availability">
+                <input type="checkbox" checked={productForm.isAvailable} onChange={(e) => setProductForm({ ...productForm, isAvailable: e.target.checked })} />
+                Available for sale
+              </label>
+              <div className="shop-product-form-wide" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.65rem', flexWrap: 'wrap' }}>
+                <button type="button" className="btn btn-outline" onClick={() => setShowProductModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={savingProduct}>
+                  {savingProduct ? 'Saving…' : editingProduct ? 'Save changes' : 'Create product'}
+                </button>
+              </div>
+            </form>
+          </section>
         </div>
       )}
 
@@ -3272,7 +3237,7 @@ export const ShopStaffDashboard = () => {
                 style={{
                   width: '100%',
                   padding: '0.75rem',
-                  backgroundColor: 'var(--primary-navy)',
+                  backgroundColor: 'var(--primary)',
                   color: '#FFFFFF',
                   border: 'none',
                   borderRadius: 'var(--radius-md)',
@@ -3626,7 +3591,7 @@ export const ShopStaffDashboard = () => {
               style={{
                 width: '100%',
                 padding: '0.75rem',
-                backgroundColor: 'var(--primary-navy)',
+                backgroundColor: 'var(--primary)',
                 color: '#FFFFFF',
                 border: 'none',
                 borderRadius: 'var(--radius-md)',
