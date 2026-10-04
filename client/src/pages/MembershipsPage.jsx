@@ -34,6 +34,14 @@ import Select from '../components/ui/Select';
 import Loader from '../components/ui/Loader';
 import PaymentModal from '../components/payment/PaymentModal';
 
+const getMembershipTierKey = (name) => {
+  const normalizedName = String(name || '').toUpperCase();
+  if (normalizedName.includes('GOLD')) return 'GOLD';
+  if (normalizedName.includes('SILVER')) return 'SILVER';
+  if (normalizedName.includes('JUNIOR')) return 'JUNIOR';
+  return null;
+};
+
 export const MembershipsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -60,7 +68,11 @@ export const MembershipsPage = () => {
       ]);
 
       if (plansRes.status === 'fulfilled' && plansRes.value.success) {
-        setPlans(plansRes.value.data || []);
+        const activePlans = Array.isArray(plansRes.value.data) ? plansRes.value.data : [];
+        const memberTierKeys = ['GOLD', 'SILVER', 'JUNIOR'];
+        setPlans(memberTierKeys
+          .map((tierKey) => activePlans.find((plan) => getMembershipTierKey(plan.name) === tierKey))
+          .filter(Boolean));
       }
       if (myMemRes.status === 'fulfilled' && myMemRes.value.success) {
         setMyMembership(myMemRes.value.data?.membership || myMemRes.value.data);
@@ -248,10 +260,11 @@ export const MembershipsPage = () => {
             }}
           >
             {plans.map((plan) => {
-              const planName = (plan.name || '').toUpperCase();
+              const tierKey = getMembershipTierKey(plan.name);
+              const planName = tierKey === 'GOLD' ? 'GOLDEN' : (tierKey || plan.name || '').toUpperCase();
               const isCurrent = myMembership?.plan?._id === plan._id;
-              const isGold = planName === 'GOLD';
-              const isJunior = planName === 'JUNIOR';
+              const isGold = tierKey === 'GOLD';
+              const isJunior = tierKey === 'JUNIOR';
 
               const courtDisc = plan.benefits?.courtDiscount ?? plan.courtDiscount ?? 0;
               const shopDisc = plan.benefits?.shopDiscount ?? plan.shopDiscount ?? 0;
@@ -405,7 +418,7 @@ export const MembershipsPage = () => {
                 <thead>
                   <tr style={{ borderBottom: '2px solid #DDE2EC', textAlign: 'left' }}>
                     <th style={{ padding: '1rem 0.75rem', color: '#64748B', fontWeight: 700 }}>Feature / Privilege</th>
-                    <th style={{ padding: '1rem 0.75rem', color: '#D98E68', fontWeight: 800 }}>🥇 Gold Tier</th>
+                    <th style={{ padding: '1rem 0.75rem', color: '#D98E68', fontWeight: 800 }}>🥇 Golden Tier</th>
                     <th style={{ padding: '1rem 0.75rem', color: '#354962', fontWeight: 800 }}>🥈 Silver Tier</th>
                     <th style={{ padding: '1rem 0.75rem', color: '#8FAF98', fontWeight: 800 }}>🧒 Junior Tier</th>
                   </tr>
