@@ -231,6 +231,57 @@
    GLOBAL RESET & TYPOGRAPHY
    ========================================================= */
 
+/* Front desk legacy style names mapped to the shared member/manager palette. */
+.frontdesk-dashboard {
+  --primary-navy: var(--secondary);
+  --primary-peach: var(--primary);
+  --secondary-blue: var(--accent);
+  --lavender: var(--bg-subtle);
+  --border: var(--border-color);
+  --light-green: var(--color-success-bg);
+  --light-warning: var(--color-warning-bg);
+  --light-danger: var(--color-danger-bg);
+  --light-peach: var(--primary-light);
+  color: var(--text-main);
+  background: var(--bg-main);
+}
+.frontdesk-dashboard div[style*="box-shadow: var(--shadow-sm)"] {
+  background-color: var(--bg-card) !important;
+  border-color: var(--card-border) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+.frontdesk-dashboard input,
+.frontdesk-dashboard select,
+.frontdesk-dashboard textarea {
+  color: var(--text-main);
+  background-color: var(--bg-input);
+  border-color: var(--border-color);
+  border-radius: var(--radius-md);
+  font-family: var(--font-family-body);
+}
+.frontdesk-dashboard button {
+  font-family: var(--font-family-body);
+  transition: var(--transition);
+}
+.frontdesk-dashboard button:hover:not(:disabled) { filter: brightness(0.97); }
+.frontdesk-dashboard button:focus-visible,
+.frontdesk-dashboard input:focus-visible,
+.frontdesk-dashboard select:focus-visible,
+.frontdesk-dashboard textarea:focus-visible {
+  outline: 3px solid var(--primary-glow);
+  outline-offset: 2px;
+}
+.frontdesk-dashboard th {
+  color: var(--secondary) !important;
+  background-color: var(--bg-subtle) !important;
+  border-color: var(--border-color) !important;
+}
+.frontdesk-dashboard td { border-color: var(--border-subtle) !important; }
+
+@media (max-width: 640px) {
+  .frontdesk-booking-stepper { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
 *,
 *::before,
 *::after {

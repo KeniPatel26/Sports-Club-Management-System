@@ -10,7 +10,6 @@ import {
   XCircle,
   Plus,
   DollarSign,
-  Phone,
   CreditCard,
   FileText,
   AlertCircle,
@@ -31,6 +30,7 @@ import {
   Bell,
   Printer,
   ChevronRight,
+  ChevronDown,
   ChevronLeft,
   Eye,
   UserCheck,
@@ -41,7 +41,13 @@ import courtBookingService from '../../../services/courtBookingService';
 import { useAuth } from '../../../context/AuthContext';
 import Loader from '../../../components/ui/Loader';
 import Alert from '../../../components/ui/Alert';
-import FilterDropdown from '../../../components/ui/FilterDropdown';
+
+const toDateInputValue = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export const FrontDeskDashboard = () => {
   const { user } = useAuth();
@@ -74,11 +80,27 @@ export const FrontDeskDashboard = () => {
   // -------------------------------------------------------------
   // Court Availability Grid State
   // -------------------------------------------------------------
-  const [gridDate, setGridDate] = useState(new Date().toISOString().split('T')[0]);
+  const [gridDate, setGridDate] = useState(toDateInputValue());
   const [gridData, setGridData] = useState(null);
   const [loadingGrid, setLoadingGrid] = useState(false);
-  const [courtFilter, setCourtFilter] = useState('ALL');
+  const [currentClock, setCurrentClock] = useState(() => new Date());
+  const [courtFilter, setCourtFilter] = useState([]);
+  const [showCourtFilterMenu, setShowCourtFilterMenu] = useState(false);
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, AVAILABLE, BOOKED, MAINTENANCE
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentClock(new Date()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const visibleGridRows = useMemo(() => {
+    const rows = gridData?.grid || [];
+    const today = toDateInputValue(currentClock);
+    if (gridDate < today) return [];
+    if (gridDate > today) return rows;
+    const currentTime = `${String(currentClock.getHours()).padStart(2, '0')}:${String(currentClock.getMinutes()).padStart(2, '0')}`;
+    return rows.filter((row) => row.time > currentTime);
+  }, [gridData, gridDate, currentClock]);
 
   // -------------------------------------------------------------
   // Member Search Tab State
@@ -94,11 +116,16 @@ export const FrontDeskDashboard = () => {
   // Create Booking Modal State
   // -------------------------------------------------------------
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingStep, setBookingStep] = useState(1);
+  const [bookingSlots, setBookingSlots] = useState([]);
+  const [loadingBookingSlots, setLoadingBookingSlots] = useState(false);
+  const [bookingSlotsError, setBookingSlotsError] = useState('');
+  const [bookingFlowError, setBookingFlowError] = useState('');
   const [bookingCustomerType, setBookingCustomerType] = useState('MEMBER'); // MEMBER | GUEST
   const [bookingSource, setBookingSource] = useState('FRONT_DESK'); // FRONT_DESK | WALK_IN | PHONE
   const [selectedCourtId, setSelectedCourtId] = useState('');
   const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0]);
-  const [bookingTime, setBookingTime] = useState('09:00');
+  const [bookingTime, setBookingTime] = useState('');
   const [selectedMember, setSelectedMember] = useState(null);
   const [modalMemberQuery, setModalMemberQuery] = useState('');
   const [modalMemberResults, setModalMemberResults] = useState([]);
@@ -126,7 +153,10 @@ export const FrontDeskDashboard = () => {
   const [rescheduleBookingId, setRescheduleBookingId] = useState(null);
   const [rescheduleCourtId, setRescheduleCourtId] = useState('');
   const [rescheduleDate, setRescheduleDate] = useState(new Date().toISOString().split('T')[0]);
-  const [rescheduleTime, setRescheduleTime] = useState('18:00');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [rescheduleSlots, setRescheduleSlots] = useState([]);
+  const [loadingRescheduleSlots, setLoadingRescheduleSlots] = useState(false);
+  const [rescheduleSlotsError, setRescheduleSlotsError] = useState('');
   const [rescheduleReason, setRescheduleReason] = useState('Customer requested new slot');
   const [submittingReschedule, setSubmittingReschedule] = useState(false);
 
@@ -135,7 +165,7 @@ export const FrontDeskDashboard = () => {
   // -------------------------------------------------------------
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelBookingId, setCancelBookingId] = useState(null);
-  const [cancelRefundAmount, setCancelRefundAmount] = useState(400);
+  const [cancelRefundAmount, setCancelRefundAmount] = useState(0);
   const [cancelReason, setCancelReason] = useState('Customer cancellation request');
   const [submittingCancel, setSubmittingCancel] = useState(false);
 
@@ -150,24 +180,19 @@ export const FrontDeskDashboard = () => {
   const [showClosingDrawer, setShowClosingDrawer] = useState(false);
   const [closingData, setClosingData] = useState(null);
   const [loadingClosing, setLoadingClosing] = useState(false);
-  const [checkedIn, setCheckedIn] = useState(true);
-  const [checkInTime, setCheckInTime] = useState('08:55 AM');
+  const [submittingClosing, setSubmittingClosing] = useState(false);
+  const [staffAttendanceProfile, setStaffAttendanceProfile] = useState(null);
 
   // -------------------------------------------------------------
   // Payments Tab State
   // -------------------------------------------------------------
   const [paymentsList, setPaymentsList] = useState([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
 
-  // -------------------------------------------------------------
-  // Operational Notifications
-  // -------------------------------------------------------------
-  const operationalNotifications = useMemo(() => [
-    { id: 'n1', title: 'Court 2 Maintenance Notice', message: 'Tennis Court 2 scheduled inspection today at 13:00 - 14:00.', time: '10m ago', type: 'warning' },
-    { id: 'n2', title: 'Booking Rescheduled', message: 'Member Keni Patel rescheduled Badminton Hall 1 to 18:00.', time: '25m ago', type: 'info' },
-    { id: 'n3', title: 'Walk-in Match Confirmed', message: 'Walk-in reservation #BK8501 for Court 1 (16:00) verified and paid via UPI.', time: '40m ago', type: 'success' },
-    { id: 'n4', title: 'Court 3 Ready for Play', message: 'Padel Glass Court A maintenance completed. Now available for dispatch.', time: '1h ago', type: 'success' },
-  ], []);
+  const checkedIn = Boolean(staffAttendanceProfile?.attendanceToday?.checkIn && !staffAttendanceProfile?.attendanceToday?.checkOut);
+  const checkInTime = staffAttendanceProfile?.attendanceToday?.checkIn;
 
   // -------------------------------------------------------------
   // Dynamic Pricing Calculations (Auto-calculated, No Manual Input)
@@ -177,16 +202,16 @@ export const FrontDeskDashboard = () => {
   }, [courts, selectedCourtId]);
 
   const baseCourtRate = useMemo(() => {
-    if (!selectedCourtObj) return 500;
+    if (!selectedCourtObj) return 0;
     if (bookingCustomerType === 'MEMBER') {
-      return selectedCourtObj.hourlyRate || 500;
+      return Number(selectedCourtObj.hourlyRate ?? 0);
     }
-    return selectedCourtObj.walkInRate || selectedCourtObj.hourlyRate || 600;
+    return Number(selectedCourtObj.walkInRate ?? selectedCourtObj.hourlyRate ?? 0);
   }, [selectedCourtObj, bookingCustomerType]);
 
   const memberDiscountPct = useMemo(() => {
     if (bookingCustomerType !== 'MEMBER' || !selectedMember) return 0;
-    return selectedMember.courtDiscount || 20;
+    return Number(selectedMember.courtDiscount ?? 0);
   }, [bookingCustomerType, selectedMember]);
 
   const calculatedDiscountAmount = useMemo(() => {
@@ -210,13 +235,14 @@ export const FrontDeskDashboard = () => {
 
       if (resOverview?.success) {
         setOverview(resOverview.data);
+      } else {
+        setOverview(null);
       }
-      if (resCourts?.data) {
-        setCourts(resCourts.data);
-        if (resCourts.data.length > 0 && !selectedCourtId) {
-          setSelectedCourtId(resCourts.data[0]._id || resCourts.data[0].id);
-        }
-      }
+      const loadedCourts = Array.isArray(resCourts?.data) ? resCourts.data : [];
+      setCourts(loadedCourts);
+      setSelectedCourtId((currentId) => loadedCourts.some((court) => (court._id || court.id) === currentId)
+        ? currentId
+        : loadedCourts.length ? (loadedCourts[0]._id || loadedCourts[0].id) : '');
     } catch (err) {
       console.error('Front Desk load error:', err);
       setAlert({ type: 'danger', message: 'Failed to load front desk schedule.' });
@@ -229,8 +255,22 @@ export const FrontDeskDashboard = () => {
     fetchOverview();
   }, []);
 
+  const fetchStaffAttendanceProfile = async () => {
+    try {
+      const response = await staffService.getMyProfile();
+      if (response?.success) setStaffAttendanceProfile(response.data);
+    } catch (error) {
+      setAlert({ type: 'danger', message: error.response?.data?.message || 'Could not load your shift and attendance details.' });
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'dashboard') fetchStaffAttendanceProfile();
+  }, [activeTab]);
+
   const fetchGrid = async (dateVal) => {
     setLoadingGrid(true);
+    setGridData(null);
     try {
       const res = await staffService.getCourtAvailability(dateVal || gridDate);
       if (res.success) {
@@ -238,6 +278,7 @@ export const FrontDeskDashboard = () => {
       }
     } catch (err) {
       console.error('Court availability grid fetch error:', err);
+      setAlert({ type: 'danger', message: err.response?.data?.message || 'Could not load court availability.' });
     } finally {
       setLoadingGrid(false);
     }
@@ -258,6 +299,7 @@ export const FrontDeskDashboard = () => {
       }
     } catch (err) {
       console.error('Payments fetch error:', err);
+      setAlert({ type: 'danger', message: err.response?.data?.message || 'Could not load payment records.' });
     } finally {
       setLoadingPayments(false);
     }
@@ -267,6 +309,22 @@ export const FrontDeskDashboard = () => {
     if (activeTab === 'payments') {
       fetchPayments();
     }
+  }, [activeTab]);
+
+  const fetchNotifications = async () => {
+    setLoadingNotifications(true);
+    try {
+      const response = await staffService.getNotifications();
+      if (response?.success) setNotifications(response.data || []);
+    } catch (error) {
+      setAlert({ type: 'danger', message: error.response?.data?.message || 'Could not load notifications.' });
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'notifications') fetchNotifications();
   }, [activeTab]);
 
   // -------------------------------------------------------------
@@ -284,7 +342,7 @@ export const FrontDeskDashboard = () => {
             setShowGlobalDropdown(true);
           }
         } catch (err) {
-          console.error(err);
+          setAlert({ type: 'danger', message: err.response?.data?.message || 'Could not search members right now.' });
         } finally {
           setSearchingGlobal(false);
         }
@@ -307,7 +365,7 @@ export const FrontDeskDashboard = () => {
             setMemberSearchResults(res.data || []);
           }
         } catch (err) {
-          console.error(err);
+          setAlert({ type: 'danger', message: err.response?.data?.message || 'Could not search members right now.' });
         } finally {
           setSearchingMember(false);
         }
@@ -329,7 +387,7 @@ export const FrontDeskDashboard = () => {
             setModalMemberResults(res.data || []);
           }
         } catch (err) {
-          console.error(err);
+          setAlert({ type: 'danger', message: err.response?.data?.message || 'Could not search members right now.' });
         } finally {
           setSearchingModalMember(false);
         }
@@ -349,7 +407,7 @@ export const FrontDeskDashboard = () => {
         setMemberHistoryData(res.data);
       }
     } catch (err) {
-      console.error(err);
+      setAlert({ type: 'danger', message: err.response?.data?.message || 'Could not load member booking and payment history.' });
     } finally {
       setLoadingMemberHistory(false);
     }
@@ -359,34 +417,82 @@ export const FrontDeskDashboard = () => {
   // Date Shifting Helpers
   // -------------------------------------------------------------
   const handleDateShift = (deltaDays) => {
-    const d = new Date(gridDate);
+    const d = new Date(`${gridDate}T12:00:00`);
     d.setDate(d.getDate() + deltaDays);
-    const newDateStr = d.toISOString().split('T')[0];
-    setGridDate(newDateStr);
-  };
-
-  const handleSetToday = () => {
-    setGridDate(new Date().toISOString().split('T')[0]);
-  };
-
-  const handleSetTomorrow = () => {
-    const d = new Date();
-    d.setDate(d.getDate() + 1);
-    setGridDate(d.toISOString().split('T')[0]);
+    const newDateStr = toDateInputValue(d);
+    if (newDateStr >= toDateInputValue()) setGridDate(newDateStr);
   };
 
   // -------------------------------------------------------------
   // Quick Open Booking Modal
   // -------------------------------------------------------------
   const handleOpenCreateBooking = ({ customerType = 'MEMBER', source = 'FRONT_DESK', courtId = '', time = '', date = '' }) => {
+    setBookingStep(1);
+    setBookingSlots([]);
+    setBookingSlotsError('');
+    setBookingFlowError('');
     setBookingCustomerType(customerType);
     setBookingSource(source);
     if (courtId) setSelectedCourtId(courtId);
-    if (time) setBookingTime(time);
+    setBookingTime(time || '');
     if (date) setBookingDate(date);
     else setBookingDate(gridDate);
     setShowBookingModal(true);
   };
+
+  useEffect(() => {
+    if (!showBookingModal || bookingStep !== 3 || !selectedCourtId || !bookingDate) return undefined;
+    let active = true;
+    setLoadingBookingSlots(true);
+    setBookingSlotsError('');
+    courtBookingService.getCourtSlots(selectedCourtId, bookingDate)
+      .then((response) => {
+        if (!active) return;
+        const slots = (response?.data?.slots || []).filter((slot) => slot.available);
+        setBookingSlots(slots);
+        if (bookingTime && !slots.some((slot) => slot.time === bookingTime)) setBookingTime('');
+      })
+      .catch((error) => {
+        if (!active) return;
+        setBookingSlots([]);
+        setBookingSlotsError(error.response?.data?.message || 'Could not load available times for this date.');
+      })
+      .finally(() => { if (active) setLoadingBookingSlots(false); });
+    return () => { active = false; };
+  }, [showBookingModal, bookingStep, selectedCourtId, bookingDate]);
+
+  const effectiveRescheduleCourtId = rescheduleCourtId || selectedBookingDrawer?.courtId || '';
+  useEffect(() => {
+    if (!showRescheduleModal || !effectiveRescheduleCourtId || !rescheduleDate) return undefined;
+    let active = true;
+    setLoadingRescheduleSlots(true);
+    setRescheduleSlotsError('');
+    staffService.getCourtAvailability(rescheduleDate)
+      .then((response) => {
+        if (!active) return;
+        const rows = response?.data?.grid || [];
+        const options = [];
+        for (let index = 0; index < rows.length - 1; index += 1) {
+          const time = rows[index].time;
+          const nextTime = rows[index + 1].time;
+          const [hour, minute] = time.split(':').map(Number);
+          if (minute !== 0 || nextTime !== `${String(hour).padStart(2, '0')}:30`) continue;
+          const firstCell = rows[index].courts?.[effectiveRescheduleCourtId];
+          const secondCell = rows[index + 1].courts?.[effectiveRescheduleCourtId];
+          const isAvailable = (cell) => cell?.status === 'AVAILABLE' || cell?.bookingId?.toString() === rescheduleBookingId?.toString();
+          if (isAvailable(firstCell) && isAvailable(secondCell)) options.push(time);
+        }
+        setRescheduleSlots(options);
+        if (rescheduleTime && !options.includes(rescheduleTime)) setRescheduleTime('');
+      })
+      .catch((error) => {
+        if (!active) return;
+        setRescheduleSlots([]);
+        setRescheduleSlotsError(error.response?.data?.message || 'Could not load available times for this date.');
+      })
+      .finally(() => { if (active) setLoadingRescheduleSlots(false); });
+    return () => { active = false; };
+  }, [showRescheduleModal, effectiveRescheduleCourtId, rescheduleDate, rescheduleBookingId]);
 
   // -------------------------------------------------------------
   // Slot Click Dispatcher on Availability Matrix
@@ -400,24 +506,8 @@ export const FrontDeskDashboard = () => {
         time: timeSlot,
         date: gridDate,
       });
-    } else if (cell.status === 'BOOKED') {
-      const bookingRecord = (overview?.schedule || []).find(
-        (b) => b.id === cell.bookingId || (b.courtId === court.id && b.startTime === timeSlot)
-      ) || {
-        id: cell.bookingId || `BK-${Date.now().toString().slice(-4)}`,
-        courtId: court.id,
-        courtName: court.name,
-        courtType: court.type,
-        memberName: cell.bookedBy || 'Club Member',
-        bookingType: 'MEMBER',
-        status: 'CONFIRMED',
-        startTime: timeSlot,
-        endTime: `${String((parseInt(timeSlot.split(':')[0]) + 1) % 24).padStart(2, '0')}:${timeSlot.split(':')[1] || '00'}`,
-        finalAmount: court.hourlyRate || 500,
-        paymentMethod: 'UPI',
-        date: gridDate,
-      };
-      setSelectedBookingDrawer(bookingRecord);
+    } else if (cell.status === 'BOOKED' && cell.booking) {
+      setSelectedBookingDrawer(cell.booking);
     }
   };
 
@@ -439,11 +529,12 @@ export const FrontDeskDashboard = () => {
         fetchOverview();
         fetchGrid(gridDate);
         if (selectedBookingDrawer && selectedBookingDrawer.id === bookingId) {
+          const updatedBooking = res.data || {};
           setSelectedBookingDrawer((prev) => ({
             ...prev,
-            status: newStatus,
-            checkInTime: newStatus === 'CHECKED_IN' ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : prev.checkInTime,
-            checkOutTime: newStatus === 'COMPLETED' ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : prev.checkOutTime,
+            status: updatedBooking.status || newStatus,
+            checkInTime: updatedBooking.checkInTime ?? prev.checkInTime,
+            checkOutTime: updatedBooking.checkOutTime ?? prev.checkOutTime,
           }));
         }
       }
@@ -457,6 +548,7 @@ export const FrontDeskDashboard = () => {
   // -------------------------------------------------------------
   const handleCreateBookingSubmit = async (e) => {
     e.preventDefault();
+    if (bookingStep !== 4) return;
     setSubmittingBooking(true);
     setAlert(null);
 
@@ -477,10 +569,11 @@ export const FrontDeskDashboard = () => {
         return;
       }
 
-      if (bookingCustomerType === 'MEMBER' && (selectedMember?.todayBookingsCount || 0) >= 2) {
+      const dailyBookingLimit = Number(selectedMember?.maxDailyPlays ?? 2);
+      if (bookingCustomerType === 'MEMBER' && (selectedMember?.todayBookingsCount ?? 0) >= dailyBookingLimit) {
         setAlert({
           type: 'danger',
-          message: `Member ${selectedMember.name} has reached the daily limit of 2 bookings/day.`,
+          message: `Member ${selectedMember.name} has reached the daily limit of ${dailyBookingLimit} bookings/day.`,
         });
         setSubmittingBooking(false);
         return;
@@ -519,16 +612,16 @@ export const FrontDeskDashboard = () => {
       const res = await staffService.createFrontDeskBooking(payload);
       if (res.success) {
         const confirmedData = {
-          bookingId: res.data?._id || `BK${Date.now().toString().slice(-4)}`,
+          bookingId: res.data?._id,
           customerName: bookingCustomerType === 'MEMBER' ? selectedMember.name : walkInName,
           customerType: bookingCustomerType,
-          courtName: selectedCourtObj?.name || 'Court 1',
+          courtName: res.data?.receipt?.courtName || selectedCourtObj?.name || '',
           date: bookingDate,
           startTime: bookingTime,
           endTime,
-          finalAmount: finalTotalAmount,
+          finalAmount: res.data?.receipt?.finalAmount ?? res.data?.finalAmount ?? 0,
           paymentMethod,
-          invoiceNumber: res.data?.receipt?.invoiceNumber || `INV-BK-${Date.now().toString().slice(-4)}`,
+          invoiceNumber: res.data?.receipt?.invoiceNumber || '',
         };
 
         setConfirmedBookingData(confirmedData);
@@ -614,15 +707,31 @@ export const FrontDeskDashboard = () => {
   const handleOpenClosing = async () => {
     setShowClosingDrawer(true);
     setLoadingClosing(true);
+    setClosingData(null);
     try {
       const res = await staffService.getDailyClosingSummary();
       if (res.success) {
         setClosingData(res.data);
       }
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      setAlert({ type: 'danger', message: error.response?.data?.message || 'Could not load the shift closing summary.' });
     } finally {
       setLoadingClosing(false);
+    }
+  };
+
+  const handleSubmitClosing = async () => {
+    setSubmittingClosing(true);
+    try {
+      const response = await staffService.submitDailyClosingReport();
+      if (response?.success) {
+        setShowClosingDrawer(false);
+        setAlert({ type: 'success', message: response.message || 'Shift closing report submitted.' });
+      }
+    } catch (error) {
+      setAlert({ type: 'danger', message: error.response?.data?.message || 'Failed to submit the shift closing report.' });
+    } finally {
+      setSubmittingClosing(false);
     }
   };
 
@@ -630,14 +739,12 @@ export const FrontDeskDashboard = () => {
     try {
       if (checkedIn) {
         const res = await staffService.checkOut();
-        setCheckedIn(false);
         setAlert({ type: 'info', message: res.message || 'Checked out successfully.' });
       } else {
         const res = await staffService.checkIn();
-        setCheckedIn(true);
-        setCheckInTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         setAlert({ type: 'success', message: res.message || 'Checked in successfully.' });
       }
+      await fetchStaffAttendanceProfile();
     } catch (err) {
       setAlert({ type: 'danger', message: 'Failed to update attendance' });
     }
@@ -663,8 +770,8 @@ export const FrontDeskDashboard = () => {
   // -------------------------------------------------------------
   const filteredCourts = useMemo(() => {
     if (!gridData?.courts) return courts;
-    if (courtFilter === 'ALL') return gridData.courts;
-    return gridData.courts.filter((c) => (c.id || c._id) === courtFilter);
+    if (courtFilter.length === 0) return gridData.courts;
+    return gridData.courts.filter((c) => courtFilter.includes(c.id || c._id));
   }, [gridData?.courts, courts, courtFilter]);
 
   if (loading && !overview) {
@@ -672,7 +779,7 @@ export const FrontDeskDashboard = () => {
   }
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '1440px', margin: '0 auto', fontFamily: 'var(--font-family-body)' }}>
+    <div className="frontdesk-dashboard" style={{ padding: '1.5rem', maxWidth: '1440px', margin: '0 auto', fontFamily: 'var(--font-family-body)' }}>
       {/* ======================================================== */}
       {/* 1. DYNAMIC PAGE HEADER & SEARCH BAR */}
       {/* ======================================================== */}
@@ -686,37 +793,65 @@ export const FrontDeskDashboard = () => {
           marginBottom: '1.5rem',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          {activeTab === 'courts' && <Calendar size={28} color="var(--primary-navy)" />}
-          {activeTab === 'members' && <Users size={28} color="var(--primary-navy)" />}
-          {activeTab === 'bookings' && <CheckCircle size={28} color="var(--primary-navy)" />}
-          {activeTab === 'payments' && <Receipt size={28} color="var(--primary-navy)" />}
-          {activeTab === 'notifications' && <Bell size={28} color="var(--primary-navy)" />}
-          {activeTab === 'dashboard' && <Building2 size={28} color="var(--primary-navy)" />}
-          <h1
-            style={{
-              fontSize: '1.75rem',
-              fontWeight: 800,
-              color: 'var(--text-main)',
-              fontFamily: 'var(--font-family-display)',
-              margin: 0,
-            }}
-          >
-            {activeTab === 'courts' && 'Court Availability Matrix'}
-            {activeTab === 'members' && 'Member Directory'}
-            {activeTab === 'bookings' && "Today's Bookings"}
-            {activeTab === 'payments' && 'Booking Payments'}
-            {activeTab === 'notifications' && 'Operational Alerts'}
-            {activeTab === 'dashboard' && 'Front Desk Dashboard'}
-          </h1>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            {activeTab === 'courts' && <Calendar size={24} color="var(--primary-navy)" />}
+            {activeTab === 'members' && <Users size={24} color="var(--primary-navy)" />}
+            {activeTab === 'bookings' && <CheckCircle size={24} color="var(--primary-navy)" />}
+            {activeTab === 'payments' && <Receipt size={24} color="var(--primary-navy)" />}
+            {activeTab === 'notifications' && <Bell size={24} color="var(--primary-navy)" />}
+            {activeTab === 'dashboard' && <Building2 size={24} color="var(--primary-navy)" />}
+            <h1
+              style={{
+                fontSize: '1.65rem',
+                fontWeight: 800,
+                color: 'var(--text-main)',
+                fontFamily: 'var(--font-family-display)',
+                margin: 0,
+              }}
+            >
+              {activeTab === 'courts' && 'Court Availability Matrix'}
+              {activeTab === 'members' && 'Member Directory & Quick Booking'}
+              {activeTab === 'bookings' && "Today's Bookings & Sessions"}
+              {activeTab === 'payments' && 'Booking Payments & Receipts'}
+              {activeTab === 'notifications' && 'Operational Notifications'}
+              {activeTab === 'dashboard' && 'Front Desk Operations'}
+            </h1>
+            <span
+              style={{
+                fontSize: '0.725rem',
+                fontWeight: 800,
+                backgroundColor: 'var(--lavender)',
+                color: 'var(--primary-navy)',
+                padding: '2px 8px',
+                borderRadius: 'var(--radius-full)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              {activeTab === 'courts' && 'SCHEDULE MATRIX'}
+              {activeTab === 'members' && 'MEMBERS'}
+              {activeTab === 'bookings' && 'SESSIONS'}
+              {activeTab === 'payments' && 'RECEIPTS'}
+              {activeTab === 'notifications' && 'ALERTS'}
+              {activeTab === 'dashboard' && 'DASHBOARD'}
+            </span>
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0.2rem 0 0 0' }}>
+            {activeTab === 'courts' && 'Live 30-minute court schedule, status indicators, and 1-click slot reservation'}
+            {activeTab === 'members' && 'Search active club members, verify quotas and membership tier discounts'}
+            {activeTab === 'bookings' && "Manage daily court bookings, player check-in/out, no-shows, and reschedules"}
+            {activeTab === 'payments' && 'Real-time payment verification, invoices, and transaction ledger'}
+            {activeTab === 'notifications' && 'Real-time operational alerts for court maintenance, cancellations, and reschedules'}
+            {activeTab === 'dashboard' && `Logged in as ${staffAttendanceProfile?.firstName || user?.firstName || ''} • Real-time court dispatch & customer reception`}
+          </p>
         </div>
 
-        {/* Global Search Header Input */}
-        <div style={{ position: 'relative', width: '320px', maxWidth: '100%' }}>
+        {/* Member and booking search is available from the dashboard header only. */}
+        {activeTab === 'dashboard' && <div style={{ position: 'relative', width: '320px', maxWidth: '100%' }}>
           <div style={{ position: 'relative' }}>
             <input
               type="text"
-              placeholder="🔍 Search member / phone / booking ID..."
+              placeholder="Search member / phone / booking ID..."
               value={globalSearchQuery}
               onChange={(e) => setGlobalSearchQuery(e.target.value)}
               style={{
@@ -816,6 +951,69 @@ export const FrontDeskDashboard = () => {
               )}
             </div>
           )}
+        </div>}
+
+        {/* Right Action Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+          {/* Shift timing and attendance controls are available from the dashboard only. */}
+          {activeTab === 'dashboard' && <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              backgroundColor: '#FFFFFF',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '0.4rem 0.75rem',
+            }}
+          >
+            <div
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: checkedIn ? 'var(--success)' : 'var(--danger)',
+              }}
+            />
+            <span style={{ fontSize: '0.775rem', fontWeight: 600, color: 'var(--text-main)' }}>
+              {staffAttendanceProfile?.currentShift ? `Shift: ${staffAttendanceProfile.currentShift}` : 'No shift assigned'} {checkInTime && `(In: ${checkInTime})`}
+            </span>
+            <button
+              onClick={handleAttendanceToggle}
+              style={{
+                border: 'none',
+                background: checkedIn ? 'var(--light-danger)' : 'var(--light-green)',
+                color: checkedIn ? 'var(--danger)' : 'var(--success)',
+                fontSize: '0.725rem',
+                fontWeight: 700,
+                padding: '2px 7px',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+              }}
+            >
+              {checkedIn ? 'Check Out' : 'Check In'}
+            </button>
+          </div>}
+
+          {activeTab === 'dashboard' && <button
+            onClick={handleOpenClosing}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.5rem 0.85rem',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: '#FFFFFF',
+              border: '1px solid var(--border)',
+              color: 'var(--text-main)',
+              fontSize: '0.825rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            <FileText size={15} color="var(--primary-peach)" />
+            Shift Closing
+          </button>}
         </div>
       </div>
 
@@ -858,7 +1056,7 @@ export const FrontDeskDashboard = () => {
                 <Calendar size={17} color="var(--primary-navy)" />
               </div>
               <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary-navy)', marginTop: '0.35rem' }}>
-                {overview?.kpi?.todayBookingsCount || 24}
+                {overview?.kpi?.todayBookingsCount ?? 0}
               </div>
               <span style={{ fontSize: '0.725rem', color: 'var(--success)', fontWeight: 600 }}>
                 Scheduled games today
@@ -881,7 +1079,7 @@ export const FrontDeskDashboard = () => {
                 <Clock size={17} color="var(--primary-peach)" />
               </div>
               <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary-peach)', marginTop: '0.35rem' }}>
-                {overview?.kpi?.upcomingBookingsCount || 12}
+                {overview?.kpi?.upcomingBookingsCount ?? 0}
               </div>
               <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', fontWeight: 500 }}>
                 Next queue in line
@@ -904,7 +1102,7 @@ export const FrontDeskDashboard = () => {
                 <CheckCircle size={17} color="var(--success)" />
               </div>
               <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--success)', marginTop: '0.35rem' }}>
-                {overview?.kpi?.availableCourts || 4}
+                {overview?.kpi?.availableCourts ?? 0}
               </div>
               <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', fontWeight: 500 }}>
                 Ready for play dispatch
@@ -927,7 +1125,7 @@ export const FrontDeskDashboard = () => {
                 <DollarSign size={17} color="var(--primary-navy)" />
               </div>
               <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary-navy)', marginTop: '0.35rem' }}>
-                ₹{overview?.kpi?.todayRevenue?.toLocaleString() || '8,500'}
+                ₹{(overview?.kpi?.todayRevenue ?? 0).toLocaleString()}
               </div>
               <span style={{ fontSize: '0.725rem', color: 'var(--success)', fontWeight: 600 }}>
                 Gross collected
@@ -950,7 +1148,7 @@ export const FrontDeskDashboard = () => {
                 <Users size={17} color="var(--secondary-blue)" />
               </div>
               <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--secondary-blue)', marginTop: '0.35rem' }}>
-                {overview?.kpi?.walkInsToday || 5}
+                {overview?.kpi?.walkInsToday ?? 0}
               </div>
               <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', fontWeight: 500 }}>
                 Front desk entries
@@ -973,20 +1171,12 @@ export const FrontDeskDashboard = () => {
             }}
           >
             <button
+              className="btn btn-primary btn-md"
               onClick={() => handleOpenCreateBooking({ customerType: 'MEMBER', source: 'FRONT_DESK' })}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.45rem',
-                padding: '0.6rem 1.15rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--primary-peach)',
-                border: 'none',
-                color: '#FFFFFF',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(217, 142, 104, 0.3)',
               }}
             >
               <Plus size={16} />
@@ -994,19 +1184,12 @@ export const FrontDeskDashboard = () => {
             </button>
 
             <button
+              className="btn btn-secondary btn-md"
               onClick={() => handleOpenCreateBooking({ customerType: 'GUEST', source: 'WALK_IN' })}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.45rem',
-                padding: '0.6rem 1.15rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--primary)',
-                border: 'none',
-                color: '#FFFFFF',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                cursor: 'pointer',
               }}
             >
               <Users size={16} />
@@ -1014,66 +1197,18 @@ export const FrontDeskDashboard = () => {
             </button>
 
             <button
-              onClick={() => handleOpenCreateBooking({ customerType: 'MEMBER', source: 'PHONE' })}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                padding: '0.6rem 1.15rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--lavender)',
-                border: '1px solid rgba(53, 73, 98, 0.2)',
-                color: 'var(--primary-navy)',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              <Phone size={15} />
-              + Phone Booking
-            </button>
-
-            <button
+              className="btn btn-outline btn-md"
               onClick={() => handleTabChange('courts')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.45rem',
-                padding: '0.6rem 1.15rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: '#F1F4F9',
-                border: '1px solid #CBD5E1',
-                color: '#1E293B',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
               }}
             >
               <Calendar size={16} color="var(--primary-peach)" />
               Court Availability Matrix
             </button>
 
-            <button
-              onClick={() => handleTabChange('members')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                padding: '0.6rem 1.15rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: '#F1F4F9',
-                border: '1px solid #CBD5E1',
-                color: '#1E293B',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <Search size={16} color="var(--primary-navy)" />
-              Search Members
-            </button>
           </div>
           {/* Today's Bookings Table Card */}
           <div
@@ -1176,21 +1311,14 @@ export const FrontDeskDashboard = () => {
                               fontWeight: 700,
                               padding: '2px 7px',
                               borderRadius: '4px',
-                              backgroundColor:
-                                item.bookingType === 'WALK_IN'
-                                  ? 'var(--lavender)'
-                                  : item.bookingType === 'PHONE'
-                                  ? 'var(--light-warning)'
-                                  : 'var(--light-green)',
+                              backgroundColor: item.bookingType === 'WALK_IN' ? 'var(--lavender)' : 'var(--light-green)',
                               color:
                                 item.bookingType === 'WALK_IN'
                                   ? 'var(--primary-navy)'
-                                  : item.bookingType === 'PHONE'
-                                  ? 'var(--warning)'
                                   : 'var(--success)',
                             }}
                           >
-                            {item.bookingType}
+                            {item.bookingType === 'PHONE' ? 'FRONT DESK' : item.bookingType}
                           </span>
                         </td>
                         <td style={{ padding: '0.85rem 1rem' }}>
@@ -1222,11 +1350,11 @@ export const FrontDeskDashboard = () => {
                                   : 'var(--danger)',
                             }}
                           >
-                            {item.status === 'CHECKED_IN' && item.checkInTime ? `● Checked-in (${new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : item.status}
+                            {item.status === 'CHECKED_IN' && item.checkInTime ? <><CheckCircle size={13} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: '0.25rem' }} />Checked-in ({new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})</> : item.status}
                           </span>
                         </td>
                         <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
-                          ₹{item.finalAmount || 500}
+                          ₹{item.finalAmount ?? 0}
                         </td>
                         <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
                           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.35rem' }}>
@@ -1358,7 +1486,7 @@ export const FrontDeskDashboard = () => {
               </p>
             </div>
 
-            {/* Date Navigator: ← 02 Oct [ 03 Oct 2026 ] 04 Oct → & [Today] [Tomorrow] */}
+            {/* Date navigator with previous/next controls and a date picker. */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <div
                 style={{
@@ -1372,6 +1500,7 @@ export const FrontDeskDashboard = () => {
               >
                 <button
                   onClick={() => handleDateShift(-1)}
+                  disabled={gridDate <= toDateInputValue()}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1381,8 +1510,8 @@ export const FrontDeskDashboard = () => {
                     background: 'none',
                     fontSize: '0.775rem',
                     fontWeight: 700,
-                    color: 'var(--text-main)',
-                    cursor: 'pointer',
+                    color: gridDate <= toDateInputValue() ? 'var(--text-muted)' : 'var(--text-main)',
+                    cursor: gridDate <= toDateInputValue() ? 'not-allowed' : 'pointer',
                   }}
                 >
                   <ChevronLeft size={16} /> Prev
@@ -1390,8 +1519,9 @@ export const FrontDeskDashboard = () => {
 
                 <input
                   type="date"
+                  min={toDateInputValue()}
                   value={gridDate}
-                  onChange={(e) => setGridDate(e.target.value)}
+                  onChange={(e) => { if (e.target.value >= toDateInputValue()) setGridDate(e.target.value); }}
                   style={{
                     padding: '0.35rem 0.5rem',
                     border: 'none',
@@ -1423,37 +1553,6 @@ export const FrontDeskDashboard = () => {
                 </button>
               </div>
 
-              <button
-                onClick={handleSetToday}
-                style={{
-                  padding: '0.45rem 0.85rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border)',
-                  backgroundColor: gridDate === new Date().toISOString().split('T')[0] ? 'var(--primary)' : '#FFFFFF',
-                  color: gridDate === new Date().toISOString().split('T')[0] ? '#FFFFFF' : 'var(--text-main)',
-                  fontSize: '0.775rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                Today
-              </button>
-
-              <button
-                onClick={handleSetTomorrow}
-                style={{
-                  padding: '0.45rem 0.85rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border)',
-                  backgroundColor: '#FFFFFF',
-                  color: 'var(--text-main)',
-                  fontSize: '0.775rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                Tomorrow
-              </button>
             </div>
           </div>
 
@@ -1468,29 +1567,48 @@ export const FrontDeskDashboard = () => {
               marginBottom: '1rem',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <FilterDropdown label="Court" value={courtFilter} onChange={(event) => setCourtFilter(event.target.value)} options={[
-                { value: 'ALL', label: 'All courts' },
-                ...courts.map((court) => ({ value: court._id || court.id, label: court.name })),
-              ]} />
-              <FilterDropdown label="Availability" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} options={[
-                { value: 'ALL', label: 'All statuses' },
-                { value: 'AVAILABLE', label: 'Available' },
-                { value: 'BOOKED', label: 'Booked' },
-                { value: 'MAINTENANCE', label: 'Maintenance' },
-              ]} />
+            {/* Court filter dropdown: all courts by default, up to two specific courts. */}
+            <div style={{ position: 'relative', minWidth: '220px' }}>
+              <button
+                type="button"
+                aria-expanded={showCourtFilterMenu}
+                onClick={() => setShowCourtFilterMenu((open) => !open)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', width: '100%', padding: '0.55rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: '#FFFFFF', color: 'var(--text-main)', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
+              >
+                <span>{courtFilter.length === 0 ? 'All courts' : `${courtFilter.length} court${courtFilter.length > 1 ? 's' : ''} selected`}</span>
+                <ChevronDown size={15} aria-hidden="true" />
+              </button>
+              {showCourtFilterMenu && <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 30, width: 'min(320px, 85vw)', maxHeight: '280px', overflowY: 'auto', padding: '0.35rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: '#FFFFFF', boxShadow: 'var(--shadow-md)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0.5rem 0.55rem', borderBottom: '1px solid var(--border)', marginBottom: '0.25rem' }}>
+                  <strong style={{ color: 'var(--text-main)', fontSize: '0.78rem' }}>Filter courts</strong>
+                  <button type="button" onClick={() => setShowCourtFilterMenu(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', padding: '0.25rem 0.4rem', border: 0, borderRadius: 'var(--radius-sm)', background: 'transparent', color: 'var(--primary-navy)', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}><X size={13} aria-hidden="true" />Done</button>
+                </div>
+                <button type="button" onClick={() => { setCourtFilter([]); setShowCourtFilterMenu(false); }} style={{ display: 'flex', alignItems: 'center', width: '100%', padding: '0.55rem 0.6rem', border: 0, borderRadius: 'var(--radius-sm)', background: courtFilter.length === 0 ? 'var(--bg-main)' : 'transparent', color: 'var(--text-main)', textAlign: 'left', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>
+                  {courtFilter.length === 0 ? <Check size={15} aria-hidden="true" style={{ marginRight: '0.55rem' }} /> : <span style={{ width: 15, marginRight: '0.55rem' }} />}Show all courts
+                </button>
+                {courts.map((court) => {
+                  const id = court._id || court.id;
+                  const checked = courtFilter.includes(id);
+                  const limitReached = courtFilter.length >= 2 && !checked;
+                  return <label key={id} style={{ display: 'flex', alignItems: 'center', padding: '0.55rem 0.6rem', borderRadius: 'var(--radius-sm)', color: limitReached ? 'var(--text-muted)' : 'var(--text-main)', fontSize: '0.8rem', cursor: limitReached ? 'not-allowed' : 'pointer', opacity: limitReached ? 0.55 : 1 }}>
+                    <input type="checkbox" checked={checked} disabled={limitReached} onChange={(event) => setCourtFilter((selected) => event.target.checked ? [...selected, id] : selected.filter((selectedId) => selectedId !== id))} style={{ marginRight: '0.55rem', accentColor: 'var(--primary)' }} />
+                    {court.name}
+                  </label>;
+                })}
+                <div style={{ padding: '0.45rem 0.6rem 0.3rem', color: 'var(--text-muted)', fontSize: '0.7rem', borderTop: '1px solid var(--border)' }}>Select up to two courts. Clear selections to show all.</div>
+              </div>}
             </div>
 
             {/* Status Filters & Legend */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.75rem', fontWeight: 700 }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--success)' }}>
-                🟢 Available
+                <CheckCircle size={14} aria-hidden="true" /> Available
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--warning)' }}>
-                🔴 Booked
+                <XCircle size={14} aria-hidden="true" /> Booked
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }}>
-                ⚫ Maintenance
+                <AlertCircle size={14} aria-hidden="true" /> Maintenance
               </span>
             </div>
           </div>
@@ -1519,7 +1637,7 @@ export const FrontDeskDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {gridData.grid?.map((row) => (
+                  {visibleGridRows.map((row) => (
                     <tr key={row.time} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td
                         style={{
@@ -1533,10 +1651,11 @@ export const FrontDeskDashboard = () => {
                         {row.time}
                       </td>
                       {filteredCourts.map((court) => {
-                        const cell = row.courts[court.id || court._id] || { status: 'AVAILABLE' };
+                        const cell = row.courts[court.id || court._id] || { status: 'MAINTENANCE' };
                         const isAvailable = cell.status === 'AVAILABLE';
                         const isBooked = cell.status === 'BOOKED';
                         const isMaint = cell.status === 'MAINTENANCE';
+                        const isPast = cell.status === 'PAST';
 
                         if (statusFilter === 'AVAILABLE' && !isAvailable) return null;
                         if (statusFilter === 'BOOKED' && !isBooked) return null;
@@ -1547,13 +1666,13 @@ export const FrontDeskDashboard = () => {
                             <button
                               type="button"
                               onClick={() => handleMatrixCellClick(court, row.time, cell)}
-                              disabled={isMaint}
+                              disabled={isMaint || isPast}
                               title={
                                 isAvailable
                                   ? `Click to book ${court.name} at ${row.time}`
                                   : isBooked
-                                  ? `Booked by ${cell.bookedBy || 'Member'} - Click for details`
-                                  : 'Court under maintenance'
+                                  ? `Booked by ${cell.bookedBy || 'Unknown customer'} - Click for details`
+                                  : isPast ? 'This timeslot has already passed' : 'Court under maintenance'
                               }
                               style={{
                                 width: '100%',
@@ -1563,15 +1682,15 @@ export const FrontDeskDashboard = () => {
                                   ? '1px solid rgba(168, 192, 172, 0.8)'
                                   : isBooked
                                   ? '1px solid rgba(217, 142, 104, 0.8)'
-                                  : '1px solid #E5E7EB',
+                                  : '1px solid var(--border-color)',
                                 fontSize: '0.725rem',
                                 fontWeight: 700,
-                                cursor: isMaint ? 'not-allowed' : 'pointer',
+                                cursor: isMaint || isPast ? 'not-allowed' : 'pointer',
                                 backgroundColor: isAvailable
                                   ? 'var(--light-green)'
                                   : isBooked
                                   ? 'var(--light-warning)'
-                                  : '#F3F4F6',
+                                  : 'var(--bg-subtle)',
                                 color: isAvailable
                                   ? 'var(--success)'
                                   : isBooked
@@ -1584,7 +1703,10 @@ export const FrontDeskDashboard = () => {
                                 gap: '2px',
                               }}
                             >
-                              <span>{isAvailable ? '🟢 AVAILABLE' : isBooked ? '🔴 BOOKED' : '⚫ MAINT'}</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                {isAvailable ? <CheckCircle size={12} aria-hidden="true" /> : isBooked ? <XCircle size={12} aria-hidden="true" /> : <AlertCircle size={12} aria-hidden="true" />}
+                                {isAvailable ? 'AVAILABLE' : isBooked ? 'BOOKED' : isPast ? 'PAST' : 'MAINTENANCE'}
+                              </span>
                               {isBooked && (
                                 <span
                                   style={{
@@ -1597,7 +1719,7 @@ export const FrontDeskDashboard = () => {
                                     maxWidth: '120px',
                                   }}
                                 >
-                                  {cell.bookedBy || 'Member'}
+                                  {cell.bookedBy || 'Unknown customer'}
                                 </span>
                               )}
                             </button>
@@ -1606,6 +1728,13 @@ export const FrontDeskDashboard = () => {
                       })}
                     </tr>
                   ))}
+                  {visibleGridRows.length === 0 && (
+                    <tr>
+                      <td colSpan={filteredCourts.length + 1} style={{ padding: '1.5rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                        No remaining timeslots for this date.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1650,7 +1779,7 @@ export const FrontDeskDashboard = () => {
             <div style={{ position: 'relative', marginBottom: '1rem' }}>
               <input
                 type="text"
-                placeholder="🔍 Search name / phone / ID..."
+                placeholder="Search name / phone / ID..."
                 value={memberSearchQuery}
                 onChange={(e) => setMemberSearchQuery(e.target.value)}
                 style={{
@@ -1759,7 +1888,7 @@ export const FrontDeskDashboard = () => {
                           color: 'var(--success)',
                         }}
                       >
-                        ● {selectedDirectoryMember.status || 'ACTIVE'}
+                        <CheckCircle size={12} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: '0.2rem' }} /> {selectedDirectoryMember.status || 'Status unavailable'}
                       </span>
                     </div>
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
@@ -1803,44 +1932,44 @@ export const FrontDeskDashboard = () => {
                   <div style={{ backgroundColor: 'var(--bg-main)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>MEMBERSHIP PLAN</div>
                     <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary-navy)', marginTop: '0.25rem' }}>
-                      {selectedDirectoryMember.planName}
+                      {selectedDirectoryMember.planName || 'No active membership'}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                      Valid Until: {selectedDirectoryMember.expiryDate ? new Date(selectedDirectoryMember.expiryDate).toLocaleDateString() : '24 Oct 2027'}
+                      Valid Until: {selectedDirectoryMember.expiryDate ? new Date(selectedDirectoryMember.expiryDate).toLocaleDateString() : 'No active membership'}
                     </div>
                   </div>
 
                   <div style={{ backgroundColor: 'var(--bg-main)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>TODAY'S PLAYS</div>
                     <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--primary-peach)', marginTop: '0.25rem' }}>
-                      {selectedDirectoryMember.todayBookingsCount || 0} / 2 Daily Limit
+                      {selectedDirectoryMember.todayBookingsCount ?? 0} / {selectedDirectoryMember.maxDailyPlays ?? 2} Daily Limit
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                      {2 - (selectedDirectoryMember.todayBookingsCount || 0)} booking(s) remaining today
+                      {Math.max((selectedDirectoryMember.maxDailyPlays ?? 2) - (selectedDirectoryMember.todayBookingsCount ?? 0), 0)} booking(s) remaining today
                     </div>
                   </div>
 
                   <div style={{ backgroundColor: 'var(--bg-main)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>BENEFIT DISCOUNTS</div>
                     <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--success)', marginTop: '0.25rem' }}>
-                      Court: {selectedDirectoryMember.courtDiscount || 20}% • Shop: {selectedDirectoryMember.shopDiscount || 15}% • Cafe: {selectedDirectoryMember.cafeDiscount || 15}%
+                      Court: {selectedDirectoryMember.courtDiscount ?? 0}% • Shop: {selectedDirectoryMember.shopDiscount ?? 0}% • Cafe: {selectedDirectoryMember.cafeDiscount ?? 0}%
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                      ✓ Auto-applied at checkout
+                      <Check size={13} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: '0.25rem' }} /> Auto-applied at checkout
                     </div>
                   </div>
                 </div>
 
                 {/* Validation Status Badges */}
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
-                  <span style={{ fontSize: '0.775rem', fontWeight: 700, color: 'var(--success)', backgroundColor: 'var(--light-green)', padding: '3px 8px', borderRadius: '4px' }}>
-                    ✓ Active Membership
+                  <span style={{ fontSize: '0.775rem', fontWeight: 700, color: selectedDirectoryMember.membershipActive ? 'var(--success)' : 'var(--text-muted)', backgroundColor: selectedDirectoryMember.membershipActive ? 'var(--light-green)' : 'var(--bg-main)', padding: '3px 8px', borderRadius: '4px' }}>
+                    {selectedDirectoryMember.membershipActive && <Check size={13} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: '0.25rem' }} />}{selectedDirectoryMember.membershipActive ? 'Active Membership' : 'No Active Membership'}
                   </span>
-                  <span style={{ fontSize: '0.775rem', fontWeight: 700, color: 'var(--success)', backgroundColor: 'var(--light-green)', padding: '3px 8px', borderRadius: '4px' }}>
-                    ✓ Eligible for Booking
+                  <span style={{ fontSize: '0.775rem', fontWeight: 700, color: selectedDirectoryMember.status === 'ACTIVE' && (selectedDirectoryMember.todayBookingsCount ?? 0) < (selectedDirectoryMember.maxDailyPlays ?? 2) ? 'var(--success)' : 'var(--danger)', backgroundColor: selectedDirectoryMember.status === 'ACTIVE' && (selectedDirectoryMember.todayBookingsCount ?? 0) < (selectedDirectoryMember.maxDailyPlays ?? 2) ? 'var(--light-green)' : 'var(--light-danger)', padding: '3px 8px', borderRadius: '4px' }}>
+                    {selectedDirectoryMember.status === 'ACTIVE' && (selectedDirectoryMember.todayBookingsCount ?? 0) < (selectedDirectoryMember.maxDailyPlays ?? 2) ? <Check size={13} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: '0.25rem' }} /> : null}{selectedDirectoryMember.status === 'ACTIVE' && (selectedDirectoryMember.todayBookingsCount ?? 0) < (selectedDirectoryMember.maxDailyPlays ?? 2) ? 'Eligible for Booking' : 'Booking Limit Reached'}
                   </span>
                   <span style={{ fontSize: '0.775rem', fontWeight: 700, color: 'var(--primary-navy)', backgroundColor: 'var(--lavender)', padding: '3px 8px', borderRadius: '4px' }}>
-                    ✓ {2 - (selectedDirectoryMember.todayBookingsCount || 0)} booking remaining today
+                    {Math.max((selectedDirectoryMember.maxDailyPlays ?? 2) - (selectedDirectoryMember.todayBookingsCount ?? 0), 0)} booking(s) remaining today
                   </span>
                 </div>
 
@@ -2049,21 +2178,14 @@ export const FrontDeskDashboard = () => {
                             fontWeight: 700,
                             padding: '2px 7px',
                             borderRadius: '4px',
-                            backgroundColor:
-                              item.bookingType === 'WALK_IN'
-                                ? 'var(--lavender)'
-                                : item.bookingType === 'PHONE'
-                                ? 'var(--light-warning)'
-                                : 'var(--light-green)',
+                            backgroundColor: item.bookingType === 'WALK_IN' ? 'var(--lavender)' : 'var(--light-green)',
                             color:
                               item.bookingType === 'WALK_IN'
                                 ? 'var(--primary-navy)'
-                                : item.bookingType === 'PHONE'
-                                ? 'var(--warning)'
                                 : 'var(--success)',
                           }}
                         >
-                          {item.bookingType}
+                          {item.bookingType === 'PHONE' ? 'FRONT DESK' : item.bookingType}
                         </span>
                       </td>
                       <td style={{ padding: '0.85rem 1rem' }}>
@@ -2099,7 +2221,7 @@ export const FrontDeskDashboard = () => {
                         </span>
                       </td>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
-                        ₹{item.finalAmount || 500}
+                        ₹{item.finalAmount ?? 0}
                       </td>
                       <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.35rem' }}>
@@ -2249,7 +2371,7 @@ export const FrontDeskDashboard = () => {
                         {p.paymentId || `PAY-${p._id.slice(-6)}`}
                       </td>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                        {p.customerName || 'Club Member / Guest'}
+                        {p.customerName || 'Unknown customer'}
                       </td>
                       <td style={{ padding: '0.85rem 1rem' }}>
                         <span
@@ -2275,8 +2397,8 @@ export const FrontDeskDashboard = () => {
                             fontWeight: 800,
                             padding: '2px 7px',
                             borderRadius: 'var(--radius-full)',
-                            backgroundColor: 'var(--light-green)',
-                            color: 'var(--success)',
+                            backgroundColor: p.status === 'SUCCESS' ? 'var(--light-green)' : p.status === 'PENDING' ? 'var(--light-warning)' : 'var(--light-danger)',
+                            color: p.status === 'SUCCESS' ? 'var(--success)' : p.status === 'PENDING' ? 'var(--warning)' : 'var(--danger)',
                           }}
                         >
                           {p.status}
@@ -2329,9 +2451,9 @@ export const FrontDeskDashboard = () => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {operationalNotifications.map((notif) => (
+            {loadingNotifications ? <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '1.5rem' }}>Loading notifications…</p> : notifications.length === 0 ? <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '1.5rem' }}>No notifications available.</p> : notifications.map((notif) => (
               <div
-                key={notif.id}
+                key={notif._id}
                 style={{
                   display: 'flex',
                   alignItems: 'flex-start',
@@ -2377,7 +2499,7 @@ export const FrontDeskDashboard = () => {
                     </p>
                   </div>
                 </div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{notif.time}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{notif.createdAt ? new Date(notif.createdAt).toLocaleString() : ''}</span>
               </div>
             ))}
           </div>
@@ -2395,10 +2517,10 @@ export const FrontDeskDashboard = () => {
             backgroundColor: 'rgba(23, 38, 59, 0.65)',
             backdropFilter: 'blur(4px)',
             display: 'flex',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             justifyContent: 'center',
             zIndex: 1000,
-            padding: '1rem',
+            padding: '5vh 1rem 1rem',
           }}
         >
           <div
@@ -2407,7 +2529,7 @@ export const FrontDeskDashboard = () => {
               borderRadius: 'var(--radius-lg)',
               maxWidth: '860px',
               width: '100%',
-              maxHeight: '92vh',
+              maxHeight: '90vh',
               overflowY: 'auto',
               padding: '1.75rem',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
@@ -2453,11 +2575,18 @@ export const FrontDeskDashboard = () => {
               </button>
             </div>
 
+            <div className="frontdesk-booking-stepper" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '0.5rem', marginBottom: '1.25rem' }}>
+              {['Customer', 'Choose court', 'Pick timeslot', 'Review & payment'].map((label, index) => (
+                <div key={label} style={{ padding: '0.65rem 0.75rem', borderRadius: 'var(--radius-md)', background: bookingStep === index + 1 ? 'var(--light-peach)' : 'var(--bg-main)', border: `1px solid ${bookingStep === index + 1 ? 'var(--primary-peach)' : 'var(--border)'}`, color: bookingStep === index + 1 ? 'var(--primary-navy)' : 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 800 }}>
+                  <span style={{ marginRight: '0.45rem' }}>{index + 1}.</span>{label}
+                </div>
+              ))}
+            </div>
             <form onSubmit={handleCreateBookingSubmit}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem', alignItems: 'start' }}>
                 {/* Left Side: Form Controls */}
-                <div>
-                  {/* Customer Type Radio Toggle: ○ Member ○ Guest */}
+                <div style={{ display: bookingStep === 1 ? 'block' : 'none' }}>
+                  {/* Customer type selection */}
                   <div style={{ marginBottom: '1.25rem' }}>
                     <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary-navy)', display: 'block', marginBottom: '0.4rem' }}>
                       Customer Type
@@ -2483,7 +2612,7 @@ export const FrontDeskDashboard = () => {
                           cursor: 'pointer',
                         }}
                       >
-                        <User size={16} /> ○ Member
+                        <User size={16} aria-hidden="true" /> Member
                       </button>
 
                       <button
@@ -2507,7 +2636,7 @@ export const FrontDeskDashboard = () => {
                           cursor: 'pointer',
                         }}
                       >
-                        <Users size={16} /> ○ Guest
+                        <Users size={16} aria-hidden="true" /> Guest
                       </button>
                     </div>
                   </div>
@@ -2534,17 +2663,17 @@ export const FrontDeskDashboard = () => {
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                               <strong style={{ color: 'var(--primary-navy)', fontSize: '0.95rem' }}>
-                                👤 {selectedMember.name}
+                              {selectedMember.name}
                               </strong>
                               <span style={{ fontSize: '0.72rem', fontWeight: 800, backgroundColor: '#FFFFFF', color: 'var(--primary-navy)', padding: '2px 7px', borderRadius: '4px' }}>
-                                {selectedMember.planName}
+                                {selectedMember.planName || 'No active membership'}
                               </span>
                             </div>
                             <div style={{ fontSize: '0.775rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                              Active until 24 Oct 2027 • Today's bookings: <strong>{selectedMember.todayBookingsCount || 0} / 2</strong>
+                              {selectedMember.expiryDate ? `Active until ${new Date(selectedMember.expiryDate).toLocaleDateString()}` : 'No active membership'} • Today's bookings: <strong>{selectedMember.todayBookingsCount ?? 0} / {selectedMember.maxDailyPlays ?? 2}</strong>
                             </div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 700, marginTop: '0.25rem' }}>
-                              ✓ Active Membership • ✓ Eligible • ✓ {selectedMember.courtDiscount || 20}% Court Discount Auto-Applied
+                              {selectedMember.membershipActive ? `Active membership • ${selectedMember.courtDiscount ?? 0}% court discount applied` : 'Standard member rate applies'}
                             </div>
                           </div>
                           <button
@@ -2571,7 +2700,7 @@ export const FrontDeskDashboard = () => {
                         <div style={{ position: 'relative' }}>
                           <input
                             type="text"
-                            placeholder="🔍 Name / Phone / Member ID"
+                            placeholder="Name / Phone / Member ID"
                             value={modalMemberQuery}
                             onChange={(e) => setModalMemberQuery(e.target.value)}
                             style={{
@@ -2626,7 +2755,7 @@ export const FrontDeskDashboard = () => {
                                   <div>
                                     <strong>{m.name}</strong> ({m.phone})
                                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                      {m.planName} • Active until 24 Oct 2027 • Today: {m.todayBookingsCount || 0}/2
+                                      {m.planName || 'No active membership'} • Today: {m.todayBookingsCount ?? 0}/{m.maxDailyPlays ?? 2}
                                     </div>
                                   </div>
                                   <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary-peach)' }}>
@@ -2646,7 +2775,6 @@ export const FrontDeskDashboard = () => {
                           <label style={{ fontSize: '0.775rem', fontWeight: 700, color: 'var(--text-muted)' }}>Name *</label>
                           <input
                             type="text"
-                            required
                             placeholder="e.g. Rahul Sharma"
                             value={walkInName}
                             onChange={(e) => setWalkInName(e.target.value)}
@@ -2664,7 +2792,6 @@ export const FrontDeskDashboard = () => {
                           <label style={{ fontSize: '0.775rem', fontWeight: 700, color: 'var(--text-muted)' }}>Phone *</label>
                           <input
                             type="tel"
-                            required
                             placeholder="9876543210"
                             value={walkInPhone}
                             onChange={(e) => setWalkInPhone(e.target.value)}
@@ -2680,11 +2807,14 @@ export const FrontDeskDashboard = () => {
                         </div>
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        Guest Rate: ₹500/hr (Standard rate applies).
+                        Guest Rate: ₹{selectedCourtObj?.walkInRate ?? selectedCourtObj?.hourlyRate ?? 0}/hr (Standard rate applies).
                       </div>
                     </div>
                   )}
 
+                </div>
+
+                {bookingStep === 2 && <div>
                   {/* Court Selection via Cards */}
                   <div style={{ marginBottom: '1.25rem' }}>
                     <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary-navy)', display: 'block', marginBottom: '0.4rem' }}>
@@ -2696,7 +2826,7 @@ export const FrontDeskDashboard = () => {
                         return (
                           <div
                             key={court.id || court._id}
-                            onClick={() => setSelectedCourtId(court._id || court.id)}
+                            onClick={() => { setSelectedCourtId(court._id || court.id); setBookingTime(''); }}
                             style={{
                               padding: '0.65rem 0.5rem',
                               borderRadius: 'var(--radius-md)',
@@ -2714,25 +2844,28 @@ export const FrontDeskDashboard = () => {
                               {court.type} • ₹{court.hourlyRate}/hr
                             </div>
                             <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--success)', display: 'block', marginTop: '2px' }}>
-                              🟢 Available
+                              Select court
                             </span>
                           </div>
                         );
                       })}
                     </div>
                   </div>
+                </div>}
 
-                  {/* Time-Slot UI via Selectable Chips */}
+                {bookingStep === 3 && <div>
+                  <div style={{ marginBottom: '1rem', maxWidth: '260px' }}>
+                    <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary-navy)', display: 'block', marginBottom: '0.4rem' }}>Booking date</label>
+                    <input type="date" min={new Date().toISOString().split('T')[0]} value={bookingDate} onChange={(event) => { setBookingDate(event.target.value); setBookingTime(''); }} style={{ width: '100%', padding: '0.65rem 0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', font: 'inherit' }} />
+                  </div>
+                  {/* Only slots returned as available by the booking API are selectable. */}
                   <div style={{ marginBottom: '1.25rem' }}>
                     <label style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary-navy)', display: 'block', marginBottom: '0.35rem' }}>
-                      Time Slot ({bookingTime} ➔ {String((parseInt(bookingTime.split(':')[0]) + 1) % 24).padStart(2, '0')}:{bookingTime.split(':')[1] || '00'} • 1-Hour Session)
+                      Available session times
                     </label>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(65px, 1fr))', gap: '0.35rem' }}>
-                      {[
-                        '06:00', '07:00', '08:00', '09:00', '09:30', '10:00', '10:30', '11:00',
-                        '11:30', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00',
-                        '20:00', '21:00',
-                      ].map((t) => {
+                    {loadingBookingSlots ? <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Loading available times…</p> : bookingSlotsError ? <p role="alert" style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{bookingSlotsError}</p> : bookingSlots.length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No available times for this court and date. Choose another date or court.</p> : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(95px, 1fr))', gap: '0.5rem' }}>
+                      {bookingSlots.map(({ time: t }) => {
                         const isSelected = bookingTime === t;
                         return (
                           <button
@@ -2755,16 +2888,17 @@ export const FrontDeskDashboard = () => {
                             }}
                           >
                             <span>{t}</span>
-                            <span style={{ fontSize: '0.6rem' }}>{isSelected ? '🔵' : '🟢'}</span>
+                            <span style={{ fontSize: '0.65rem', color: isSelected ? '#FFFFFF' : 'var(--success)' }}>{isSelected ? 'Selected' : 'Available'}</span>
                           </button>
                         );
                       })}
                     </div>
+                    )}
                   </div>
-                </div>
+                </div>}
 
                 {/* Right Side: Sticky Booking Summary Panel */}
-                <div
+                {bookingStep === 4 && <div
                   style={{
                     backgroundColor: 'var(--bg-main)',
                     borderRadius: 'var(--radius-lg)',
@@ -2796,12 +2930,12 @@ export const FrontDeskDashboard = () => {
                     {bookingCustomerType === 'MEMBER' && (
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: 'var(--text-muted)' }}>Membership:</span>
-                        <strong>{selectedMember?.planName || 'Gold Member'}</strong>
+                        <strong>{selectedMember?.planName || 'No active membership'}</strong>
                       </div>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--text-muted)' }}>Court:</span>
-                      <strong>{selectedCourtObj?.name || 'Court 1'}</strong>
+                      <strong>{selectedCourtObj?.name || 'Select court'}</strong>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--text-muted)' }}>Date:</span>
@@ -2878,26 +3012,18 @@ export const FrontDeskDashboard = () => {
                     </div>
                   </div>
 
-                  {/* Confirm Booking Button */}
-                  <button
-                    type="submit"
-                    disabled={submittingBooking || (bookingCustomerType === 'MEMBER' && !selectedMember)}
-                    style={{
-                      width: '100%',
-                      padding: '0.8rem',
-                      backgroundColor: 'var(--primary-peach)',
-                      border: 'none',
-                      color: '#FFFFFF',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '0.925rem',
-                      fontWeight: 800,
-                      cursor: submittingBooking || (bookingCustomerType === 'MEMBER' && !selectedMember) ? 'not-allowed' : 'pointer',
-                      boxShadow: '0 2px 8px rgba(217, 142, 104, 0.3)',
-                    }}
-                  >
-                    {submittingBooking ? 'Confirming...' : `Confirm Booking • Collect ₹${finalTotalAmount}`}
-                  </button>
-                </div>
+                </div>}
+              </div>
+              {bookingFlowError && <div role="alert" style={{ marginTop: '0.85rem', padding: '0.7rem 0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--danger)', background: 'var(--light-danger)', color: 'var(--danger)', fontSize: '0.85rem', fontWeight: 700 }}>{bookingFlowError}</div>}
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                <button type="button" onClick={() => bookingStep === 1 ? setShowBookingModal(false) : setBookingStep(bookingStep - 1)} style={{ padding: '0.7rem 1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: '#fff', color: 'var(--primary-navy)', fontWeight: 700, cursor: 'pointer' }}>{bookingStep === 1 ? 'Cancel' : 'Back'}</button>
+                {bookingStep < 4 ? <button type="button" onClick={() => {
+                  if (bookingStep === 1 && bookingCustomerType === 'MEMBER' && !selectedMember) { setBookingFlowError('Search and select a member to continue.'); return; }
+                  if (bookingStep === 1 && bookingCustomerType === 'GUEST' && (!walkInName.trim() || !walkInPhone.trim())) { setBookingFlowError('Enter the guest name and phone number to continue.'); return; }
+                  if (bookingStep === 2 && !selectedCourtId) { setBookingFlowError('Choose a court to continue.'); return; }
+                  if (bookingStep === 3 && (!bookingTime || loadingBookingSlots)) { setBookingFlowError('Choose an available timeslot to continue.'); return; }
+                  setBookingFlowError(''); setBookingStep(bookingStep + 1);
+                }} disabled={bookingStep === 3 && (loadingBookingSlots || !bookingTime)} style={{ padding: '0.7rem 1.15rem', border: 0, borderRadius: 'var(--radius-md)', background: 'var(--primary-peach)', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Continue <ArrowRight size={15} style={{ verticalAlign: 'middle', marginLeft: '0.35rem' }} /></button> : <button type="submit" disabled={submittingBooking} style={{ padding: '0.7rem 1.15rem', border: 0, borderRadius: 'var(--radius-md)', background: 'var(--primary-peach)', color: '#fff', fontWeight: 800, cursor: submittingBooking ? 'wait' : 'pointer' }}>{submittingBooking ? 'Confirming…' : `Confirm booking · Collect ₹${finalTotalAmount}`}</button>}
               </div>
             </form>
           </div>
@@ -2957,7 +3083,7 @@ export const FrontDeskDashboard = () => {
                 fontFamily: 'var(--font-family-display)',
               }}
             >
-              ✓ BOOKING CONFIRMED
+              <CheckCircle size={19} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: '0.4rem' }} /> BOOKING CONFIRMED
             </h3>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1.25rem 0' }}>
               Booking #{confirmedBookingData.bookingId.toString().slice(-6)}
@@ -3160,11 +3286,11 @@ export const FrontDeskDashboard = () => {
               <div style={{ backgroundColor: 'var(--bg-main)', borderRadius: 'var(--radius-md)', padding: '1rem', marginBottom: '1.25rem', border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.3rem' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Amount Paid:</span>
-                  <strong>₹{selectedBookingDrawer.finalAmount || 500}</strong>
+                  <strong>₹{selectedBookingDrawer.finalAmount ?? 0}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Payment Method:</span>
-                  <strong style={{ color: 'var(--success)' }}>{selectedBookingDrawer.paymentMethod || 'UPI'} • PAID</strong>
+                  <strong style={{ color: selectedBookingDrawer.paymentStatus === 'PAID' ? 'var(--success)' : 'var(--text-muted)' }}>{selectedBookingDrawer.paymentMethod || '—'} • {selectedBookingDrawer.paymentStatus || 'UNPAID'}</strong>
                 </div>
               </div>
             </div>
@@ -3190,7 +3316,7 @@ export const FrontDeskDashboard = () => {
                     gap: '0.4rem',
                   }}
                 >
-                  <CheckCircle size={16} /> ⚡ Check-In Player
+                  <CheckCircle size={16} aria-hidden="true" /> Check-In Player
                 </button>
               )}
 
@@ -3213,7 +3339,7 @@ export const FrontDeskDashboard = () => {
                     gap: '0.4rem',
                   }}
                 >
-                  <LogOut size={16} /> 🏁 Check-Out (Complete)
+                  <LogOut size={16} aria-hidden="true" /> Check-Out (Complete)
                 </button>
               )}
 
@@ -3242,6 +3368,8 @@ export const FrontDeskDashboard = () => {
                   onClick={() => {
                     setRescheduleBookingId(selectedBookingDrawer.id);
                     setRescheduleCourtId(selectedBookingDrawer.courtId);
+                    setRescheduleDate(selectedBookingDrawer.date ? new Date(selectedBookingDrawer.date).toISOString().split('T')[0] : gridDate);
+                    setRescheduleTime(selectedBookingDrawer.startTime || '');
                     setShowRescheduleModal(true);
                   }}
                   style={{
@@ -3255,7 +3383,7 @@ export const FrontDeskDashboard = () => {
                     cursor: 'pointer',
                   }}
                 >
-                  🗓️ Reschedule Booking
+                  <Calendar size={16} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: '0.35rem' }} /> Reschedule Booking
                 </button>
               )}
 
@@ -3264,21 +3392,21 @@ export const FrontDeskDashboard = () => {
                   type="button"
                   onClick={() => {
                     setCancelBookingId(selectedBookingDrawer.id);
-                    setCancelRefundAmount(selectedBookingDrawer.finalAmount || 400);
+                    setCancelRefundAmount(selectedBookingDrawer.finalAmount ?? 0);
                     setShowCancelModal(true);
                   }}
                   style={{
                     padding: '0.65rem',
                     backgroundColor: 'var(--light-danger)',
                     color: 'var(--danger)',
-                    border: '1px solid rgba(220, 38, 38, 0.2)',
+                    border: '1px solid color-mix(in srgb, var(--color-danger), transparent 78%)',
                     borderRadius: 'var(--radius-md)',
                     fontWeight: 800,
                     fontSize: '0.85rem',
                     cursor: 'pointer',
                   }}
                 >
-                  ✕ Cancel Booking
+                  <XCircle size={16} aria-hidden="true" style={{ verticalAlign: 'middle', marginRight: '0.35rem' }} /> Cancel Booking
                 </button>
               )}
 
@@ -3347,7 +3475,7 @@ export const FrontDeskDashboard = () => {
                 <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>Target Court</label>
                 <select
                   value={rescheduleCourtId}
-                  onChange={(e) => setRescheduleCourtId(e.target.value)}
+                  onChange={(e) => { setRescheduleCourtId(e.target.value); setRescheduleTime(''); }}
                   style={{
                     width: '100%',
                     padding: '0.55rem',
@@ -3372,8 +3500,9 @@ export const FrontDeskDashboard = () => {
                   <input
                     type="date"
                     required
+                    min={new Date().toISOString().split('T')[0]}
                     value={rescheduleDate}
-                    onChange={(e) => setRescheduleDate(e.target.value)}
+                    onChange={(e) => { setRescheduleDate(e.target.value); setRescheduleTime(''); }}
                     style={{
                       width: '100%',
                       padding: '0.55rem',
@@ -3387,8 +3516,10 @@ export const FrontDeskDashboard = () => {
                 <div>
                   <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)' }}>New Time Slot</label>
                   <select
+                    required
                     value={rescheduleTime}
                     onChange={(e) => setRescheduleTime(e.target.value)}
+                    disabled={loadingRescheduleSlots || rescheduleSlots.length === 0}
                     style={{
                       width: '100%',
                       padding: '0.55rem',
@@ -3398,11 +3529,8 @@ export const FrontDeskDashboard = () => {
                       fontSize: '0.85rem',
                     }}
                   >
-                    {[
-                      '06:00', '07:00', '08:00', '09:00', '09:30', '10:00', '10:30', '11:00',
-                      '11:30', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00',
-                      '20:00', '21:00',
-                    ].map((t) => (
+                    <option value="">{loadingRescheduleSlots ? 'Loading available times…' : rescheduleSlotsError ? 'Unable to load times' : 'Select an available time'}</option>
+                    {rescheduleSlots.map((t) => (
                       <option key={t} value={t}>
                         {t} - {String((parseInt(t.split(':')[0]) + 1) % 24).padStart(2, '0')}:{t.split(':')[1] || '00'}
                       </option>
@@ -3430,7 +3558,7 @@ export const FrontDeskDashboard = () => {
 
               <button
                 type="submit"
-                disabled={submittingReschedule}
+                disabled={submittingReschedule || loadingRescheduleSlots || !rescheduleTime}
                 style={{
                   width: '100%',
                   padding: '0.75rem',
@@ -3440,7 +3568,7 @@ export const FrontDeskDashboard = () => {
                   borderRadius: 'var(--radius-md)',
                   fontWeight: 800,
                   fontSize: '0.9rem',
-                  cursor: submittingReschedule ? 'not-allowed' : 'pointer',
+                  cursor: submittingReschedule || loadingRescheduleSlots || !rescheduleTime ? 'not-allowed' : 'pointer',
                 }}
               >
                 {submittingReschedule ? 'Checking Availability & Rescheduling...' : 'Confirm Reschedule'}
@@ -3629,29 +3757,29 @@ export const FrontDeskDashboard = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--border)' }}>
                   <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Total Bookings:</span>
-                  <strong style={{ fontSize: '0.9rem' }}>{closingData?.totalBookings || 24}</strong>
+                  <strong style={{ fontSize: '0.9rem' }}>{closingData?.totalBookings ?? 0}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--border)' }}>
                   <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Walk-in Bookings:</span>
-                  <strong style={{ fontSize: '0.9rem' }}>{closingData?.walkInBookings || 5}</strong>
+                  <strong style={{ fontSize: '0.9rem' }}>{closingData?.walkInBookings ?? 0}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--border)' }}>
                   <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Phone Reservations:</span>
-                  <strong style={{ fontSize: '0.9rem' }}>{closingData?.phoneBookings || 7}</strong>
+                  <strong style={{ fontSize: '0.9rem' }}>{closingData?.phoneBookings ?? 0}</strong>
                 </div>
 
                 <div style={{ marginTop: '0.5rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0' }}>
                     <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Cash Collected:</span>
-                    <strong style={{ fontSize: '0.85rem' }}>₹{closingData?.cashTotal || 2500}</strong>
+                    <strong style={{ fontSize: '0.85rem' }}>₹{closingData?.cashTotal ?? 0}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0' }}>
                     <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>UPI Payments:</span>
-                    <strong style={{ fontSize: '0.85rem' }}>₹{closingData?.upiTotal || 4500}</strong>
+                    <strong style={{ fontSize: '0.85rem' }}>₹{closingData?.upiTotal ?? 0}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0' }}>
                     <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Card POS:</span>
-                    <strong style={{ fontSize: '0.85rem' }}>₹{closingData?.cardTotal || 1500}</strong>
+                    <strong style={{ fontSize: '0.85rem' }}>₹{closingData?.cardTotal ?? 0}</strong>
                   </div>
                   <div
                     style={{
@@ -3666,17 +3794,15 @@ export const FrontDeskDashboard = () => {
                     }}
                   >
                     <span>Total Collections:</span>
-                    <span>₹{closingData?.totalCollected || 8500}</span>
+                    <span>₹{closingData?.totalCollected ?? 0}</span>
                   </div>
                 </div>
               </div>
             </div>
 
             <button
-              onClick={() => {
-                setShowClosingDrawer(false);
-                setAlert({ type: 'success', message: 'Shift closing report recorded & logged for audit.' });
-              }}
+              onClick={handleSubmitClosing}
+              disabled={submittingClosing || loadingClosing || !closingData}
               style={{
                 width: '100%',
                 padding: '0.85rem',
@@ -3686,10 +3812,10 @@ export const FrontDeskDashboard = () => {
                 borderRadius: 'var(--radius-md)',
                 fontSize: '0.9rem',
                 fontWeight: 800,
-                cursor: 'pointer',
+                cursor: submittingClosing || loadingClosing || !closingData ? 'not-allowed' : 'pointer',
               }}
             >
-              Submit Shift Closing Report
+              {submittingClosing ? 'Submitting Report…' : 'Submit Shift Closing Report'}
             </button>
           </div>
         </div>

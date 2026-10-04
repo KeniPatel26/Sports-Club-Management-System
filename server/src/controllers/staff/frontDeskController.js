@@ -6,7 +6,15 @@ import Membership from '../../models/Membership.js';
 import Payment from '../../models/Payment.js';
 import Invoice from '../../models/Invoice.js';
 import Order from '../../models/Order.js';
+import Activity from '../../models/Activity.js';
 import { logActivity } from '../../services/activityService.js';
+
+const toLocalDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 /**
  * GET /api/staff/front-desk/overview
@@ -20,7 +28,7 @@ export const getFrontDeskOverview = async (req, res) => {
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    const todayBookings = await Booking.find({
+    const [todayBookings, upcomingBookings, totalCourts, courts, todayPayments] = await Promise.all([Booking.find({
       date: { $gte: todayStart, $lte: todayEnd },
       status: { $ne: 'CANCELLED' },
     })
@@ -28,8 +36,10 @@ export const getFrontDeskOverview = async (req, res) => {
       .populate('member', 'firstName lastName phone email')
       .sort({ startTime: 1 })
       .lean()
-      .maxTimeMS(2500)
-      .catch(() => []);
+      .maxTimeMS(2500), Booking.countDocuments({
+        $or: [{ date: { $gt: todayEnd } }, { date: { $gte: todayStart, $lte: todayEnd }, startTime: { $gt: new Date().toTimeString().slice(0, 5) } }],
+        status: 'CONFIRMED',
+      }).maxTimeMS(2500), Court.countDocuments({ isActive: true }).maxTimeMS(2000), Court.find({ isActive: true }).lean().maxTimeMS(2000), Payment.find({ type: 'BOOKING', createdAt: { $gte: todayStart, $lte: todayEnd }, status: 'SUCCESS' }).select('amount').lean().maxTimeMS(2000)]);
 
     const walkInsCount = todayBookings.filter(
       (b) => b.bookingType === 'WALK_IN' || b.bookingSource === 'WALK_IN'
@@ -43,23 +53,23 @@ export const getFrontDeskOverview = async (req, res) => {
       (b) => b.bookingType === 'MEMBER'
     ).length;
 
-    const totalCourts = await Court.countDocuments({ isActive: true }).maxTimeMS(2000).catch(() => 5);
+    const currentTime = new Date().toTimeString().slice(0, 5);
     const occupiedCourtIds = new Set(
       todayBookings
-        .filter((b) => b.status === 'CONFIRMED' || b.status === 'CHECKED_IN')
+        .filter((b) => ['CONFIRMED', 'CHECKED_IN'].includes(b.status) && b.startTime <= currentTime && b.endTime > currentTime)
         .map((b) => b.court?._id?.toString() || b.court?.toString())
         .filter(Boolean)
     );
     const occupiedCourts = occupiedCourtIds.size;
-    const availableCourts = Math.max((totalCourts || 5) - occupiedCourts, 1);
+    const availableCourts = Math.max(totalCourts - occupiedCourts, 0);
 
-    const todayRevenue = todayBookings.reduce((sum, b) => sum + (b.finalAmount || 0), 0) || 18500;
+    const todayRevenue = todayPayments.reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
 
     const schedule = todayBookings.map((b) => ({
       id: b._id,
       courtId: b.court?._id || b.court,
-      courtName: b.court?.name || 'Tennis Court 1',
-      courtType: b.court?.type || 'TENNIS',
+      courtName: b.court?.name || 'Court',
+      courtType: b.court?.type || '',
       memberName: b.member
         ? `${b.member.firstName} ${b.member.lastName || ''}`.trim()
         : b.walkInDetails?.name || 'Walk-in Guest',
@@ -74,7 +84,7 @@ export const getFrontDeskOverview = async (req, res) => {
       discountApplied: b.discountApplied || 0,
       finalAmount: b.finalAmount,
       paymentStatus: b.paymentStatus,
-      paymentMethod: b.paymentMethod || 'UPI',
+      paymentMethod: b.paymentMethod || '',
       checkInTime: b.checkInTime,
       checkOutTime: b.checkOutTime,
       notes: b.notes,
@@ -84,37 +94,26 @@ export const getFrontDeskOverview = async (req, res) => {
       success: true,
       data: {
         kpi: {
-          todayBookingsCount: todayBookings.length || 38,
-          upcomingBookingsCount: 12,
-          availableCourts: availableCourts || 4,
-          occupiedCourts: occupiedCourts || 3,
-          walkInsToday: walkInsCount || 5,
-          phoneBookings: phoneCount || 7,
-          memberBookings: memberBookingsCount || 26,
+          todayBookingsCount: todayBookings.length,
+          upcomingBookingsCount: upcomingBookings,
+          availableCourts,
+          occupiedCourts,
+          walkInsToday: walkInsCount,
+          phoneBookings: phoneCount,
+          memberBookings: memberBookingsCount,
           todayRevenue: todayRevenue,
-          pendingActions: 3,
+          pendingActions: todayBookings.filter((booking) => booking.status === 'CONFIRMED' && booking.startTime <= currentTime).length,
         },
         schedule,
+        courts: courts.map((court) => ({ id: court._id, name: court.name, type: court.type, status: court.status, hourlyRate: court.hourlyRate, walkInRate: court.walkInRate })),
       },
     });
   } catch (error) {
     console.error('getFrontDeskOverview error:', error);
-    return res.status(200).json({
-      success: true,
-      data: {
-        kpi: {
-          todayBookingsCount: 38,
-          upcomingBookingsCount: 12,
-          availableCourts: 4,
-          occupiedCourts: 3,
-          walkInsToday: 5,
-          phoneBookings: 7,
-          memberBookings: 26,
-          todayRevenue: 18500,
-          pendingActions: 3,
-        },
-        schedule: [],
-      },
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to load Front Desk overview',
+      error: error.message,
     });
   }
 };
@@ -131,59 +130,53 @@ export const searchMembers = async (req, res) => {
       return res.status(200).json({ success: true, data: [] });
     }
 
-    const queryParts = query.trim().split(/\s+/).filter(Boolean);
-    const nameConditions = queryParts.map((part) => ({
-      $or: [
-        { firstName: { $regex: part, $options: 'i' } },
-        { lastName: { $regex: part, $options: 'i' } },
-      ],
-    }));
+    const q = query.trim();
+    const matchingProfiles = await MemberProfile.find({ memberId: { $regex: q, $options: 'i' } }).select('user').lean().maxTimeMS(2000);
+    const profileUserIds = matchingProfiles.map((profile) => profile.user);
     const users = await User.find({
       role: 'MEMBER',
+      status: 'ACTIVE',
       $or: [
-        { $and: nameConditions },
-        { email: { $regex: query.trim(), $options: 'i' } },
-        { phone: { $regex: query.trim(), $options: 'i' } },
+        { firstName: { $regex: q, $options: 'i' } },
+        { lastName: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } },
+        { phone: { $regex: q, $options: 'i' } },
+        ...(profileUserIds.length ? [{ _id: { $in: profileUserIds } }] : []),
       ],
     }).limit(10).lean().maxTimeMS(2500);
 
     const results = await Promise.all(
       users.map(async (u) => {
-        const profile = await MemberProfile.findOne({ user: u._id }).lean().maxTimeMS(2000).catch(() => null);
+        const profile = await MemberProfile.findOne({ user: u._id }).lean().maxTimeMS(2000);
         const activeMembership = await Membership.findOne({
           $or: [{ user: u._id }, { member: u._id }],
           status: 'ACTIVE',
-        }).populate('plan').lean().maxTimeMS(2000).catch(() => null);
+          expiryDate: { $gte: new Date() },
+        }).populate('plan').lean().maxTimeMS(2000);
 
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
 
         const todayBookingsCount = await Booking.countDocuments({
           member: u._id,
-          date: { $gte: todayStart },
+          date: { $gte: todayStart, $lte: new Date(todayStart.getTime() + 86400000 - 1) },
           status: { $ne: 'CANCELLED' },
-        }).maxTimeMS(2000).catch(() => 0);
+        }).maxTimeMS(2000);
 
         return {
           id: u._id,
           name: `${u.firstName} ${u.lastName || ''}`.trim(),
           email: u.email,
           phone: u.phone,
-          memberId: profile?.memberId || `MEM${u._id.toString().slice(-4).toUpperCase()}`,
-          planName: activeMembership?.plan?.name || 'No active membership',
-          membershipTier: activeMembership?.plan?.name || 'No active membership',
-          courtDiscount: activeMembership?.plan?.courtDiscount || 20,
-          shopDiscount: activeMembership?.plan?.shopDiscount || 15,
-          cafeDiscount: activeMembership?.plan?.benefits?.cafeDiscount
-            ?? activeMembership?.plan?.benefits?.canteenDiscount
-            ?? activeMembership?.plan?.cafeDiscount
-            ?? activeMembership?.plan?.canteenDiscount
-            ?? 0,
-          hasActiveMembership: Boolean(activeMembership),
-          membershipStartDate: activeMembership?.startDate || null,
-          membershipEndDate: activeMembership?.endDate || activeMembership?.expiryDate || null,
-          status: u.status || 'ACTIVE',
-          expiryDate: activeMembership?.endDate || activeMembership?.expiryDate || null,
+          memberId: profile?.memberId || null,
+          planName: activeMembership?.plan?.name || null,
+          membershipTier: activeMembership?.plan?.name || null,
+          membershipActive: Boolean(activeMembership),
+          courtDiscount: activeMembership?.plan?.benefits?.courtDiscount ?? activeMembership?.plan?.courtDiscount ?? 0,
+          shopDiscount: activeMembership?.plan?.benefits?.shopDiscount ?? activeMembership?.plan?.shopDiscount ?? 0,
+          cafeDiscount: activeMembership?.plan?.benefits?.cafeDiscount ?? activeMembership?.plan?.benefits?.canteenDiscount ?? activeMembership?.plan?.canteenDiscount ?? 0,
+          status: u.status,
+          expiryDate: activeMembership?.expiryDate || activeMembership?.endDate || null,
           todayBookingsCount,
           maxDailyPlays: 2,
         };
@@ -215,8 +208,8 @@ export const createFrontDeskBooking = async (req, res) => {
       walkInName,
       walkInPhone,
       walkInEmail = '',
-      bookingType = 'MEMBER', // MEMBER | WALK_IN | PHONE | FRONT_DESK
-      bookingSource = 'FRONT_DESK', // FRONT_DESK | PHONE | WALK_IN | ONLINE
+      bookingType = 'MEMBER', // MEMBER | WALK_IN
+      bookingSource = 'FRONT_DESK', // FRONT_DESK | WALK_IN
       date,
       startTime,
       endTime,
@@ -230,6 +223,10 @@ export const createFrontDeskBooking = async (req, res) => {
         success: false,
         message: 'Court, date, start time, and end time are required',
       });
+    }
+
+    if (!['MEMBER', 'WALK_IN'].includes(bookingType) || !['FRONT_DESK', 'WALK_IN'].includes(bookingSource)) {
+      return res.status(400).json({ success: false, message: 'Only member and walk-in bookings are supported.' });
     }
 
     const court = await Court.findById(courtId);
@@ -246,12 +243,19 @@ export const createFrontDeskBooking = async (req, res) => {
 
     const bookingDate = new Date(date);
     bookingDate.setHours(0, 0, 0, 0);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const currentTime = new Date().toTimeString().slice(0, 5);
+    if (Number.isNaN(bookingDate.getTime()) || bookingDate < todayStart || (bookingDate.getTime() === todayStart.getTime() && startTime <= currentTime)) {
+      return res.status(400).json({ success: false, message: 'Choose a future date and timeslot.' });
+    }
 
     // 1. Anti-Double Booking Conflict Check
     const overlapping = await Booking.findOne({
       court: court._id,
       date: bookingDate,
-      startTime,
+      startTime: { $lt: endTime },
+      endTime: { $gt: startTime },
       status: { $in: ['CONFIRMED', 'CHECKED_IN'] },
     });
 
@@ -293,6 +297,7 @@ export const createFrontDeskBooking = async (req, res) => {
       const activeMembership = await Membership.findOne({
         $or: [{ user: memberUser._id }, { member: memberUser._id }],
         status: 'ACTIVE',
+        expiryDate: { $gte: new Date() },
       }).populate('plan');
 
       if (activeMembership && activeMembership.plan) {
@@ -302,7 +307,7 @@ export const createFrontDeskBooking = async (req, res) => {
     }
 
     // 3. Price Calculation (Auto-calculated on backend)
-    const baseRate = bookingType === 'MEMBER' ? (court.hourlyRate || 500) : (court.walkInRate || court.hourlyRate || 600);
+    const baseRate = bookingType === 'MEMBER' ? Number(court.hourlyRate ?? 0) : Number(court.walkInRate ?? court.hourlyRate ?? 0);
     const discountAmount = Math.round((baseRate * discountPercent) / 100);
     const finalAmount = Math.max(baseRate - discountAmount, 0);
 
@@ -522,19 +527,31 @@ export const updateBookingStatus = async (req, res) => {
  */
 export const getCourtAvailability = async (req, res) => {
   try {
-    const { date = new Date().toISOString().split('T')[0] } = req.query;
+    const { date = toLocalDateKey(new Date()) } = req.query;
+    if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ success: false, message: 'A valid availability date is required' });
+    }
+    const todayKey = toLocalDateKey(new Date());
+    if (date < todayKey) {
+      return res.status(400).json({ success: false, message: 'Past dates are not available for court scheduling.' });
+    }
 
-    const queryDate = new Date(date);
+    const queryDate = new Date(`${date}T00:00:00`);
+    if (Number.isNaN(queryDate.getTime()) || toLocalDateKey(queryDate) !== date) {
+      return res.status(400).json({ success: false, message: 'A valid availability date is required' });
+    }
     queryDate.setHours(0, 0, 0, 0);
 
-    const dateEnd = new Date(date);
+    const dateEnd = new Date(queryDate);
     dateEnd.setHours(23, 59, 59, 999);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const currentTime = new Date().toTimeString().slice(0, 5);
 
-    const courts = await Court.find().sort({ name: 1 }).lean().maxTimeMS(2500).catch(() => []);
-    const bookings = await Booking.find({
+    const [courts, bookings] = await Promise.all([Court.find().sort({ name: 1 }).lean().maxTimeMS(2500), Booking.find({
       date: { $gte: queryDate, $lte: dateEnd },
       status: { $in: ['CONFIRMED', 'CHECKED_IN'] },
-    }).populate('member', 'firstName lastName').lean().maxTimeMS(2500).catch(() => []);
+    }).populate('member', 'firstName lastName phone email').populate('court', 'name type hourlyRate').lean().maxTimeMS(2500)]);
 
     // 30-minute time slots from 06:00 to 22:00
     const timeSlots = [];
@@ -544,18 +561,10 @@ export const getCourtAvailability = async (req, res) => {
       timeSlots.push(`${hourStr}:30`);
     }
 
-    const fallbackCourts = courts.length > 0 ? courts : [
-      { _id: '1', name: 'Centre Court (Tennis)', type: 'TENNIS', status: 'AVAILABLE', hourlyRate: 500 },
-      { _id: '2', name: 'Court 2 (Tennis)', type: 'TENNIS', status: 'AVAILABLE', hourlyRate: 500 },
-      { _id: '3', name: 'Box Cricket Turf 1', type: 'CRICKET', status: 'AVAILABLE', hourlyRate: 1200 },
-      { _id: '4', name: 'Padel Glass Court A', type: 'PADEL', status: 'AVAILABLE', hourlyRate: 800 },
-      { _id: '5', name: 'Badminton Hall 1', type: 'BADMINTON', status: 'AVAILABLE', hourlyRate: 400 },
-    ];
-
     const grid = timeSlots.map((slot) => {
       const courtStatuses = {};
 
-      fallbackCourts.forEach((court) => {
+      courts.forEach((court) => {
         if (!court.isActive && court.isActive !== undefined || court.status === 'MAINTENANCE') {
           courtStatuses[court._id] = {
             status: 'MAINTENANCE',
@@ -577,8 +586,30 @@ export const getCourtAvailability = async (req, res) => {
             bookingId: booked._id,
             bookedBy: booked.member
               ? `${booked.member.firstName} ${booked.member.lastName || ''}`.trim()
-              : booked.walkInDetails?.name || 'Walk-in',
+              : booked.walkInDetails?.name || 'Guest',
+            booking: {
+              id: booked._id,
+              courtId: court._id,
+              courtName: court.name,
+              courtType: court.type,
+              memberName: booked.member ? `${booked.member.firstName} ${booked.member.lastName || ''}`.trim() : booked.walkInDetails?.name || 'Guest',
+              phone: booked.member?.phone || booked.walkInDetails?.phone || '',
+              email: booked.member?.email || booked.walkInDetails?.email || '',
+              bookingType: booked.bookingType,
+              bookingSource: booked.bookingSource,
+              status: booked.status,
+              startTime: booked.startTime,
+              endTime: booked.endTime,
+              finalAmount: booked.finalAmount,
+              paymentMethod: booked.paymentMethod,
+              paymentStatus: booked.paymentStatus,
+              checkInTime: booked.checkInTime,
+              checkOutTime: booked.checkOutTime,
+              date: booked.date,
+            },
           };
+        } else if (queryDate < todayStart || (queryDate.getTime() === todayStart.getTime() && slot <= currentTime)) {
+          courtStatuses[court._id] = { status: 'PAST', label: 'Past time' };
         } else {
           courtStatuses[court._id] = {
             status: 'AVAILABLE',
@@ -597,7 +628,7 @@ export const getCourtAvailability = async (req, res) => {
       success: true,
       data: {
         date,
-        courts: fallbackCourts.map((c) => ({ id: c._id, name: c.name, type: c.type, status: c.status || 'AVAILABLE', hourlyRate: c.hourlyRate || 500 })),
+        courts: courts.map((c) => ({ id: c._id, name: c.name, type: c.type, status: c.status, hourlyRate: c.hourlyRate, walkInRate: c.walkInRate })),
         timeSlots,
         grid,
       },
@@ -639,13 +670,19 @@ export const rescheduleBooking = async (req, res) => {
 
     const newStart = startTime || booking.startTime;
     const newEnd = endTime || booking.endTime;
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    if (Number.isNaN(targetDate.getTime()) || targetDate < todayStart || (targetDate.getTime() === todayStart.getTime() && newStart <= new Date().toTimeString().slice(0, 5))) {
+      return res.status(400).json({ success: false, message: 'Choose a future date and timeslot.' });
+    }
 
     // Check collision
     const collision = await Booking.findOne({
       _id: { $ne: booking._id },
       court: targetCourtId,
       date: targetDate,
-      startTime: newStart,
+      startTime: { $lt: newEnd },
+      endTime: { $gt: newStart },
       status: { $in: ['CONFIRMED', 'CHECKED_IN'] },
     });
 
@@ -721,39 +758,36 @@ export const getMemberHistory = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Member not found' });
     }
 
-    const profile = await MemberProfile.findOne({ user: user._id }).lean().maxTimeMS(2000).catch(() => null);
-    const membership = await Membership.findOne({ $or: [{ user: user._id }, { member: user._id }], status: 'ACTIVE' }).populate('plan').lean().maxTimeMS(2000).catch(() => null);
+    const profile = await MemberProfile.findOne({ user: user._id }).lean().maxTimeMS(2000);
+    const membership = await Membership.findOne({ $or: [{ user: user._id }, { member: user._id }], status: 'ACTIVE', expiryDate: { $gte: new Date() } }).populate('plan').lean().maxTimeMS(2000);
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
     const todayBookingsCount = await Booking.countDocuments({
       member: user._id,
-      date: { $gte: todayStart },
+      date: { $gte: todayStart, $lte: new Date(todayStart.getTime() + 86400000 - 1) },
       status: { $ne: 'CANCELLED' },
-    }).maxTimeMS(2000).catch(() => 0);
+    }).maxTimeMS(2000);
 
     const recentBookings = await Booking.find({ member: user._id })
       .populate('court')
       .sort({ date: -1, startTime: -1 })
       .limit(6)
       .lean()
-      .maxTimeMS(2500)
-      .catch(() => []);
+      .maxTimeMS(2500);
 
     const recentPayments = await Payment.find({ user: user._id })
       .sort({ createdAt: -1 })
       .limit(6)
       .lean()
-      .maxTimeMS(2500)
-      .catch(() => []);
+      .maxTimeMS(2500);
 
     const recentOrders = await Order.find({ member: user._id })
       .sort({ createdAt: -1 })
       .limit(6)
       .lean()
-      .maxTimeMS(2500)
-      .catch(() => []);
+      .maxTimeMS(2500);
 
     return res.status(200).json({
       success: true,
@@ -763,20 +797,21 @@ export const getMemberHistory = async (req, res) => {
           name: `${user.firstName} ${user.lastName || ''}`.trim(),
           email: user.email,
           phone: user.phone,
-          memberId: profile?.memberId || `MEM${user._id.toString().slice(-4).toUpperCase()}`,
-          status: user.status || 'ACTIVE',
-          membership: membership?.plan?.name?.toUpperCase() || 'GOLD',
-          membershipTier: membership?.plan?.name || 'Gold Membership',
-          courtDiscount: membership?.plan?.courtDiscount || 20,
-          shopDiscount: membership?.plan?.shopDiscount || 15,
-          cafeDiscount: membership?.plan?.canteenDiscount || 15,
-          validUntil: membership?.endDate || '31 Dec 2026',
+          memberId: profile?.memberId || null,
+          status: user.status,
+          membership: membership?.plan?.name?.toUpperCase() || null,
+          membershipTier: membership?.plan?.name || null,
+          membershipActive: Boolean(membership),
+          courtDiscount: membership?.plan?.benefits?.courtDiscount ?? membership?.plan?.courtDiscount ?? 0,
+          shopDiscount: membership?.plan?.benefits?.shopDiscount ?? membership?.plan?.shopDiscount ?? 0,
+          cafeDiscount: membership?.plan?.benefits?.cafeDiscount ?? membership?.plan?.benefits?.canteenDiscount ?? membership?.plan?.canteenDiscount ?? 0,
+          validUntil: membership?.expiryDate || membership?.endDate || null,
           todayPlays: todayBookingsCount,
           maxDailyPlays: 2,
         },
         recentBookings: recentBookings.map((b) => ({
           id: b._id,
-          courtName: b.court?.name || 'Court',
+          courtName: b.court?.name || '',
           date: b.date,
           time: `${b.startTime} - ${b.endTime}`,
           status: b.status,
@@ -819,8 +854,7 @@ export const getFrontDeskPayments = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(40)
       .lean()
-      .maxTimeMS(2500)
-      .catch(() => []);
+      .maxTimeMS(2500);
 
     return res.status(200).json({
       success: true,
@@ -839,64 +873,68 @@ export const getFrontDeskPayments = async (req, res) => {
  * GET /api/staff/front-desk/daily-closing
  * End of shift summary of front desk transactions
  */
-export const getDailyClosingSummary = async (req, res) => {
-  try {
+const buildDailyClosingSummary = async () => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
 
-    const bookings = await Booking.find({
-      date: { $gte: todayStart },
-      status: { $ne: 'CANCELLED' },
-    }).lean().maxTimeMS(2500).catch(() => []);
+    const [bookings, payments] = await Promise.all([
+      Booking.find({ date: { $gte: todayStart, $lt: tomorrowStart } }).lean().maxTimeMS(2500),
+      Payment.find({ type: 'BOOKING', createdAt: { $gte: todayStart, $lt: tomorrowStart }, status: 'SUCCESS' }).lean().maxTimeMS(2500),
+    ]);
 
-    let totalCollected = 0;
-    let upiTotal = 0;
-    let cashTotal = 0;
-    let cardTotal = 0;
-    let memberCount = 0;
-    let guestCount = 0;
-    let completedCount = 0;
-    let noShowCount = 0;
+    const totalCollected = payments.reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
+    const totalsByMethod = payments.reduce((totals, payment) => {
+      const method = String(payment.method || '').toUpperCase();
+      if (method === 'UPI') totals.upiTotal += Number(payment.amount) || 0;
+      else if (method === 'CASH') totals.cashTotal += Number(payment.amount) || 0;
+      else if (method === 'CARD') totals.cardTotal += Number(payment.amount) || 0;
+      return totals;
+    }, { upiTotal: 0, cashTotal: 0, cardTotal: 0 });
+    const walkInBookings = bookings.filter((booking) => booking.bookingType === 'WALK_IN' || booking.bookingSource === 'WALK_IN').length;
+    const phoneBookings = bookings.filter((booking) => booking.bookingType === 'PHONE' || booking.bookingSource === 'PHONE').length;
 
-    bookings.forEach((b) => {
-      totalCollected += b.finalAmount || 0;
-      if (b.paymentMethod === 'UPI') upiTotal += b.finalAmount || 0;
-      else if (b.paymentMethod === 'CASH') cashTotal += b.finalAmount || 0;
-      else if (b.paymentMethod === 'CARD') cardTotal += b.finalAmount || 0;
+    return {
+      date: todayStart,
+      totalBookings: bookings.length,
+      memberBookings: bookings.filter((booking) => booking.bookingType === 'MEMBER').length,
+      walkInBookings,
+      guestBookings: walkInBookings,
+      phoneBookings,
+      completedBookings: bookings.filter((booking) => ['COMPLETED', 'CHECKED_IN'].includes(booking.status)).length,
+      cancelledBookings: bookings.filter((booking) => booking.status === 'CANCELLED').length,
+      noShowBookings: bookings.filter((booking) => booking.status === 'NO_SHOW').length,
+      totalCollected,
+      ...totalsByMethod,
+    };
+};
 
-      if (b.bookingType === 'MEMBER') memberCount++;
-      else guestCount++;
-
-      if (b.status === 'COMPLETED' || b.status === 'CHECKED_IN') completedCount++;
-      if (b.status === 'NO_SHOW') noShowCount++;
-    });
-
-    const cancelledCount = await Booking.countDocuments({
-      date: { $gte: todayStart },
-      status: 'CANCELLED',
-    }).maxTimeMS(2000).catch(() => 3);
-
-    return res.status(200).json({
-      success: true,
-      data: {
-        totalBookings: bookings.length || 42,
-        memberBookings: memberCount || 30,
-        guestBookings: guestCount || 12,
-        completedBookings: completedCount || 35,
-        cancelledBookings: cancelledCount || 3,
-        noShowBookings: noShowCount || 4,
-        totalCollected: totalCollected || 18500,
-        upiTotal: upiTotal || 10500,
-        cashTotal: cashTotal || 5000,
-        cardTotal: cardTotal || 3000,
-      },
-    });
+export const getDailyClosingSummary = async (req, res) => {
+  try {
+    const summary = await buildDailyClosingSummary();
+    return res.status(200).json({ success: true, data: summary });
   } catch (error) {
     return res.status(500).json({
       success: false,
       message: 'Failed to get closing summary',
       error: error.message,
     });
+  }
+};
+
+export const submitDailyClosingReport = async (req, res) => {
+  try {
+    const summary = await buildDailyClosingSummary();
+    const report = await Activity.create({
+      user: req.user._id,
+      action: `Submitted Front Desk shift closing report for ${summary.date.toISOString().slice(0, 10)}`,
+      entity: 'SHIFT_CLOSING_REPORT',
+      metadata: summary,
+    });
+    return res.status(201).json({ success: true, message: 'Shift closing report submitted.', data: report });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to submit shift closing report', error: error.message });
   }
 };
 
@@ -913,5 +951,6 @@ export default {
   getMemberHistory,
   getFrontDeskPayments,
   getDailyClosingSummary,
+  submitDailyClosingReport,
 };
 

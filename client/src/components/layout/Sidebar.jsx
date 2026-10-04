@@ -213,11 +213,6 @@ export const Sidebar = ({
             icon: Receipt,
           },
           {
-            label: 'Notifications',
-            path: '/staff/front-desk?tab=notifications',
-            icon: Bell,
-          },
-          {
             label: 'My Profile & Shift',
             path: '/staff/profile',
             icon: User,
