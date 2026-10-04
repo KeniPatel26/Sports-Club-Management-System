@@ -23,6 +23,7 @@ import Select from '../components/ui/Select';
 import Loader from '../components/ui/Loader';
 import FilterDropdown from '../components/ui/FilterDropdown';
 import { useToast } from '../context/ToastContext';
+import { menuImageUrl } from '../utils/menuImage';
 import shopCanteenService from '../services/shopCanteenService';
 import membershipService from '../services/membershipService';
 import PaymentModal from '../components/payment/PaymentModal';
@@ -273,7 +274,7 @@ export const CanteenBarPage = () => {
                 <Card key={item._id} hoverable className="commerce-card">
                   <div className="commerce-card-media">
                     {item.image ? (
-                      <img src={item.image} alt={item.name} loading="lazy" />
+                      <img src={menuImageUrl(item.image)} alt={item.name} loading="lazy" />
                     ) : (
                       <div className="commerce-image-placeholder">
                         <Utensils size={36} />
@@ -433,7 +434,7 @@ export const CanteenBarPage = () => {
                 <div key={product._id} className="cart-item-row">
                   <div className="cart-item-info">
                     {product.image ? (
-                      <img src={product.image} alt="" className="cart-item-thumb" />
+                      <img src={menuImageUrl(product.image)} alt="" className="cart-item-thumb" />
                     ) : (
                       <div className="cart-item-thumb">
                         <Coffee size={18} />

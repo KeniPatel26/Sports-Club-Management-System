@@ -2023,7 +2023,7 @@ const seedAllChampionsClubData = async () => {
         stock: 45,
         lowStockThreshold: 10,
         isAvailable: true,
-        image: 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=400&auto=format&fit=crop&q=80',
+        image: '/images/menu/chicken-avocado-wrap.svg',
         description: 'Rosemary grilled breast, Hass avocado, baby spinach, Greek yogurt dressing.',
       },
       {
@@ -2034,7 +2034,7 @@ const seedAllChampionsClubData = async () => {
         stock: 35,
         lowStockThreshold: 8,
         isAvailable: true,
-        image: 'https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?w=400&auto=format&fit=crop&q=80',
+        image: '/images/menu/truffle-mushroom-pizza.svg',
         description: 'Sourdough crust, fresh Fior di Latte mozzarella, Portobello mushrooms, black truffle oil.',
       },
       {

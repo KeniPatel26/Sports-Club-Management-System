@@ -43,10 +43,12 @@ import Loader from '../../../components/ui/Loader';
 import Alert from '../../../components/ui/Alert';
 import FilterDropdown from '../../../components/ui/FilterDropdown';
 import PaymentModal from '../../../components/payment/PaymentModal';
+import Pagination from '../../../components/common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 const toDateInputValue = (date = new Date()) => {
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');``
+  const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
@@ -2471,7 +2473,7 @@ export const FrontDeskDashboard = () => {
               </thead>
               <tbody>
                 {paymentsList.length > 0 ? (
-                  paymentsList.map((p) => (
+                  paymentsPage.paginatedItems.map((p) => (
                     <tr key={p._id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
                         {p.paymentId || `PAY-${p._id.slice(-6)}`}
@@ -2525,7 +2527,9 @@ export const FrontDeskDashboard = () => {
               </tbody>
             </table>
           </div>
+          <div style={{ padding: '0 1rem' }}><Pagination {...paymentsPage} onPageChange={paymentsPage.setCurrentPage} /></div>
         </div>
+      </div>
       )}
 
       {/* ======================================================== */}
@@ -3092,30 +3096,20 @@ export const FrontDeskDashboard = () => {
 
                   {/* Payment Method Selector */}
                   <div style={{ marginBottom: '1.25rem' }}>
-                    <label style={{ fontSize: '0.775rem', fontWeight: 800, color: 'var(--primary-navy)', display: 'block', marginBottom: '0.35rem' }}>
+                    <label htmlFor="front-desk-payment-method" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary-navy)', display: 'block', marginBottom: '0.35rem' }}>
                       Payment Method
                     </label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.35rem' }}>
-                      {['CASH', 'UPI', 'CARD'].map((pm) => (
-                        <button
-                          type="button"
-                          key={pm}
-                          onClick={() => setPaymentMethod(pm)}
-                          style={{
-                            padding: '0.45rem',
-                            borderRadius: 'var(--radius-sm)',
-                            border: paymentMethod === pm ? '2px solid var(--primary-navy)' : '1px solid var(--border)',
-                            backgroundColor: paymentMethod === pm ? '#FFFFFF' : 'transparent',
-                            fontWeight: 800,
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            color: paymentMethod === pm ? 'var(--primary-navy)' : 'var(--text-muted)',
-                          }}
-                        >
-                          {pm}
-                        </button>
-                      ))}
-                    </div>
+                    <select
+                      id="front-desk-payment-method"
+                      value={paymentMethod}
+                      onChange={(event) => setPaymentMethod(event.target.value)}
+                      style={{ width: '100%', padding: '0.55rem', borderRadius: '8px', border: '1px solid var(--border, #DDE2EC)', marginTop: '0.2rem', fontFamily: 'inherit', color: 'var(--text-main, #354962)', background: 'var(--bg-card, #fff)' }}
+                    >
+                      <option value="UPI">UPI / QR Code</option>
+                      <option value="CARD">Credit / Debit Card</option>
+                      <option value="NET_BANKING">Net Banking</option>
+                      <option value="CASH">Counter Cash</option>
+                    </select>
                   </div>
 
                 </div>}

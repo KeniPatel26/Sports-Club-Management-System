@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-labelledby="title">
+  <title id="title">Grilled chicken and avocado wrap</title>
+  <defs><linearGradient id="bg" x2="0" y2="1"><stop stop-color="#f7e8ce"/><stop offset="1" stop-color="#e3c79c"/></linearGradient></defs>
+  <rect width="640" height="420" fill="url(#bg)"/><ellipse cx="320" cy="218" rx="218" ry="142" fill="#fffaf0"/><g transform="rotate(-13 320 210)"><path d="M150 198 421 118q35-10 46 24l35 111q10 33-24 45l-268 82q-34 10-45-24l-36-112q-10-33 21-46Z" fill="#d9a95f"/><path d="m173 202 249-72 38 120-249 72z" fill="#e9c982"/><path d="m185 210 244-70 12 31-245 70z" fill="#56884d"/><path d="m198 244 244-70 12 33-245 70z" fill="#9b5036"/><path d="m207 274 244-70 10 32-244 70z" fill="#e7dbb2"/></g><circle cx="113" cy="104" r="34" fill="#86a65a" opacity=".7"/><circle cx="530" cy="319" r="42" fill="#668f4d" opacity=".72"/></svg>
