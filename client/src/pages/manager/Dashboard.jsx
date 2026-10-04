@@ -19,7 +19,6 @@ import {
   UserCheck,
   ChevronRight,
   CheckCircle2,
-  RefreshCw,
   Plus,
 } from 'lucide-react';
 import ChartCard from '../../components/ui/ChartCard';
@@ -137,27 +136,6 @@ export const ManagerDashboard = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <button
-            onClick={fetchOverview}
-            disabled={loading}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.6rem 1rem',
-              backgroundColor: '#FFFFFF',
-              border: '1px solid #DDE2EC',
-              borderRadius: '10px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              color: '#354962',
-              cursor: 'pointer',
-            }}
-          >
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
-
           <Link
             to="/manager/members"
             style={{
@@ -351,9 +329,6 @@ export const ManagerDashboard = () => {
               </h3>
               <span style={{ fontSize: '0.78rem', color: '#64748B' }}>October 2026 Consolidated</span>
             </div>
-            <Link to="/manager/finance" style={{ fontSize: '0.8rem', color: '#D98E68', fontWeight: 700, textDecoration: 'none' }}>
-              View Finance &rarr;
-            </Link>
           </div>
 
           <ChartCard bare type="bar" height={230} currency data={[

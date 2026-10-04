@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -98,10 +98,14 @@ const resolvePageTitle = (pathname, search) => {
 };
 
 export const Navbar = ({ onToggleSidebar, title }) => {
-  const { user, isAuthenticated, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+  const { user, isAuthenticated, logout, isManager } = useAuth();
+  const { theme, toggleTheme, setTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    if (isAuthenticated && isManager && theme !== 'light') setTheme('light');
+  }, [isAuthenticated, isManager, theme, setTheme]);
 
   const dynamicTitle = title || resolvePageTitle(location.pathname, location.search);
 
@@ -208,8 +212,8 @@ export const Navbar = ({ onToggleSidebar, title }) => {
 
           {/* Right: Theme Toggle + Notifications Dropdown + User Avatar Menu */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-            {/* Theme Toggle Button */}
-            <button
+            {/* Theme toggle is unavailable in the Manager workspace. */}
+            {!isManager && <button
               type="button"
               onClick={toggleTheme}
               title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
@@ -228,7 +232,7 @@ export const Navbar = ({ onToggleSidebar, title }) => {
               }}
             >
               {theme === 'dark' ? <Sun size={17} color="#f59e0b" /> : <Moon size={17} />}
-            </button>
+            </button>}
 
             {/* Notifications Dropdown */}
             <NotificationDropdown />

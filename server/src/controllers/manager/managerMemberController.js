@@ -7,6 +7,7 @@ import Order from '../../models/Order.js';
 import Payment from '../../models/Payment.js';
 import Invoice from '../../models/Invoice.js';
 import { hashPassword } from '../../utils/password.js';
+import { generateTransactionId } from '../../services/paymentService.js';
 
 /**
  * GET /api/manager/members
@@ -22,13 +23,16 @@ export const getMembers = async (req, res) => {
       query.status = status;
     }
 
-    if (search.trim()) {
-      query.$or = [
-        { firstName: { $regex: search.trim(), $options: 'i' } },
-        { lastName: { $regex: search.trim(), $options: 'i' } },
-        { email: { $regex: search.trim(), $options: 'i' } },
-        { phone: { $regex: search.trim(), $options: 'i' } },
-      ];
+    const searchTerms = search.trim().split(/\s+/).filter(Boolean);
+    if (searchTerms.length) {
+      query.$and = searchTerms.map((term) => ({
+        $or: [
+          { firstName: { $regex: term, $options: 'i' } },
+          { lastName: { $regex: term, $options: 'i' } },
+          { email: { $regex: term, $options: 'i' } },
+          { phone: { $regex: term, $options: 'i' } },
+        ],
+      }));
     }
 
     const members = await User.find(query).sort({ createdAt: -1 });
@@ -96,7 +100,13 @@ export const getMemberById = async (req, res) => {
     const profile = await MemberProfile.findOne({ user: user._id });
     const memberships = await Membership.find({ $or: [{ user: user._id }, { member: user._id }] })
       .populate('plan')
-      .sort({ createdAt: -1 });
+      .sort({ startDate: -1, createdAt: -1 });
+    const now = new Date();
+    const currentMembership = memberships.find((membership) => (
+      membership.status === 'ACTIVE'
+      && (!membership.startDate || membership.startDate <= now)
+      && (!membership.expiryDate || membership.expiryDate >= now)
+    )) || null;
 
     const bookings = await Booking.find({ member: user._id })
       .populate('court')
@@ -135,7 +145,7 @@ export const getMemberById = async (req, res) => {
           joinedAt: user.createdAt,
         },
         memberships,
-        currentMembership: memberships[0] || null,
+        currentMembership,
         bookings,
         shopOrders,
         canteenOrders,
@@ -160,6 +170,9 @@ export const getMemberById = async (req, res) => {
 export const createMember = async (req, res) => {
   let createdUser = null;
   let createdProfile = null;
+  let createdMembership = null;
+  let createdInvoice = null;
+  let createdPayment = null;
 
   try {
     const {
@@ -261,7 +274,7 @@ export const createMember = async (req, res) => {
     const startDate = new Date();
     const expiryDate = new Date(startDate.getTime() + duration * 24 * 60 * 60 * 1000);
 
-    const membership = await Membership.create({
+    createdMembership = await Membership.create({
       member: createdUser._id,
       user: createdUser._id,
       plan: selectedPlan._id,
@@ -276,7 +289,7 @@ export const createMember = async (req, res) => {
 
     // Auto-generate initial invoice & payment log
     const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
-    await Invoice.create({
+    createdInvoice = await Invoice.create({
       invoiceNumber,
       user: createdUser._id,
       customerName: `${createdUser.firstName} ${createdUser.lastName || ''}`.trim(),
@@ -297,15 +310,18 @@ export const createMember = async (req, res) => {
       paidDate: new Date(),
     });
 
-    await Payment.create({
-      paymentId: `PAY-${Date.now().toString().slice(-6)}`,
+    createdPayment = await Payment.create({
       user: createdUser._id,
       customerName: `${createdUser.firstName} ${createdUser.lastName || ''}`.trim(),
-      type: 'MEMBERSHIP',
       amount: selectedPlan.price,
-      method: paymentMethod,
-      status: 'SUCCESS',
-      referenceId: invoiceNumber,
+      paymentMethod: paymentMethod.toUpperCase(),
+      purpose: 'MEMBERSHIP',
+      referenceId: createdMembership._id,
+      purposeRef: 'Membership',
+      status: 'PAID',
+      transactionId: generateTransactionId(),
+      paidAt: new Date(),
+      notes: `Initial membership payment for invoice ${invoiceNumber}`,
     });
 
     return res.status(201).json({
@@ -314,13 +330,16 @@ export const createMember = async (req, res) => {
       data: {
         user: createdUser,
         profile: createdProfile,
-        membership,
+        membership: createdMembership,
       },
     });
   } catch (error) {
     console.error('createMember error:', error);
 
     // Rollback partially created records to avoid 409 conflict on retry
+    if (createdPayment?._id) await Payment.findByIdAndDelete(createdPayment._id).catch(() => {});
+    if (createdInvoice?._id) await Invoice.findByIdAndDelete(createdInvoice._id).catch(() => {});
+    if (createdMembership?._id) await Membership.findByIdAndDelete(createdMembership._id).catch(() => {});
     if (createdUser && createdUser._id) {
       await User.findByIdAndDelete(createdUser._id).catch(() => {});
     }

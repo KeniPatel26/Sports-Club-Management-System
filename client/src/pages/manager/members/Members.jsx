@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import managerService from '../../../services/managerService';
 import { useToast } from '../../../context/ToastContext';
 import FilterDropdown from '../../../components/ui/FilterDropdown';
@@ -31,6 +31,7 @@ export const Members = () => {
   const [selectedMemberId, setSelectedMemberId] = useState(null);
   const [memberDetails, setMemberDetails] = useState(null);
   const [detailTab, setDetailTab] = useState('overview');
+  const membersRequestId = useRef(0);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -50,22 +51,27 @@ export const Members = () => {
   });
 
   const fetchMembers = async () => {
+    const requestId = ++membersRequestId.current;
     try {
       setLoading(true);
       const res = await managerService.getMembers({ search, status: statusFilter });
-      if (res.success && res.data) {
+      if (requestId === membersRequestId.current && res.success && res.data) {
         setMembers(res.data);
       }
     } catch (err) {
-      toastError('Failed to fetch members');
+      if (requestId === membersRequestId.current) toastError('Failed to fetch members');
     } finally {
-      setLoading(false);
+      if (requestId === membersRequestId.current) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchMembers();
-  }, [statusFilter]);
+    const timer = window.setTimeout(() => fetchMembers(), search.trim() ? 250 : 0);
+    return () => {
+      window.clearTimeout(timer);
+      membersRequestId.current += 1;
+    };
+  }, [search, statusFilter]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -125,6 +131,18 @@ export const Members = () => {
       toastError('Failed to load member profile');
     }
   };
+
+  const memberMemberships = memberDetails?.memberships || [];
+  const membershipNow = new Date();
+  const isCurrentMembership = (membership) => {
+    const startsAt = membership.startDate ? new Date(membership.startDate) : null;
+    const endsAt = membership.expiryDate || membership.endDate ? new Date(membership.expiryDate || membership.endDate) : null;
+    return membership.status === 'ACTIVE'
+      && (!startsAt || startsAt <= membershipNow)
+      && (!endsAt || endsAt >= membershipNow);
+  };
+  const currentMemberships = memberMemberships.filter(isCurrentMembership);
+  const pastMemberships = memberMemberships.filter((membership) => !isCurrentMembership(membership));
 
   return (
     <div style={{ padding: '1.5rem', maxWidth: '1400px', margin: '0 auto', fontFamily: "'Space Grotesk', sans-serif" }}>
@@ -596,23 +614,87 @@ export const Members = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div style={{ backgroundColor: '#F4F6FC', padding: '1rem', borderRadius: '10px' }}>
                   <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#354962', marginBottom: '0.5rem' }}>CURRENT MEMBERSHIP</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#D98E68' }}>
-                    {memberDetails.currentMembership?.plan?.name || 'Gold Member'}
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: '#64748B', marginTop: '0.3rem' }}>
-                    Status: <strong style={{ color: '#8FAF98' }}>Active</strong>
-                  </div>
+                  {memberDetails.currentMembership ? <>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#D98E68' }}>
+                      {memberDetails.currentMembership.plan?.name || 'Membership'}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748B', marginTop: '0.3rem' }}>
+                      Status: <strong style={{ color: '#8FAF98' }}>{memberDetails.currentMembership.status}</strong>
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748B', marginTop: '0.25rem' }}>
+                      Valid through {new Date(memberDetails.currentMembership.expiryDate || memberDetails.currentMembership.endDate).toLocaleDateString()}
+                    </div>
+                  </> : <div style={{ fontSize: '0.9rem', color: '#64748B' }}>No active membership.</div>}
                 </div>
 
                 <div style={{ backgroundColor: '#F4F6FC', padding: '1rem', borderRadius: '10px' }}>
                   <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#354962', marginBottom: '0.5rem' }}>EMERGENCY CONTACT</div>
                   <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#17263B' }}>
-                    {memberDetails.profile?.emergencyContact?.name || 'Anjali Mehta'} ({memberDetails.profile?.emergencyContact?.relation || 'Spouse'})
+                    {memberDetails.profile?.emergencyContact?.name || '—'}{memberDetails.profile?.emergencyContact?.relation ? ` (${memberDetails.profile.emergencyContact.relation})` : ''}
                   </div>
                   <div style={{ fontSize: '0.8rem', color: '#64748B', marginTop: '0.3rem' }}>
-                    {memberDetails.profile?.emergencyContact?.phone || '9825012345'}
+                    {memberDetails.profile?.emergencyContact?.phone || 'No emergency phone recorded'}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {detailTab === 'memberships' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {memberMemberships.length === 0 ? (
+                  <div style={{ padding: '2.25rem 1rem', textAlign: 'center', color: '#64748B', backgroundColor: '#F4F6FC', borderRadius: '10px' }}>
+                    <strong style={{ display: 'block', color: '#354962', marginBottom: '0.35rem' }}>No membership records</strong>
+                    This member has no current or past memberships.
+                  </div>
+                ) : <>
+                  <section>
+                    <h3 style={{ margin: '0 0 0.65rem', fontSize: '0.95rem', color: '#17263B' }}>Current membership</h3>
+                    {currentMemberships.length === 0 ? (
+                      <div style={{ padding: '1rem', color: '#64748B', backgroundColor: '#F4F6FC', borderRadius: '8px' }}>No active membership at this time.</div>
+                    ) : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.65rem' }}>
+                      {currentMemberships.map((membership) => (
+                        <div key={membership._id} style={{ padding: '0.9rem 1rem', backgroundColor: '#F4F6FC', border: '1px solid #DDE2EC', borderRadius: '9px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', alignItems: 'center' }}>
+                            <strong style={{ color: '#17263B' }}>{membership.plan?.name || 'Membership'}</strong>
+                            <span style={{ padding: '0.2rem 0.5rem', borderRadius: '999px', backgroundColor: '#E7F2E9', color: '#527A5A', fontSize: '0.72rem', fontWeight: 700 }}>ACTIVE</span>
+                          </div>
+                          <div style={{ marginTop: '0.6rem', fontSize: '0.8rem', lineHeight: 1.7, color: '#64748B' }}>
+                            <div>Started: {membership.startDate ? new Date(membership.startDate).toLocaleDateString() : '—'}</div>
+                            <div>Expires: {membership.expiryDate || membership.endDate ? new Date(membership.expiryDate || membership.endDate).toLocaleDateString() : '—'}</div>
+                            <div>Paid: ₹{Number(membership.amountPaid ?? 0).toLocaleString()} · {membership.paymentStatus || 'Payment status unavailable'}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>}
+                  </section>
+                  <section>
+                    <h3 style={{ margin: '0 0 0.65rem', fontSize: '0.95rem', color: '#17263B' }}>Past membership history</h3>
+                    {pastMemberships.length === 0 ? (
+                      <div style={{ padding: '1rem', color: '#64748B', backgroundColor: '#F4F6FC', borderRadius: '8px' }}>No past memberships recorded.</div>
+                    ) : <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                      {pastMemberships.map((membership) => {
+                        const expiryDate = membership.expiryDate || membership.endDate;
+                        const derivedStatus = membership.status === 'ACTIVE' && expiryDate && new Date(expiryDate) < membershipNow
+                          ? 'EXPIRED'
+                          : membership.status || 'STATUS UNAVAILABLE';
+                        return (
+                          <div key={membership._id} style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', padding: '0.8rem 1rem', backgroundColor: '#F4F6FC', borderRadius: '8px' }}>
+                            <div>
+                              <strong style={{ color: '#17263B' }}>{membership.plan?.name || 'Membership'}</strong>
+                              <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '0.2rem' }}>
+                                {membership.startDate ? new Date(membership.startDate).toLocaleDateString() : '—'} – {expiryDate ? new Date(expiryDate).toLocaleDateString() : '—'}
+                              </div>
+                            </div>
+                            <div style={{ textAlign: 'right', fontSize: '0.78rem', color: '#64748B' }}>
+                              <strong style={{ color: '#354962' }}>{derivedStatus}</strong>
+                              <div>Paid: ₹{Number(membership.amountPaid ?? 0).toLocaleString()}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>}
+                  </section>
+                </>}
               </div>
             )}
 
