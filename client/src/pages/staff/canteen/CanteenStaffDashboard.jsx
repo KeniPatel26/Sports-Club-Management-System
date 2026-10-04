@@ -117,6 +117,8 @@ export const CanteenStaffDashboard = () => {
   const [cancelReason, setCancelReason] = useState('Customer requested cancellation');
   const [submittingCancel, setSubmittingCancel] = useState(false);
   const [staffProfile, setStaffProfile] = useState(null);
+  const [loadingStaffProfile, setLoadingStaffProfile] = useState(false);
+  const [staffProfileError, setStaffProfileError] = useState('');
 
 
   const fetchCanteenData = async () => {
@@ -178,9 +180,15 @@ export const CanteenStaffDashboard = () => {
 
   useEffect(() => {
     if (activeTab !== 'profile') return;
+    setLoadingStaffProfile(true);
+    setStaffProfileError('');
     staffService.getMyProfile()
-      .then((result) => { if (result?.success) setStaffProfile(result.data); })
-      .catch(() => setAlert({ type: 'danger', message: 'Failed to load staff profile.' }));
+      .then((result) => {
+        if (result?.success && result.data) setStaffProfile(result.data);
+        else setStaffProfileError(result?.message || 'Your profile could not be loaded.');
+      })
+      .catch((error) => setStaffProfileError(error.response?.data?.message || 'Your profile could not be loaded.'))
+      .finally(() => setLoadingStaffProfile(false));
   }, [activeTab]);
 
   // Fetch open tabs
@@ -504,6 +512,7 @@ export const CanteenStaffDashboard = () => {
             {activeTab === 'orders' && 'Kitchen Order Queue'}
             {activeTab === 'tabs' && 'Bills'}
             {activeTab === 'payments' && 'Canteen Payments'}
+            {activeTab === 'profile' && 'My Profile & Shift'}
             {activeTab === 'dashboard' && 'Canteen & Bar Dashboard'}
           </h1>
         </div>
@@ -1310,19 +1319,25 @@ export const CanteenStaffDashboard = () => {
         </div>
       )}
 
-      {activeTab === 'profile' && staffProfile && (
-        <section className="canteen-profile-card" aria-label="My profile">
-          {user?.profileImage
-            ? <img className="canteen-profile-photo" src={user.profileImage} alt="Profile" />
-            : <div className="canteen-profile-photo canteen-profile-placeholder" aria-label="Profile photo unavailable">{staffProfile.name?.charAt(0) || 'S'}</div>}
-          <dl className="canteen-profile-details">
-            <div><dt>Name</dt><dd>{staffProfile.name || '—'}</dd></div>
-            <div><dt>Employee ID</dt><dd>{staffProfile.employeeId || '—'}</dd></div>
-            <div><dt>Department</dt><dd>{staffProfile.department === 'CANTEEN' ? 'Canteen' : staffProfile.department || '—'}</dd></div>
-            <div><dt>Phone</dt><dd>{staffProfile.phone || '—'}</dd></div>
-            <div><dt>Email</dt><dd>{staffProfile.email || '—'}</dd></div>
-          </dl>
-        </section>
+      {activeTab === 'profile' && (
+        loadingStaffProfile ? (
+          <Loader text="Loading your profile..." />
+        ) : staffProfileError ? (
+          <Alert type="danger" message={staffProfileError} />
+        ) : staffProfile && (
+          <section className="canteen-profile-card" aria-label="My profile">
+            {user?.profileImage
+              ? <img className="canteen-profile-photo" src={user.profileImage} alt="Profile" />
+              : <div className="canteen-profile-photo canteen-profile-placeholder" aria-label="Profile photo unavailable">{staffProfile.name?.charAt(0) || 'S'}</div>}
+            <dl className="canteen-profile-details">
+              <div><dt>Name</dt><dd>{staffProfile.name || '—'}</dd></div>
+              <div><dt>Employee ID</dt><dd>{staffProfile.employeeId || '—'}</dd></div>
+              <div><dt>Department</dt><dd>{staffProfile.department === 'CANTEEN' ? 'Canteen' : staffProfile.department || '—'}</dd></div>
+              <div><dt>Phone</dt><dd>{staffProfile.phone || '—'}</dd></div>
+              <div><dt>Email</dt><dd>{staffProfile.email || '—'}</dd></div>
+            </dl>
+          </section>
+        )
       )}
 
       {cancelOrder && (

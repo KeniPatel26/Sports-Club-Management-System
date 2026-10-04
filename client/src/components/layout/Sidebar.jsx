@@ -275,7 +275,7 @@ export const Sidebar = ({
           },
           {
             label: 'My Profile & Shift',
-            path: '/staff/profile',
+            path: '/staff/canteen?tab=profile',
             icon: User,
           },
         ];
