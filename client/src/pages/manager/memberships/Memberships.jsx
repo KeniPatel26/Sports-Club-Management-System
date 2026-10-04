@@ -3,7 +3,6 @@ import managerService from '../../../services/managerService';
 import { useToast } from '../../../context/ToastContext';
 import {
   Award,
-  Plus,
   RefreshCw,
   Clock,
   Shield,
@@ -14,27 +13,20 @@ import {
   Search,
 } from 'lucide-react';
 
+const SUPPORTED_PLAN_TIERS = new Set(['GOLD', 'SILVER', 'JUNIOR']);
+const isSupportedPlan = (plan) => {
+  const tier = String(plan?.name || '').trim().toUpperCase().replace(/\s+(TIER|MEMBERSHIP)$/, '');
+  return SUPPORTED_PLAN_TIERS.has(tier);
+};
+
 export const Memberships = () => {
   const { toastSuccess, toastError } = useToast();
   const [plans, setPlans] = useState([]);
   const [memberships, setMemberships] = useState([]);
   const [activeTab, setActiveTab] = useState('plans'); // 'plans' | 'active' | 'expiring' | 'expired'
   const [loading, setLoading] = useState(true);
-  const [showCreatePlanModal, setShowCreatePlanModal] = useState(false);
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [selectedMemberToRenew, setSelectedMemberToRenew] = useState(null);
-
-  // New Plan State
-  const [newPlan, setNewPlan] = useState({
-    name: '',
-    description: '',
-    price: 20000,
-    durationInDays: 365,
-    courtDiscount: 50,
-    shopDiscount: 10,
-    canteenDiscount: 10,
-    priorityBooking: true,
-  });
 
   // Renewal State
   const [renewalData, setRenewalData] = useState({
@@ -52,7 +44,7 @@ export const Memberships = () => {
         managerService.getMembershipsList(),
       ]);
 
-      if (plansRes.success) setPlans(plansRes.data);
+      if (plansRes.success) setPlans((plansRes.data || []).filter(isSupportedPlan));
       if (listRes.success) setMemberships(listRes.data);
     } catch (err) {
       toastError('Failed to load memberships data');
@@ -64,20 +56,6 @@ export const Memberships = () => {
   useEffect(() => {
     fetchData();
   }, []);
-
-  const handleCreatePlan = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await managerService.createPlan(newPlan);
-      if (res.success) {
-        toastSuccess(`Plan ${newPlan.name} created successfully!`);
-        setShowCreatePlanModal(false);
-        fetchData();
-      }
-    } catch (err) {
-      toastError(err.response?.data?.message || 'Failed to create plan');
-    }
-  };
 
   const handleRenewSubmit = async (e) => {
     e.preventDefault();
@@ -120,25 +98,6 @@ export const Memberships = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowCreatePlanModal(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            padding: '0.65rem 1.25rem',
-            backgroundColor: '#D98E68',
-            color: '#FFFFFF',
-            border: 'none',
-            borderRadius: '10px',
-            fontSize: '0.88rem',
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(217, 142, 104, 0.25)',
-          }}
-        >
-          <Plus size={16} /> + Create New Plan
-        </button>
       </div>
 
       {/* Overview KPI Cards */}
@@ -218,7 +177,11 @@ export const Memberships = () => {
       {/* 1. Plans Grid Tab */}
       {activeTab === 'plans' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
-          {plans.map((p) => (
+          {plans.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', padding: '2rem', textAlign: 'center', color: '#64748B', backgroundColor: '#FFFFFF', border: '1px solid #DDE2EC', borderRadius: '14px' }}>
+              No Gold, Silver, or Junior membership plans are available.
+            </div>
+          ) : plans.map((p) => (
             <div
               key={p._id}
               style={{

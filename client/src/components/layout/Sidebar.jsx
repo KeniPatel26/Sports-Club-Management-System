@@ -10,8 +10,6 @@ import {
   Crown,
   Users,
   Briefcase,
-  TrendingUp,
-  BarChart3,
   User,
   LogOut,
   ChevronLeft,
@@ -152,21 +150,6 @@ export const Sidebar = ({
           label: 'Sports Shop',
           path: '/manager/shop',
           icon: ShoppingBag,
-        },
-        {
-          label: 'Canteen & Bar',
-          path: '/manager/canteen',
-          icon: Coffee,
-        },
-        {
-          label: 'Finance',
-          path: '/manager/finance',
-          icon: TrendingUp,
-        },
-        {
-          label: 'Reports',
-          path: '/manager/reports',
-          icon: BarChart3,
         },
         {
           label: 'Settings',
