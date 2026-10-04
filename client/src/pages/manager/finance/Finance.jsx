@@ -114,7 +114,17 @@ export const FinanceManagement = () => {
       </div>
 
       {/* Financial Top Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div style={{ backgroundColor: '#FFFFFF', padding: '1.25rem', borderRadius: '14px', border: '1px solid #DDE2EC' }}>
+          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748B' }}>Today's Revenue</span>
+          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#17263B', marginTop: '0.25rem' }}>
+            ₹{overview?.todayRevenue ? overview.todayRevenue.toLocaleString('en-IN') : '52,600'}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#8FAF98', fontWeight: 700, marginTop: '0.3rem' }}>
+            &uarr; Real-time Settlements
+          </div>
+        </div>
+
         <div style={{ backgroundColor: '#FFFFFF', padding: '1.25rem', borderRadius: '14px', border: '1px solid #DDE2EC' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748B' }}>Total Club Revenue</span>
           <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#17263B', marginTop: '0.25rem' }}>
@@ -131,7 +141,7 @@ export const FinanceManagement = () => {
             ₹{overview?.totalExpenses?.toLocaleString('en-IN') || '1,97,000'}
           </div>
           <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '0.3rem' }}>
-            Payroll, Utilities & Maintenance
+            Payroll, Utilities & Supplies
           </div>
         </div>
 
@@ -150,7 +160,7 @@ export const FinanceManagement = () => {
       <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid #DDE2EC', marginBottom: '1.5rem' }}>
         {[
           { id: 'overview', label: 'Departmental Breakdown' },
-          { id: 'payments', label: `Payments (${payments.length})` },
+          { id: 'payments', label: `Payment Transactions (${payments.length})` },
           { id: 'invoices', label: `Invoices (${invoices.length})` },
           { id: 'expenses', label: `Operating Expenses (${expenses.length})` },
         ].map((tab) => (
@@ -179,7 +189,7 @@ export const FinanceManagement = () => {
           {/* Revenue by Stream */}
           <div style={{ backgroundColor: '#FFFFFF', padding: '1.5rem', borderRadius: '14px', border: '1px solid #DDE2EC' }}>
             <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.05rem', fontWeight: 800, color: '#17263B' }}>
-              Revenue by Source (October 2026)
+              Revenue by Source (Oct 2026)
             </h3>
             <ChartCard bare type="doughnut" height={220} currency showLegend data={[
               { label: 'Memberships', value: overview?.revenueBreakdown?.membership ?? 150000, color: '#D98E68' },
@@ -207,10 +217,36 @@ export const FinanceManagement = () => {
             </div>
           </div>
 
-          {/* Expense by Stream */}
+          {/* Revenue by Payment Method */}
           <div style={{ backgroundColor: '#FFFFFF', padding: '1.5rem', borderRadius: '14px', border: '1px solid #DDE2EC' }}>
             <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.05rem', fontWeight: 800, color: '#17263B' }}>
-              Expense Breakdown
+              Settlement by Payment Method
+            </h3>
+            <ChartCard bare type="pie" height={220} currency showLegend data={[
+              { label: 'UPI Instant', value: overview?.methodBreakdown?.upi ?? 180000, color: '#10B981' },
+              { label: 'Card (Credit/Debit)', value: overview?.methodBreakdown?.card ?? 110000, color: '#6366F1' },
+              { label: 'Counter Cash', value: overview?.methodBreakdown?.cash ?? 45000, color: '#F59E0B' },
+            ]} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: '#F4F6FC', borderRadius: '8px' }}>
+                <span style={{ fontWeight: 700, color: '#354962' }}>UPI / QR Instant</span>
+                <strong style={{ color: '#10B981' }}>₹{overview?.methodBreakdown?.upi?.toLocaleString('en-IN') || '1,80,000'}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: '#F4F6FC', borderRadius: '8px' }}>
+                <span style={{ fontWeight: 700, color: '#354962' }}>Credit & Debit Cards</span>
+                <strong style={{ color: '#6366F1' }}>₹{overview?.methodBreakdown?.card?.toLocaleString('en-IN') || '1,10,000'}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: '#F4F6FC', borderRadius: '8px' }}>
+                <span style={{ fontWeight: 700, color: '#354962' }}>Counter Physical Cash</span>
+                <strong style={{ color: '#F59E0B' }}>₹{overview?.methodBreakdown?.cash?.toLocaleString('en-IN') || '45,000'}</strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Expense by Stream */}
+          <div style={{ backgroundColor: '#FFFFFF', padding: '1.5rem', borderRadius: '14px', border: '1px solid #DDE2EC', gridColumn: 'span 1' }}>
+            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.05rem', fontWeight: 800, color: '#17263B' }}>
+              Operating Expenses Breakdown
             </h3>
             <ChartCard bare type="bar" horizontal currency height={220} data={Object.entries(expenseBreakdown).map(([label, value]) => ({ label, value }))} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
@@ -219,16 +255,8 @@ export const FinanceManagement = () => {
                 <strong style={{ color: '#D97979' }}>₹1,10,000</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: '#F4F6FC', borderRadius: '8px' }}>
-                <span style={{ fontWeight: 700, color: '#354962' }}>Electricity & Utilities</span>
-                <strong style={{ color: '#D97979' }}>₹24,000</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: '#F4F6FC', borderRadius: '8px' }}>
                 <span style={{ fontWeight: 700, color: '#354962' }}>Court Maintenance & Turfs</span>
                 <strong style={{ color: '#D97979' }}>₹18,000</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: '#F4F6FC', borderRadius: '8px' }}>
-                <span style={{ fontWeight: 700, color: '#354962' }}>Shop & Canteen Supplies</span>
-                <strong style={{ color: '#D97979' }}>₹45,000</strong>
               </div>
             </div>
           </div>
@@ -241,35 +269,62 @@ export const FinanceManagement = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
             <thead>
               <tr style={{ backgroundColor: '#F4F6FC', borderBottom: '1px solid #DDE2EC', color: '#64748B', fontWeight: 700 }}>
-                <th style={{ padding: '0.85rem 1rem' }}>Payment ID</th>
+                <th style={{ padding: '0.85rem 1rem' }}>Transaction ID</th>
                 <th style={{ padding: '0.85rem 1rem' }}>Customer / Member</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Type</th>
+                <th style={{ padding: '0.85rem 1rem' }}>Purpose / Module</th>
                 <th style={{ padding: '0.85rem 1rem' }}>Amount</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Method</th>
+                <th style={{ padding: '0.85rem 1rem' }}>Payment Method</th>
                 <th style={{ padding: '0.85rem 1rem' }}>Status</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Date</th>
+                <th style={{ padding: '0.85rem 1rem' }}>Date & Time</th>
               </tr>
             </thead>
             <tbody>
-              {payments.map((p) => (
-                <tr key={p._id} style={{ borderBottom: '1px solid #EEF2F6' }}>
-                  <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#354962' }}>{p.paymentId}</td>
-                  <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#17263B' }}>{p.customerName}</td>
-                  <td style={{ padding: '0.85rem 1rem' }}>
-                    <span style={{ backgroundColor: '#E8EAF4', color: '#354962', fontWeight: 700, fontSize: '0.75rem', padding: '3px 8px', borderRadius: '6px' }}>
-                      {p.type}
-                    </span>
-                  </td>
-                  <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: '#17263B' }}>₹{p.amount?.toLocaleString('en-IN')}</td>
-                  <td style={{ padding: '0.85rem 1rem', color: '#64748B' }}>{p.method}</td>
-                  <td style={{ padding: '0.85rem 1rem' }}>
-                    <span style={{ backgroundColor: 'rgba(143, 175, 152, 0.2)', color: '#8FAF98', fontWeight: 700, fontSize: '0.75rem', padding: '3px 8px', borderRadius: '999px' }}>
-                      {p.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '0.85rem 1rem', color: '#64748B' }}>{new Date(p.createdAt).toLocaleDateString()}</td>
-                </tr>
-              ))}
+              {payments.map((p) => {
+                const status = (p.status || 'PAID').toUpperCase();
+                const isPaid = status === 'PAID' || status === 'SUCCESS';
+                const isFailed = status === 'FAILED';
+                const method = (p.paymentMethod || p.method || 'UPI').toUpperCase();
+                const purpose = (p.purpose || p.type || 'COURT_BOOKING').replace('_', ' ');
+
+                return (
+                  <tr key={p._id} style={{ borderBottom: '1px solid #EEF2F6' }}>
+                    <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#354962', fontFamily: 'monospace' }}>
+                      {p.transactionId || p.paymentId || `TXN-${p._id.slice(-6)}`}
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#17263B' }}>
+                      {p.customerName || (p.user ? `${p.user.firstName} ${p.user.lastName || ''}`.trim() : 'Guest')}
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem' }}>
+                      <span style={{ backgroundColor: '#E8EAF4', color: '#354962', fontWeight: 700, fontSize: '0.75rem', padding: '3px 8px', borderRadius: '6px' }}>
+                        {purpose}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: '#17263B' }}>₹{p.amount?.toLocaleString('en-IN')}</td>
+                    <td style={{ padding: '0.85rem 1rem' }}>
+                      <span style={{ fontWeight: 600, color: method === 'UPI' ? '#059669' : method === 'CARD' ? '#4F46E5' : '#D97706' }}>
+                        {method}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem' }}>
+                      <span
+                        style={{
+                          backgroundColor: isPaid ? 'rgba(143, 175, 152, 0.2)' : isFailed ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                          color: isPaid ? '#227B4C' : isFailed ? '#DC2626' : '#D97706',
+                          fontWeight: 700,
+                          fontSize: '0.75rem',
+                          padding: '4px 10px',
+                          borderRadius: '999px',
+                        }}
+                      >
+                        {isPaid ? 'PAID' : isFailed ? 'FAILED' : 'PENDING'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.85rem 1rem', color: '#64748B', fontSize: '0.82rem' }}>
+                      {new Date(p.paidAt || p.createdAt).toLocaleString()}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

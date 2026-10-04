@@ -32,6 +32,7 @@ import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Loader from '../components/ui/Loader';
+import PaymentModal from '../components/payment/PaymentModal';
 
 export const MembershipsPage = () => {
   const navigate = useNavigate();
@@ -81,6 +82,9 @@ export const MembershipsPage = () => {
     setIsSubscribeOpen(true);
   };
 
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [pendingMembership, setPendingMembership] = useState(null);
+
   const handleSubscribeSubmit = async (e) => {
     e.preventDefault();
     if (!selectedPlan) return;
@@ -90,10 +94,15 @@ export const MembershipsPage = () => {
         planId: selectedPlan._id,
         paymentMethod,
       });
-      if (res.success) {
-        toastSuccess(`Successfully subscribed to ${selectedPlan.name} Membership!`, 'Membership Active');
+      if (res.success && res.data) {
         setIsSubscribeOpen(false);
-        fetchData();
+        if (selectedPlan.price > 0) {
+          setPendingMembership(res.data);
+          setPaymentModalOpen(true);
+        } else {
+          toastSuccess(`Successfully subscribed to ${selectedPlan.name} Membership!`, 'Membership Active');
+          fetchData();
+        }
       }
     } catch (err) {
       toastError(err.response?.data?.message || 'Failed to process subscription');
@@ -341,7 +350,7 @@ export const MembershipsPage = () => {
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', color: '#17263B' }}>
                         <CheckCircle2 size={16} color="#8FAF98" />
-                        <span><strong>2 Bookings / Day</strong> Max Allocation</span>
+                        <span><strong>Unlimited Court Bookings</strong> Allocation</span>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', color: '#17263B' }}>
@@ -510,6 +519,33 @@ export const MembershipsPage = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Reusable Payment Modal for Membership Subscription */}
+      <PaymentModal
+        isOpen={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        amount={selectedPlan?.price || pendingMembership?.amountPaid || 0}
+        purpose="MEMBERSHIP"
+        referenceId={pendingMembership?._id}
+        title="Activate Membership Plan"
+        subtitle={`${selectedPlan?.name} Plan • ${selectedPlan?.durationInDays || 365} Days Validity`}
+        itemDetails={{
+          planName: selectedPlan?.name,
+          duration: `${selectedPlan?.durationInDays || 365} Days`,
+          courtDiscount: `${selectedPlan?.courtDiscount || selectedPlan?.benefits?.courtDiscount || 0}% OFF`,
+          shopDiscount: `${selectedPlan?.shopDiscount || selectedPlan?.benefits?.shopDiscount || 0}% OFF`,
+          cafeDiscount: `${selectedPlan?.canteenDiscount || selectedPlan?.benefits?.cafeDiscount || 0}% OFF`,
+          totalAmount: `₹${Number(selectedPlan?.price || 0).toLocaleString('en-IN')}`,
+        }}
+        onSuccess={(payment) => {
+          toastSuccess(`Payment confirmed! Your ${selectedPlan?.name} membership is now active!`, 'Membership Activated');
+          setPaymentModalOpen(false);
+          fetchData();
+        }}
+        onFailure={() => {
+          toastError('Membership payment failed or was cancelled.');
+        }}
+      />
       </div>
     </DashboardLayout>
   );

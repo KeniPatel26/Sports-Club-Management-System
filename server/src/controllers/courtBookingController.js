@@ -170,20 +170,6 @@ export const createBooking = async (req, res, next) => {
 
     // 2. Member Booking Rules
     if (bookingType === 'MEMBER' && targetUserId) {
-      // Check max 2 bookings per day per member rule
-      const memberDailyCount = await Booking.countDocuments({
-        member: targetUserId,
-        date: { $gte: startOfDay, $lte: endOfDay },
-        status: { $in: ['CONFIRMED', 'CHECKED_IN', 'COMPLETED'] },
-      });
-
-      if (memberDailyCount >= 2) {
-        return sendError(res, {
-          statusCode: 400,
-          message: 'Member has reached the maximum allowance of 2 court bookings per day.',
-        });
-      }
-
       // Check active membership discount
       const activeMembership = await Membership.findOne({
         $or: [{ member: targetUserId }, { user: targetUserId }],
@@ -200,6 +186,9 @@ export const createBooking = async (req, res, next) => {
     }
 
     const finalAmount = Math.max(0, basePrice - discountApplied);
+    const isFree = finalAmount === 0;
+    const initialPaymentStatus = req.body.paymentStatus || (isFree ? 'PAID' : 'PENDING');
+    const initialStatus = initialPaymentStatus === 'PAID' ? 'CONFIRMED' : 'PENDING';
 
     const booking = await Booking.create({
       court: courtId,
@@ -213,9 +202,9 @@ export const createBooking = async (req, res, next) => {
       price: basePrice,
       discountApplied,
       finalAmount,
-      paymentMethod: finalAmount === 0 ? 'MEMBERSHIP_INCLUDED' : paymentMethod,
-      paymentStatus: finalAmount === 0 ? 'PAID' : 'PAID',
-      status: 'CONFIRMED',
+      paymentMethod: isFree ? 'MEMBERSHIP_INCLUDED' : paymentMethod,
+      paymentStatus: initialPaymentStatus,
+      status: initialStatus,
       bookedBy: req.user._id,
     });
 

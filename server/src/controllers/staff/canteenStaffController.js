@@ -379,15 +379,21 @@ export const settleCanteenTab = async (req, res) => {
       paymentMethod: method,
     });
 
+    const transactionId = `TXN-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
     const payment = await Payment.create({
       paymentId: `PAY-CAN-${Date.now().toString().slice(-6)}`,
+      transactionId,
       user: order.member || null,
       customerName: order.customerName,
       type: 'CANTEEN',
+      purpose: 'CANTEEN_ORDER',
+      purposeRef: 'Order',
       amount: order.total,
       method,
-      status: 'SUCCESS',
-      referenceId: invoiceNumber,
+      paymentMethod: method,
+      status: 'PAID',
+      referenceId: order._id,
+      paidAt: new Date(),
       notes: `Canteen settlement for Table ${order.tableNumber || 'Counter'}`,
     });
 

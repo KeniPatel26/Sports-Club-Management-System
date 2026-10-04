@@ -75,20 +75,18 @@ export const subscribeMembership = async (req, res, next) => {
     const startDate = new Date();
     const expiryDate = new Date(startDate.getTime() + plan.durationInDays * 24 * 60 * 60 * 1000);
 
-    // Deactivate previous active memberships for this member
-    await Membership.updateMany(
-      { member: targetUserId, status: 'ACTIVE' },
-      { status: 'EXPIRED' }
-    );
+    const isFree = Number(plan.price || 0) === 0;
+    const initialPaymentStatus = req.body.paymentStatus || (isFree ? 'PAID' : 'PENDING');
+    const initialStatus = initialPaymentStatus === 'PAID' ? 'ACTIVE' : 'PENDING';
 
     const membership = await Membership.create({
       member: targetUserId,
       plan: plan._id,
       startDate,
       expiryDate,
-      status: 'ACTIVE',
+      status: initialStatus,
       autoRenew,
-      paymentStatus: 'PAID',
+      paymentStatus: initialPaymentStatus,
       amountPaid: plan.price,
     });
 

@@ -414,7 +414,7 @@ export const Dashboard = () => {
               <strong>2. Anti-Conflict Booking</strong>
             </div>
             <p style={{ margin: 0, fontSize: '0.825rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-              1-hour slots opening every 30 mins, 2 bookings/day max limit, and unified reservation engine replacing WhatsApp chaos.
+              1-hour slots opening every 30 mins, unlimited member reservations, and unified reservation engine replacing WhatsApp chaos.
             </p>
           </div>
 

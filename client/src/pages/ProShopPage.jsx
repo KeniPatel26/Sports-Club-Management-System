@@ -32,6 +32,7 @@ import Loader from '../components/ui/Loader';
 import shopCanteenService from '../services/shopCanteenService';
 import membershipService from '../services/membershipService';
 import { readSavedCart, saveCart } from '../utils/cartStorage';
+import PaymentModal from '../components/payment/PaymentModal';
 
 const money = (amount) => `₹${Number(amount || 0).toLocaleString('en-IN')}`;
 
@@ -176,6 +177,9 @@ export const ProShopPage = () => {
   const totalAmount = Math.max(0, subtotal - discountAmount);
   const totalItemsCount = cart.reduce((sum, i) => sum + i.quantity, 0);
 
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [pendingOrder, setPendingOrder] = useState(null);
+
   const handleCheckout = async () => {
     if (cart.length === 0) return;
 
@@ -194,12 +198,18 @@ export const ProShopPage = () => {
         paymentMethod,
       };
 
-      await shopCanteenService.createOrder(orderPayload);
-      toastSuccess('Order placed successfully! Inventory updated.');
-      setCart([]);
+      const res = await shopCanteenService.createOrder(orderPayload);
       setCartOpen(false);
-      fetchProducts();
-      fetchOrders();
+
+      if (res.data?._id && (res.data.total > 0 || totalAmount > 0)) {
+        setPendingOrder(res.data);
+        setPaymentModalOpen(true);
+      } else {
+        toastSuccess('Order placed successfully! Inventory updated.');
+        setCart([]);
+        fetchProducts();
+        fetchOrders();
+      }
     } catch (err) {
       toastError(err.response?.data?.message || 'Checkout failed. Please try again.');
     } finally {
@@ -749,6 +759,35 @@ export const ProShopPage = () => {
           />
         </form>
       </Modal>
+
+      {/* Reusable Payment Modal for Pro Shop Checkout */}
+      <PaymentModal
+        isOpen={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        amount={pendingOrder?.total || totalAmount}
+        purpose="SHOP_ORDER"
+        referenceId={pendingOrder?._id}
+        title="Pro Gear Shop Checkout"
+        subtitle={`Order #${String(pendingOrder?._id || '').slice(-6).toUpperCase()} • ${fulfillment === 'delivery' ? 'Home Delivery' : 'Club Pickup'}`}
+        itemDetails={{
+          itemsCount: `${cart.length} item(s)`,
+          fulfillment: fulfillment === 'delivery' ? 'Express Home Delivery' : 'Pro Shop Counter Pickup',
+          subtotal: money(subtotal),
+          memberSavings: discountRate > 0 ? `${discountRate}% OFF (−${money(discountAmount)})` : 'None',
+          totalAmount: money(pendingOrder?.total || totalAmount),
+        }}
+        onSuccess={(payment) => {
+          toastSuccess('Order paid and confirmed! Inventory updated.', 'Payment Successful');
+          setCart([]);
+          setPaymentModalOpen(false);
+          fetchProducts();
+          fetchOrders();
+          setShowOrders(true);
+        }}
+        onFailure={() => {
+          toastError('Payment failed. Cart items restored.');
+        }}
+      />
     </DashboardLayout>
   );
 };
