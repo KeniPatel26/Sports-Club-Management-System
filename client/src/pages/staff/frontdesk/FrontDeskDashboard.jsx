@@ -41,6 +41,7 @@ import courtBookingService from '../../../services/courtBookingService';
 import { useAuth } from '../../../context/AuthContext';
 import Loader from '../../../components/ui/Loader';
 import Alert from '../../../components/ui/Alert';
+import FilterDropdown from '../../../components/ui/FilterDropdown';
 
 export const FrontDeskDashboard = () => {
   const { user } = useAuth();
@@ -673,7 +674,7 @@ export const FrontDeskDashboard = () => {
   return (
     <div style={{ padding: '1.5rem', maxWidth: '1440px', margin: '0 auto', fontFamily: 'var(--font-family-body)' }}>
       {/* ======================================================== */}
-      {/* 1. TOP HEADER & GLOBAL SEARCH BAR */}
+      {/* 1. DYNAMIC PAGE HEADER & SEARCH BAR */}
       {/* ======================================================== */}
       <div
         style={{
@@ -682,60 +683,32 @@ export const FrontDeskDashboard = () => {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '1rem',
-          marginBottom: '1.25rem',
+          marginBottom: '1.5rem',
         }}
       >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            {activeTab === 'courts' && <Calendar size={24} color="var(--primary-navy)" />}
-            {activeTab === 'members' && <Users size={24} color="var(--primary-navy)" />}
-            {activeTab === 'bookings' && <CheckCircle size={24} color="var(--primary-navy)" />}
-            {activeTab === 'payments' && <Receipt size={24} color="var(--primary-navy)" />}
-            {activeTab === 'notifications' && <Bell size={24} color="var(--primary-navy)" />}
-            {activeTab === 'dashboard' && <Building2 size={24} color="var(--primary-navy)" />}
-            <h1
-              style={{
-                fontSize: '1.65rem',
-                fontWeight: 800,
-                color: 'var(--text-main)',
-                fontFamily: 'var(--font-family-display)',
-                margin: 0,
-              }}
-            >
-              {activeTab === 'courts' && 'Court Availability Matrix'}
-              {activeTab === 'members' && 'Member Directory & Quick Booking'}
-              {activeTab === 'bookings' && "Today's Bookings & Sessions"}
-              {activeTab === 'payments' && 'Booking Payments & Receipts'}
-              {activeTab === 'notifications' && 'Operational Notifications'}
-              {activeTab === 'dashboard' && 'Front Desk Operations'}
-            </h1>
-            <span
-              style={{
-                fontSize: '0.725rem',
-                fontWeight: 800,
-                backgroundColor: 'var(--lavender)',
-                color: 'var(--primary-navy)',
-                padding: '2px 8px',
-                borderRadius: 'var(--radius-full)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              {activeTab === 'courts' && 'SCHEDULE MATRIX'}
-              {activeTab === 'members' && 'MEMBERS'}
-              {activeTab === 'bookings' && 'SESSIONS'}
-              {activeTab === 'payments' && 'RECEIPTS'}
-              {activeTab === 'notifications' && 'ALERTS'}
-              {activeTab === 'dashboard' && 'DASHBOARD'}
-            </span>
-          </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0.2rem 0 0 0' }}>
-            {activeTab === 'courts' && 'Live 30-minute court schedule, status indicators, and 1-click slot reservation'}
-            {activeTab === 'members' && 'Search active club members, verify quotas and membership tier discounts'}
-            {activeTab === 'bookings' && "Manage daily court bookings, player check-in/out, no-shows, and reschedules"}
-            {activeTab === 'payments' && 'Real-time payment verification, invoices, and transaction ledger'}
-            {activeTab === 'notifications' && 'Real-time operational alerts for court maintenance, cancellations, and reschedules'}
-            {activeTab === 'dashboard' && `Logged in as ${user?.firstName || 'Receptionist'} • Real-time court dispatch & customer reception`}
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {activeTab === 'courts' && <Calendar size={28} color="var(--primary-navy)" />}
+          {activeTab === 'members' && <Users size={28} color="var(--primary-navy)" />}
+          {activeTab === 'bookings' && <CheckCircle size={28} color="var(--primary-navy)" />}
+          {activeTab === 'payments' && <Receipt size={28} color="var(--primary-navy)" />}
+          {activeTab === 'notifications' && <Bell size={28} color="var(--primary-navy)" />}
+          {activeTab === 'dashboard' && <Building2 size={28} color="var(--primary-navy)" />}
+          <h1
+            style={{
+              fontSize: '1.75rem',
+              fontWeight: 800,
+              color: 'var(--text-main)',
+              fontFamily: 'var(--font-family-display)',
+              margin: 0,
+            }}
+          >
+            {activeTab === 'courts' && 'Court Availability Matrix'}
+            {activeTab === 'members' && 'Member Directory'}
+            {activeTab === 'bookings' && "Today's Bookings"}
+            {activeTab === 'payments' && 'Booking Payments'}
+            {activeTab === 'notifications' && 'Operational Alerts'}
+            {activeTab === 'dashboard' && 'Front Desk Dashboard'}
+          </h1>
         </div>
 
         {/* Global Search Header Input */}
@@ -750,7 +723,7 @@ export const FrontDeskDashboard = () => {
                 width: '100%',
                 padding: '0.55rem 0.85rem 0.55rem 2.2rem',
                 borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border)',
+                border: '1px solid #CBD5E1',
                 backgroundColor: '#FFFFFF',
                 fontSize: '0.825rem',
                 outline: 'none',
@@ -843,69 +816,6 @@ export const FrontDeskDashboard = () => {
               )}
             </div>
           )}
-        </div>
-
-        {/* Right Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-          {/* Shift Attendance Card */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              backgroundColor: '#FFFFFF',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '0.4rem 0.75rem',
-            }}
-          >
-            <div
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: checkedIn ? 'var(--success)' : 'var(--danger)',
-              }}
-            />
-            <span style={{ fontSize: '0.775rem', fontWeight: 600, color: 'var(--text-main)' }}>
-              Shift: 09:00 - 17:00 {checkedIn && `(In: ${checkInTime})`}
-            </span>
-            <button
-              onClick={handleAttendanceToggle}
-              style={{
-                border: 'none',
-                background: checkedIn ? 'var(--light-danger)' : 'var(--light-green)',
-                color: checkedIn ? 'var(--danger)' : 'var(--success)',
-                fontSize: '0.725rem',
-                fontWeight: 700,
-                padding: '2px 7px',
-                borderRadius: 'var(--radius-sm)',
-                cursor: 'pointer',
-              }}
-            >
-              {checkedIn ? 'Check Out' : 'Check In'}
-            </button>
-          </div>
-
-          <button
-            onClick={handleOpenClosing}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.5rem 0.85rem',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: '#FFFFFF',
-              border: '1px solid var(--border)',
-              color: 'var(--text-main)',
-              fontSize: '0.825rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            <FileText size={15} color="var(--primary-peach)" />
-            Shift Closing
-          </button>
         </div>
       </div>
 
@@ -1091,7 +1001,7 @@ export const FrontDeskDashboard = () => {
                 gap: '0.45rem',
                 padding: '0.6rem 1.15rem',
                 borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--primary-navy)',
+                backgroundColor: 'var(--primary)',
                 border: 'none',
                 color: '#FFFFFF',
                 fontSize: '0.85rem',
@@ -1131,12 +1041,13 @@ export const FrontDeskDashboard = () => {
                 gap: '0.45rem',
                 padding: '0.6rem 1.15rem',
                 borderRadius: 'var(--radius-md)',
-                backgroundColor: '#FFFFFF',
-                border: '1px solid var(--border)',
-                color: 'var(--text-main)',
+                backgroundColor: '#F1F4F9',
+                border: '1px solid #CBD5E1',
+                color: '#1E293B',
                 fontSize: '0.85rem',
                 fontWeight: 700,
                 cursor: 'pointer',
+                transition: 'all 0.2s ease',
               }}
             >
               <Calendar size={16} color="var(--primary-peach)" />
@@ -1151,12 +1062,13 @@ export const FrontDeskDashboard = () => {
                 gap: '0.45rem',
                 padding: '0.6rem 1.15rem',
                 borderRadius: 'var(--radius-md)',
-                backgroundColor: '#FFFFFF',
-                border: '1px solid var(--border)',
-                color: 'var(--text-main)',
+                backgroundColor: '#F1F4F9',
+                border: '1px solid #CBD5E1',
+                color: '#1E293B',
                 fontSize: '0.85rem',
                 fontWeight: 700,
                 cursor: 'pointer',
+                transition: 'all 0.2s ease',
               }}
             >
               <Search size={16} color="var(--primary-navy)" />
@@ -1201,35 +1113,14 @@ export const FrontDeskDashboard = () => {
                 </p>
               </div>
 
-              {/* Status Filters Chips */}
-              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                {[
-                  { id: 'ALL', label: 'All' },
-                  { id: 'UPCOMING', label: 'Upcoming' },
-                  { id: 'CHECKED_IN', label: 'Checked-in' },
-                  { id: 'COMPLETED', label: 'Completed' },
-                  { id: 'CANCELLED', label: 'Cancelled' },
-                  { id: 'NO_SHOW', label: 'No-show' },
-                ].map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => setBookingFilter(f.id)}
-                    style={{
-                      padding: '0.35rem 0.75rem',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border)',
-                      backgroundColor: bookingFilter === f.id ? 'var(--primary-navy)' : '#FFFFFF',
-                      color: bookingFilter === f.id ? '#FFFFFF' : 'var(--text-muted)',
-                      fontSize: '0.775rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      transition: 'var(--transition)',
-                    }}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
+              <FilterDropdown label="Booking status" value={bookingFilter} onChange={(event) => setBookingFilter(event.target.value)} options={[
+                { value: 'ALL', label: 'All bookings' },
+                { value: 'UPCOMING', label: 'Upcoming' },
+                { value: 'CHECKED_IN', label: 'Checked-in' },
+                { value: 'COMPLETED', label: 'Completed' },
+                { value: 'CANCELLED', label: 'Cancelled' },
+                { value: 'NO_SHOW', label: 'No-show' },
+              ]} />
             </div>
 
             <div style={{ overflowX: 'auto' }}>
@@ -1360,7 +1251,7 @@ export const FrontDeskDashboard = () => {
                               <button
                                 onClick={() => handleStatusUpdate(item.id, 'COMPLETED')}
                                 style={{
-                                  backgroundColor: 'var(--primary-navy)',
+                                  backgroundColor: 'var(--primary)',
                                   border: 'none',
                                   color: '#FFFFFF',
                                   padding: '4px 8px',
@@ -1538,7 +1429,7 @@ export const FrontDeskDashboard = () => {
                   padding: '0.45rem 0.85rem',
                   borderRadius: 'var(--radius-md)',
                   border: '1px solid var(--border)',
-                  backgroundColor: gridDate === new Date().toISOString().split('T')[0] ? 'var(--primary-navy)' : '#FFFFFF',
+                  backgroundColor: gridDate === new Date().toISOString().split('T')[0] ? 'var(--primary)' : '#FFFFFF',
                   color: gridDate === new Date().toISOString().split('T')[0] ? '#FFFFFF' : 'var(--text-main)',
                   fontSize: '0.775rem',
                   fontWeight: 700,
@@ -1577,44 +1468,17 @@ export const FrontDeskDashboard = () => {
               marginBottom: '1rem',
             }}
           >
-            {/* Court Filter Chips */}
-            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => setCourtFilter('ALL')}
-                style={{
-                  padding: '0.35rem 0.75rem',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border)',
-                  backgroundColor: courtFilter === 'ALL' ? 'var(--primary-navy)' : 'var(--bg-main)',
-                  color: courtFilter === 'ALL' ? '#FFFFFF' : 'var(--text-muted)',
-                  fontSize: '0.775rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                All Courts
-              </button>
-              {courts.map((c) => {
-                const isSelected = courtFilter === (c._id || c.id);
-                return (
-                  <button
-                    key={c._id || c.id}
-                    onClick={() => setCourtFilter(c._id || c.id)}
-                    style={{
-                      padding: '0.35rem 0.75rem',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border)',
-                      backgroundColor: isSelected ? 'var(--primary-navy)' : 'var(--bg-main)',
-                      color: isSelected ? '#FFFFFF' : 'var(--text-muted)',
-                      fontSize: '0.775rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {c.name}
-                  </button>
-                );
-              })}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <FilterDropdown label="Court" value={courtFilter} onChange={(event) => setCourtFilter(event.target.value)} options={[
+                { value: 'ALL', label: 'All courts' },
+                ...courts.map((court) => ({ value: court._id || court.id, label: court.name })),
+              ]} />
+              <FilterDropdown label="Availability" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} options={[
+                { value: 'ALL', label: 'All statuses' },
+                { value: 'AVAILABLE', label: 'Available' },
+                { value: 'BOOKED', label: 'Booked' },
+                { value: 'MAINTENANCE', label: 'Maintenance' },
+              ]} />
             </div>
 
             {/* Status Filters & Legend */}
@@ -2127,33 +1991,14 @@ export const FrontDeskDashboard = () => {
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-              {[
-                { id: 'ALL', label: 'All Bookings' },
-                { id: 'UPCOMING', label: 'Upcoming' },
-                { id: 'CHECKED_IN', label: 'In Play' },
-                { id: 'COMPLETED', label: 'Completed' },
-                { id: 'CANCELLED', label: 'Cancelled' },
-                { id: 'NO_SHOW', label: 'No-show' },
-              ].map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => setBookingFilter(f.id)}
-                  style={{
-                    padding: '0.4rem 0.85rem',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border)',
-                    backgroundColor: bookingFilter === f.id ? 'var(--primary-navy)' : '#FFFFFF',
-                    color: bookingFilter === f.id ? '#FFFFFF' : 'var(--text-muted)',
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
+            <FilterDropdown label="Booking status" value={bookingFilter} onChange={(event) => setBookingFilter(event.target.value)} options={[
+              { value: 'ALL', label: 'All bookings' },
+              { value: 'UPCOMING', label: 'Upcoming' },
+              { value: 'CHECKED_IN', label: 'In play' },
+              { value: 'COMPLETED', label: 'Completed' },
+              { value: 'CANCELLED', label: 'Cancelled' },
+              { value: 'NO_SHOW', label: 'No-show' },
+            ]} />
           </div>
 
           <div style={{ overflowX: 'auto' }}>
@@ -2279,7 +2124,7 @@ export const FrontDeskDashboard = () => {
                             <button
                               onClick={() => handleStatusUpdate(item.id, 'COMPLETED')}
                               style={{
-                                backgroundColor: 'var(--primary-navy)',
+                                backgroundColor: 'var(--primary)',
                                 border: 'none',
                                 color: '#FFFFFF',
                                 padding: '4px 8px',
@@ -2898,7 +2743,7 @@ export const FrontDeskDashboard = () => {
                               padding: '0.4rem 0.25rem',
                               borderRadius: 'var(--radius-sm)',
                               border: isSelected ? '2px solid var(--primary-navy)' : '1px solid var(--border)',
-                              backgroundColor: isSelected ? 'var(--primary-navy)' : '#FFFFFF',
+                              backgroundColor: isSelected ? 'var(--primary)' : '#FFFFFF',
                               color: isSelected ? '#FFFFFF' : 'var(--text-main)',
                               fontSize: '0.75rem',
                               fontWeight: 800,
@@ -3185,7 +3030,7 @@ export const FrontDeskDashboard = () => {
                 onClick={() => setConfirmedBookingData(null)}
                 style={{
                   padding: '0.75rem',
-                  backgroundColor: 'var(--primary-navy)',
+                  backgroundColor: 'var(--primary)',
                   border: 'none',
                   borderRadius: 'var(--radius-md)',
                   fontWeight: 700,
@@ -3355,7 +3200,7 @@ export const FrontDeskDashboard = () => {
                   onClick={() => handleStatusUpdate(selectedBookingDrawer.id, 'COMPLETED')}
                   style={{
                     padding: '0.75rem',
-                    backgroundColor: 'var(--primary-navy)',
+                    backgroundColor: 'var(--primary)',
                     color: '#FFFFFF',
                     border: 'none',
                     borderRadius: 'var(--radius-md)',
@@ -3589,7 +3434,7 @@ export const FrontDeskDashboard = () => {
                 style={{
                   width: '100%',
                   padding: '0.75rem',
-                  backgroundColor: 'var(--primary-navy)',
+                  backgroundColor: 'var(--primary)',
                   color: '#FFFFFF',
                   border: 'none',
                   borderRadius: 'var(--radius-md)',
@@ -3835,7 +3680,7 @@ export const FrontDeskDashboard = () => {
               style={{
                 width: '100%',
                 padding: '0.85rem',
-                backgroundColor: 'var(--primary-navy)',
+                backgroundColor: 'var(--primary)',
                 border: 'none',
                 color: '#FFFFFF',
                 borderRadius: 'var(--radius-md)',

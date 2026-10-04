@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Plus,
 } from 'lucide-react';
+import ChartCard from '../../components/ui/ChartCard';
 
 export const ManagerDashboard = () => {
   const { user } = useAuth();
@@ -355,51 +356,12 @@ export const ManagerDashboard = () => {
             </Link>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {/* Membership */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.35rem' }}>
-                <span style={{ color: '#354962' }}>Membership Plans (45%)</span>
-                <span style={{ color: '#17263B' }}>₹{revenueBreakdown.membership?.toLocaleString('en-IN')}</span>
-              </div>
-              <div style={{ height: '8px', backgroundColor: '#F4F6FC', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: '45%', backgroundColor: '#D98E68', borderRadius: '4px' }} />
-              </div>
-            </div>
-
-            {/* Court */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.35rem' }}>
-                <span style={{ color: '#354962' }}>Court & Turf Bookings (24%)</span>
-                <span style={{ color: '#17263B' }}>₹{revenueBreakdown.court?.toLocaleString('en-IN')}</span>
-              </div>
-              <div style={{ height: '8px', backgroundColor: '#F4F6FC', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: '24%', backgroundColor: '#8FAF98', borderRadius: '4px' }} />
-              </div>
-            </div>
-
-            {/* Shop */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.35rem' }}>
-                <span style={{ color: '#354962' }}>Sports Pro-Shop (18%)</span>
-                <span style={{ color: '#17263B' }}>₹{revenueBreakdown.shop?.toLocaleString('en-IN')}</span>
-              </div>
-              <div style={{ height: '8px', backgroundColor: '#F4F6FC', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: '18%', backgroundColor: '#38bdf8', borderRadius: '4px' }} />
-              </div>
-            </div>
-
-            {/* Canteen */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.35rem' }}>
-                <span style={{ color: '#354962' }}>Canteen & Bar Lounge (13%)</span>
-                <span style={{ color: '#17263B' }}>₹{revenueBreakdown.canteen?.toLocaleString('en-IN')}</span>
-              </div>
-              <div style={{ height: '8px', backgroundColor: '#F4F6FC', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: '13%', backgroundColor: '#F0B08E', borderRadius: '4px' }} />
-              </div>
-            </div>
-          </div>
+          <ChartCard bare type="bar" height={230} currency data={[
+            { label: 'Membership', value: revenueBreakdown.membership, color: '#D98E68' },
+            { label: 'Courts', value: revenueBreakdown.court, color: '#8FAF98' },
+            { label: 'Shop', value: revenueBreakdown.shop, color: '#38bdf8' },
+            { label: 'Canteen', value: revenueBreakdown.canteen, color: '#F0B08E' },
+          ]} />
         </div>
 
         {/* Court Utilization */}
@@ -423,26 +385,7 @@ export const ManagerDashboard = () => {
             </Link>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {courtUtilization.map((c, i) => (
-              <div key={i}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.35rem' }}>
-                  <span style={{ color: '#354962' }}>{c.name}</span>
-                  <span style={{ color: c.utilization > 80 ? '#D98E68' : '#8FAF98' }}>{c.utilization}%</span>
-                </div>
-                <div style={{ height: '8px', backgroundColor: '#F4F6FC', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div
-                    style={{
-                      height: '100%',
-                      width: `${c.utilization}%`,
-                      backgroundColor: c.utilization > 80 ? '#D98E68' : '#8FAF98',
-                      borderRadius: '4px',
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+          <ChartCard bare type="bar" horizontal height={230} data={courtUtilization.map((c) => ({ label: c.name, value: c.utilization, color: c.utilization > 80 ? '#D98E68' : '#8FAF98' }))} />
         </div>
       </div>
 

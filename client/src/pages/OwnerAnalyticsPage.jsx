@@ -22,6 +22,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Loader from '../components/ui/Loader';
+import ChartCard from '../components/ui/ChartCard';
 
 export const OwnerAnalyticsPage = () => {
   const { user } = useAuth();
@@ -216,6 +217,12 @@ export const OwnerAnalyticsPage = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.75rem', marginBottom: '2rem' }}>
         {/* Stream Breakdown */}
         <Card title="Revenue Channels Breakdown">
+          <ChartCard bare type="doughnut" height={220} showLegend currency data={[
+            { label: 'Memberships', value: membershipRevenue, color: '#D9A65D' },
+            { label: 'Courts', value: courtRevenue, color: '#38bdf8' },
+            { label: 'Pro shop', value: shopRevenue, color: '#8FAF98' },
+            { label: 'Canteen', value: canteenRevenue, color: '#F0B08E' },
+          ]} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.875rem' }}>
@@ -309,6 +316,12 @@ export const OwnerAnalyticsPage = () => {
 
         {/* Payment Channels (UPI, Card, Cash, Online) */}
         <Card title="Payment Methods Distribution">
+          <ChartCard bare type="pie" height={220} showLegend currency data={[
+            { label: 'UPI / QR', value: paymentMethods.upi || 0, color: '#6366f1' },
+            { label: 'Card', value: paymentMethods.card || 0, color: '#10b981' },
+            { label: 'Cash', value: paymentMethods.cash || 0, color: '#f59e0b' },
+            { label: 'Online', value: paymentMethods.online || 0, color: '#8b5cf6' },
+          ]} />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
             <div style={{ padding: '1rem', background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)' }}>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>

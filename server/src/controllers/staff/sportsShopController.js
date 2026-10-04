@@ -87,7 +87,7 @@ export const getShopOverview = async (req, res) => {
 export const getShopProducts = async (req, res) => {
   try {
     const { search = '', category, sku = '' } = req.query;
-    const query = { type: 'sports', isAvailable: true };
+    const query = { type: 'sports' };
 
     if (category && category !== 'ALL') {
       query.category = category;
@@ -118,6 +118,66 @@ export const getShopProducts = async (req, res) => {
       message: 'Failed to fetch products',
       error: error.message,
     });
+  }
+};
+
+const normalizeProductInput = (input, { partial = false } = {}) => {
+  const fields = ['name', 'category', 'sku', 'brand', 'description', 'price', 'stock', 'lowStockThreshold', 'image', 'isAvailable'];
+  const product = {};
+  for (const field of fields) {
+    if (input[field] !== undefined) product[field] = input[field];
+  }
+  if (!partial) product.type = 'sports';
+  if (product.name !== undefined) product.name = String(product.name).trim();
+  if (product.category !== undefined) product.category = String(product.category).trim() || 'General';
+  if (product.sku !== undefined) product.sku = String(product.sku).trim();
+  if (product.brand !== undefined) product.brand = String(product.brand).trim();
+  if (product.description !== undefined) product.description = String(product.description).trim();
+  for (const field of ['price', 'stock', 'lowStockThreshold']) {
+    if (product[field] !== undefined) product[field] = Number(product[field]);
+  }
+  return product;
+};
+
+export const createShopProduct = async (req, res) => {
+  try {
+    const productData = normalizeProductInput(req.body);
+    if (!productData.name || !Number.isFinite(productData.price) || productData.price < 0) {
+      return res.status(400).json({ success: false, message: 'Product name and a valid price are required.' });
+    }
+    const product = await Product.create(productData);
+    return res.status(201).json({ success: true, message: 'Sports shop product created.', data: product });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message || 'Failed to create product.' });
+  }
+};
+
+export const updateShopProduct = async (req, res) => {
+  try {
+    const productData = normalizeProductInput(req.body, { partial: true });
+    const product = await Product.findOneAndUpdate(
+      { _id: req.params.id, type: 'sports' },
+      { $set: productData },
+      { new: true, runValidators: true }
+    );
+    if (!product) return res.status(404).json({ success: false, message: 'Sports shop product not found.' });
+    return res.status(200).json({ success: true, message: 'Sports shop product updated.', data: product });
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message || 'Failed to update product.' });
+  }
+};
+
+export const archiveShopProduct = async (req, res) => {
+  try {
+    const product = await Product.findOneAndUpdate(
+      { _id: req.params.id, type: 'sports' },
+      { $set: { isAvailable: false } },
+      { new: true }
+    );
+    if (!product) return res.status(404).json({ success: false, message: 'Sports shop product not found.' });
+    return res.status(200).json({ success: true, message: 'Product marked unavailable.', data: product });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to update product availability.' });
   }
 };
 
@@ -274,57 +334,74 @@ export const processCounterSale = async (req, res) => {
       paymentMethod = 'UPI',
     } = req.body;
 
-    if (!items || items.length === 0) {
+    if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Cart is empty. Please select products.',
       });
     }
 
+    const cartQuantities = new Map();
+    for (const item of items) {
+      const quantity = Number(item.quantity);
+      if (!item.productId || !Number.isInteger(quantity) || quantity < 1) {
+        return res.status(400).json({ success: false, message: 'Each cart item must have a valid product and quantity.' });
+      }
+      cartQuantities.set(item.productId, (cartQuantities.get(item.productId) || 0) + quantity);
+    }
+
     let subtotal = 0;
     const orderItems = [];
 
-    // Step 1: Pre-validate stock availability for all cart items
-    for (const it of items) {
-      const product = await Product.findById(it.productId);
+    // Validate the complete cart, including repeated product lines, before changing stock.
+    const cartProducts = [];
+    for (const [productId, quantity] of cartQuantities) {
+      const product = await Product.findOne({ _id: productId, type: 'sports', isAvailable: true });
       if (!product) {
         return res.status(404).json({
           success: false,
-          message: `Product ${it.name || ''} not found`,
+          message: 'A cart product was not found or is no longer available.',
         });
       }
 
-      if (product.stock < it.quantity) {
+      if (product.stock < quantity) {
         return res.status(400).json({
           success: false,
-          message: `Insufficient stock for ${product.name}. Requested: ${it.quantity}, Available: ${product.stock}`,
+          message: `Insufficient stock for ${product.name}. Requested: ${quantity}, Available: ${product.stock}`,
         });
       }
+      cartProducts.push({ product, quantity });
     }
 
-    // Step 2: Atomic stock deduction & transaction log
-    for (const it of items) {
-      const product = await Product.findById(it.productId);
-      const itemTotal = product.price * it.quantity;
+    // Step 2: Deduct each cart line and record its inventory movement.
+    for (const { product, quantity } of cartProducts) {
+      const reservedProduct = await Product.findOneAndUpdate(
+        { _id: product._id, type: 'sports', isAvailable: true, stock: { $gte: quantity } },
+        { $inc: { stock: -quantity } },
+        { new: true }
+      );
+      if (!reservedProduct) {
+        return res.status(409).json({ success: false, message: `Stock changed while checking out ${product.name}. Refresh the cart and try again.` });
+      }
+      const itemTotal = product.price * quantity;
       subtotal += itemTotal;
 
       orderItems.push({
         product: product._id,
         name: product.name,
-        quantity: it.quantity,
+        quantity,
         price: product.price,
       });
 
       const prev = product.stock;
-      product.stock = prev - it.quantity;
-      await product.save();
+      product.stock = reservedProduct.stock;
 
       await InventoryTransaction.create({
         product: product._id,
         type: 'COUNTER_SALE',
-        quantity: -it.quantity,
+        quantity: -quantity,
         previousStock: prev,
-        newStock: product.stock,
+        newStock: reservedProduct.stock,
         notes: `Counter POS sale for ${customerName}`,
         performedBy: req.user._id,
       });
@@ -440,13 +517,17 @@ export const updateShopOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+    const nextStatus = String(status || '').toLowerCase();
+    if (!Order.schema.path('status').enumValues.includes(nextStatus)) {
+      return res.status(400).json({ success: false, message: 'Invalid shop order status.' });
+    }
 
-    const order = await Order.findById(id);
+    const order = await Order.findOne({ _id: id, type: 'sports' });
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    order.status = status.toLowerCase();
+    order.status = nextStatus;
     if (['completed', 'ready', 'ready_for_pickup', 'collected', 'delivered'].includes(order.status)) {
       order.paymentStatus = 'paid';
     }
@@ -475,9 +556,23 @@ export const processOrderReturn = async (req, res) => {
     const { id } = req.params;
     const { productId, quantity = 1, returnReason = 'Customer return', refundAmount = 0 } = req.body;
 
-    const order = await Order.findById(id);
+    const order = await Order.findOne({ _id: id, type: 'sports' });
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    if (!['completed', 'delivered', 'collected'].includes(order.status)) {
+      return res.status(400).json({ success: false, message: 'Only fulfilled orders can be returned.' });
+    }
+
+    const orderItem = order.items.find((item) => String(item.product) === String(productId));
+    const qty = Number(quantity);
+    const requestedRefund = Number(refundAmount);
+    if (!orderItem || !Number.isInteger(qty) || qty < 1 || qty > orderItem.quantity) {
+      return res.status(400).json({ success: false, message: 'Choose an item and return quantity from this order.' });
+    }
+    if (!Number.isFinite(requestedRefund) || requestedRefund < 0) {
+      return res.status(400).json({ success: false, message: 'Refund amount must be a valid non-negative number.' });
     }
 
     const product = await Product.findById(productId);
@@ -485,7 +580,6 @@ export const processOrderReturn = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
-    const qty = Number(quantity);
     const prevStock = product.stock;
     product.stock = prevStock + qty;
     await product.save();
@@ -507,7 +601,7 @@ export const processOrderReturn = async (req, res) => {
       isReturned: true,
       reason: returnReason,
       returnedAt: new Date(),
-      refundAmount: refundAmount || (product.price * qty),
+      refundAmount: requestedRefund || (orderItem.price * qty),
       processedBy: req.user._id,
     };
     await order.save();
@@ -677,4 +771,3 @@ export default {
   getShopPayments,
   reportLowStock,
 };
-

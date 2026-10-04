@@ -24,6 +24,7 @@ import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
 import Textarea from '../components/ui/Textarea';
 import Select from '../components/ui/Select';
+import FilterDropdown from '../components/ui/FilterDropdown';
 import Card from '../components/ui/Card';
 import projectService from '../services/projectService';
 import { useToast } from '../context/ToastContext';
@@ -380,44 +381,9 @@ export const ProjectsPage = () => {
           searchPlaceholder="Search projects by title, category..."
           onRowClick={(row) => navigate(`/projects/${row._id}`)}
           filterComponent={
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                style={{
-                  padding: '0.5rem 0.75rem',
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.85rem',
-                  color: 'var(--text-main)',
-                }}
-              >
-                {PROJECT_STATUSES.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={selectedPriority}
-                onChange={(e) => setSelectedPriority(e.target.value)}
-                style={{
-                  padding: '0.5rem 0.75rem',
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.85rem',
-                  color: 'var(--text-main)',
-                }}
-              >
-                {PRIORITIES.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <FilterDropdown label="Status" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} options={PROJECT_STATUSES} />
+              <FilterDropdown label="Priority" value={selectedPriority} onChange={(e) => setSelectedPriority(e.target.value)} options={PRIORITIES} />
             </div>
           }
         />

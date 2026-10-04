@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import authService from '../services/authService';
+import { isManagerRole, normalizeRole } from '../utils/roles';
 
 export const AuthContext = createContext();
 
@@ -104,9 +105,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
   };
 
-  const role = user?.role?.toUpperCase();
-  const department = user?.department?.toUpperCase();
-  const isManager = role === 'CLUB_MANAGER' || role === 'OWNER' || role === 'ADMIN';
+  const role = normalizeRole(user?.role);
+  const department = normalizeRole(user?.department);
+  const isManager = isManagerRole(role);
   const isOwner = isManager;
   const isFrontDesk = department === 'FRONT_DESK' || role === 'FRONT_DESK';
   const isShopStaff = department === 'SPORTS_SHOP' || role === 'SHOP_STAFF';

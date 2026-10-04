@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   Calendar,
@@ -77,7 +77,7 @@ const MemberDashboardView = ({ user, menuItems, bookings, loading, navigate }) =
 };
 
 export const Dashboard = () => {
-  const { user, isMember } = useAuth();
+  const { user, isMember, isManager } = useAuth();
   const navigate = useNavigate();
 
   const [courts, setCourts] = useState([]);
@@ -92,6 +92,7 @@ export const Dashboard = () => {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
+        if (isManager) return;
         if (isMember) {
           const [menuRes, bookingsRes] = await Promise.allSettled([
             shopCanteenService.getProducts({ type: 'canteen' }),
@@ -130,9 +131,10 @@ export const Dashboard = () => {
     };
 
     fetchDashboardData();
-  }, [isMember]);
+  }, [isMember, isManager]);
 
   const totalRev = financeOverview?.totalRevenue || 45200;
+  if (isManager) return <Navigate to="/manager/dashboard" replace />;
   if (isMember) {
     return <MemberDashboardView user={user} menuItems={canteenItems} bookings={memberBookings} loading={loading} navigate={navigate} />;
   }

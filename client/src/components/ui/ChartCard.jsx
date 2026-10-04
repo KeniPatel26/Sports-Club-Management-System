@@ -1,18 +1,76 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { Bar, Doughnut, Line, Pie } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  ArcElement,
+  BarElement,
+  CategoryScale,
+  Filler,
+  Legend,
+  LinearScale,
+  LineElement,
+  PointElement,
+  Tooltip,
+} from 'chart.js';
 import Card from './Card';
 
+ChartJS.register(
+  ArcElement,
+  BarElement,
+  CategoryScale,
+  Filler,
+  Legend,
+  LinearScale,
+  LineElement,
+  PointElement,
+  Tooltip,
+);
+
+const PALETTE = ['#D98E68', '#8FAF98', '#38bdf8', '#F0B08E', '#818cf8', '#f59e0b'];
+
+/** Shared Chart.js wrapper for dashboard and reporting charts. */
 export const ChartCard = ({
   title,
   subtitle,
   data = [],
-  type = 'bar', // 'bar' | 'line' | 'progress'
-  height = 200,
+  type = 'bar',
+  height = 220,
   action,
+  horizontal = false,
+  stacked = false,
+  currency = false,
+  showLegend,
+  bare = false,
 }) => {
-  const [hoveredIdx, setHoveredIdx] = useState(null);
+  const labels = Array.isArray(data) ? data.map((item) => item.label ?? item.name ?? '') : data.labels || [];
+  const values = Array.isArray(data) ? data.map((item) => Number(item.value ?? item.amount ?? 0)) : [];
+  const colors = Array.isArray(data) ? data.map((item, i) => item.color || PALETTE[i % PALETTE.length]) : PALETTE;
+  const chartData = Array.isArray(data)
+    ? { labels, datasets: [{ label: title, data: values, backgroundColor: type === 'line' ? 'rgba(56, 189, 248, .18)' : colors, borderColor: type === 'line' ? '#38bdf8' : colors, borderWidth: type === 'line' ? 2 : 1, borderRadius: type === 'bar' ? 6 : 0, pointBackgroundColor: '#38bdf8', pointRadius: 3, fill: type === 'line', tension: 0.35 }] }
+    : data;
 
-  // Calculate max value for auto scaling
-  const maxValue = Math.max(...data.map((d) => d.value || 0), 1);
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: horizontal ? 'y' : 'x',
+    plugins: {
+      legend: { display: showLegend ?? ['pie', 'doughnut'].includes(type), position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 16 } },
+      tooltip: { callbacks: { label: (context) => `${context.dataset.label ? `${context.dataset.label}: ` : ''}${currency ? '₹' : ''}${Number(horizontal ? context.parsed?.x : context.parsed?.y ?? context.parsed?.r ?? context.raw ?? 0).toLocaleString('en-IN')}` } },
+    },
+    scales: ['pie', 'doughnut'].includes(type) ? {} : {
+      x: { beginAtZero: true, stacked, grid: { display: horizontal }, ticks: { color: '#64748B', maxRotation: 0, autoSkip: true, callback: (value) => currency && horizontal ? `₹${Number(value).toLocaleString('en-IN')}` : value } },
+      y: { beginAtZero: true, stacked, grid: { color: 'rgba(100, 116, 139, .12)' }, ticks: { color: '#64748B', callback: (value) => currency && !horizontal ? `₹${Number(value).toLocaleString('en-IN')}` : value } },
+    },
+  };
+
+  const ChartComponent = { bar: Bar, line: Line, pie: Pie, doughnut: Doughnut }[type] || Bar;
+  const chart = (
+    <div style={{ height, minWidth: 0, position: 'relative' }}>
+      {labels.length ? <ChartComponent data={chartData} options={options} /> : <div style={{ height: '100%', display: 'grid', placeItems: 'center', color: 'var(--text-muted)', fontSize: '.875rem' }}>No chart data available</div>}
+    </div>
+  );
+
+  if (bare) return chart;
 
   return (
     <Card>
@@ -23,139 +81,7 @@ export const ChartCard = ({
         </div>
         {action && <div>{action}</div>}
       </Card.Header>
-
-      <Card.Content>
-        {type === 'bar' && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'flex-end',
-              justifyContent: 'space-between',
-              gap: '0.5rem',
-              height: `${height}px`,
-              paddingTop: '1.5rem',
-              borderBottom: '1px solid var(--border-color)',
-            }}
-          >
-            {data.map((item, idx) => {
-              const heightPercent = Math.max((item.value / maxValue) * 100, 4);
-              const isHovered = hoveredIdx === idx;
-
-              return (
-                <div
-                  key={item.label || idx}
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    height: '100%',
-                    justifyContent: 'flex-end',
-                    position: 'relative',
-                  }}
-                  onMouseEnter={() => setHoveredIdx(idx)}
-                  onMouseLeave={() => setHoveredIdx(null)}
-                >
-                  {/* Tooltip on hover */}
-                  {isHovered && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '-28px',
-                        background: 'var(--text-main)',
-                        color: 'var(--bg-main)',
-                        padding: '0.2rem 0.5rem',
-                        borderRadius: 'var(--radius-sm)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        whiteSpace: 'nowrap',
-                        zIndex: 10,
-                      }}
-                    >
-                      {item.label}: {item.value}
-                    </div>
-                  )}
-
-                  {/* Bar */}
-                  <div
-                    style={{
-                      width: '100%',
-                      maxWidth: '36px',
-                      height: `${heightPercent}%`,
-                      background: item.color || (isHovered ? 'var(--primary-hover)' : 'linear-gradient(180deg, var(--primary) 0%, #818cf8 100%)'),
-                      borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0',
-                      transition: 'all 0.25s ease',
-                      boxShadow: isHovered ? 'var(--shadow-glow)' : 'none',
-                    }}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {type === 'progress' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.5rem 0' }}>
-            {data.map((item, idx) => (
-              <div key={item.label || idx}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.35rem' }}>
-                  <span style={{ fontWeight: 600 }}>{item.label}</span>
-                  <span style={{ color: 'var(--text-muted)' }}>{item.value}%</span>
-                </div>
-                <div
-                  style={{
-                    width: '100%',
-                    height: '8px',
-                    backgroundColor: 'var(--bg-subtle)',
-                    borderRadius: 'var(--radius-full)',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: `${item.value}%`,
-                      height: '100%',
-                      background: item.color || 'var(--primary)',
-                      borderRadius: 'var(--radius-full)',
-                      transition: 'width 0.5s ease',
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Labels below chart */}
-        {type === 'bar' && (
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              marginTop: '0.6rem',
-              gap: '0.5rem',
-            }}
-          >
-            {data.map((item, idx) => (
-              <span
-                key={item.label || idx}
-                style={{
-                  flex: 1,
-                  textAlign: 'center',
-                  fontSize: '0.75rem',
-                  fontWeight: 500,
-                  color: 'var(--text-muted)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {item.label}
-              </span>
-            ))}
-          </div>
-        )}
-      </Card.Content>
+      <Card.Content>{chart}</Card.Content>
     </Card>
   );
 };

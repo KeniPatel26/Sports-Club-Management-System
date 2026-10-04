@@ -23,6 +23,7 @@ import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Loader from '../components/ui/Loader';
+import FilterDropdown from '../components/ui/FilterDropdown';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import shopCanteenService from '../services/shopCanteenService';
@@ -306,90 +307,64 @@ export const CanteenBarPage = () => {
               <Card.Title>Active Orders</Card.Title>
             </Card.Header>
             <Card.Content>
-            <div className="canteen-overview-stat">
-              <Clock3 size={18} />
-              <div>
-                <span>Active Orders</span>
-                <strong>{activeOrderCount}</strong>
-              </div>
-            </div>
-            </Card.Content>
-          </Card>
-
-          <Card>
-            <Card.Header>
-              <Card.Title>Open Bar Tabs</Card.Title>
-              <Card.Description>{activeTabs.length} active running bill(s)</Card.Description>
-            </Card.Header>
-            <Card.Content>
-              {activeTabs.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '1rem' }}>
-                  No open bar tabs currently.
-                </p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {activeTabs.map((tab) => (
-                    <div
-                      key={tab._id}
-                      style={{
-                        padding: '0.75rem',
-                        borderRadius: 'var(--radius-md)',
-                        background: 'var(--bg-subtle)',
-                        border: '1px solid var(--border-color)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 800 }}>{tab.tableNumber}</span>
-                        <Badge variant="warning">₹{tab.total}</Badge>
-                      </div>
-                      <p style={{ margin: '0.2rem 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                        Guest: {tab.customerName} &bull; {tab.items?.length} item(s)
-                      </p>
-                      {isStaffOrOwner && (
-                        <Button
-                          variant="success"
-                          size="sm"
-                          fullWidth
-                          onClick={() => handleSettleTab(tab._id)}
-                          style={{ marginTop: '0.4rem', fontSize: '0.75rem' }}
-                        >
-                          Settle Bill & Close Tab
-                        </Button>
-                      )}
-                    </div>
-                  ))}
+              <div className="canteen-overview-stat">
+                <Clock3 size={18} />
+                <div>
+                  <span>Active Orders</span>
+                  <strong>{activeOrderCount}</strong>
                 </div>
-              )}
+              </div>
             </Card.Content>
           </Card>
         </div>
 
         {/* Right: Menu Grid & Quick Add (2 cols) */}
         <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {/* Category Filter Pills */}
-          <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: '0.2rem' }}>
-            {menuCategories.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                className={`court-filter ${selectedCategory === cat ? 'is-active' : ''}`}
-                onClick={() => setSelectedCategory(cat)}
+
+        {/* Member Discount Banner */}
+        {discountRate > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.85rem 1.25rem',
+              marginBottom: '1.25rem',
+              borderRadius: 'var(--radius-md)',
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.04))',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              color: 'var(--text-main)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div
                 style={{
-                  padding: '0.45rem 0.95rem',
-                  borderRadius: 'var(--radius-full)',
-                  border: selectedCategory === cat ? '1px solid var(--primary)' : '1px solid var(--border-color)',
-                  background: selectedCategory === cat ? 'var(--primary)' : 'var(--bg-card)',
-                  color: selectedCategory === cat ? 'var(--primary-text)' : 'var(--text-main)',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  background: 'var(--color-success-bg, rgba(16, 185, 129, 0.2))',
+                  color: 'var(--color-success-text, #10b981)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                {cat === 'ALL' ? 'All Menu' : cat}
-              </button>
-            ))}
+                <Percent size={16} />
+              </div>
+              <div>
+                <strong style={{ display: 'block', fontSize: '0.92rem' }}>{userPlanName} Privilege</strong>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  {discountRate}% membership discount is automatically applied to your orders.
+                </span>
+              </div>
+            </div>
+            <Badge variant="success">{discountRate}% OFF</Badge>
           </div>
+        )}
+
+        {/* Search & Category Filter Section */}
+        <div className="commerce-toolbar">
+          <FilterDropdown label="Category" value={category} onChange={(event) => setCategory(event.target.value)} options={categories.map((cat) => ({ value: cat, label: cat === 'ALL' ? 'All menu items' : cat }))} />
 
           <div className="shop-search">
             <Search size={16} />
@@ -538,6 +513,7 @@ export const CanteenBarPage = () => {
             </Card>
           )}
         </section>
+        </div>
       </div>
 
       {/* Cart Modal */}

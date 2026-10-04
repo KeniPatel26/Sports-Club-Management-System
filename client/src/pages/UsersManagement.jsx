@@ -21,6 +21,7 @@ import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
+import FilterDropdown from '../components/ui/FilterDropdown';
 import userService from '../services/userService';
 import { formatDate } from '../utils/formatDate';
 import { USER_ROLES } from '../utils/constants';
@@ -282,24 +283,7 @@ export const UsersManagement = () => {
         loading={loading}
         searchPlaceholder="Search users by name, email, role..."
         filterComponent={
-          <select
-            value={selectedRole}
-            onChange={(e) => setSelectedRole(e.target.value)}
-            style={{
-              padding: '0.5rem 0.75rem',
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border-color)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '0.85rem',
-              color: 'var(--text-main)',
-            }}
-          >
-            {USER_ROLES.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-          </select>
+          <FilterDropdown label="Role" value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} options={USER_ROLES} />
         }
       />
 
