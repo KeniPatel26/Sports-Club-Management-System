@@ -3,6 +3,7 @@ import Booking from '../../models/Booking.js';
 import Membership from '../../models/Membership.js';
 import { sendSuccess, sendError } from '../../utils/apiResponse.js';
 import { logActivity } from '../../services/activityService.js';
+import { courtDiscountForPlan } from '../../utils/membershipDiscounts.js';
 
 const generateBookingCode = (id) => `CHAMP-BK-${id.toString().slice(-6).toUpperCase()}`;
 const generateQrUrl = (code) => `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${code}`;
@@ -273,7 +274,7 @@ export const getMemberCourtStats = async (req, res, next) => {
       const mem = await Membership.findOne({ member: memberId, status: 'ACTIVE' }).populate('plan');
       if (mem?.plan) {
         currentTier = mem.plan.name;
-        courtDiscount = mem.plan.courtDiscount;
+        courtDiscount = courtDiscountForPlan(mem.plan);
       }
     }
 

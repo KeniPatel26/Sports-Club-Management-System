@@ -19,11 +19,17 @@ import {
   getCourtAvailability,
   rescheduleBooking,
   cancelBooking,
+  collectBookingPayment,
   getMemberHistory,
   getFrontDeskPayments,
   getDailyClosingSummary,
   submitDailyClosingReport,
 } from '../controllers/staff/frontDeskController.js';
+import {
+  getPlans,
+  getMembershipsList,
+  assignOrRenewMembership,
+} from '../controllers/manager/managerMembershipController.js';
 import {
   getShopOverview,
   getShopProducts,
@@ -133,10 +139,16 @@ router.post(
   requirePermission('BOOKING_CANCEL'),
   cancelBooking
 );
+router.post(
+  '/front-desk/bookings/:id/collect-payment',
+  authenticate,
+  requirePermission('PAYMENT_CREATE'),
+  collectBookingPayment
+);
 router.get(
   '/front-desk/payments',
   authenticate,
-  requirePermission('PAYMENT_CREATE'),
+  requirePermission('PAYMENT_VIEW'),
   getFrontDeskPayments
 );
 router.get(
@@ -150,6 +162,26 @@ router.post(
   authenticate,
   requirePermission('BOOKING_UPDATE'),
   submitDailyClosingReport
+);
+
+// Front Desk Counter Memberships
+router.get(
+  '/front-desk/memberships/plans',
+  authenticate,
+  requirePermission('MEMBERSHIP_VIEW'),
+  getPlans
+);
+router.get(
+  '/front-desk/memberships/list',
+  authenticate,
+  requirePermission('MEMBERSHIP_VIEW'),
+  getMembershipsList
+);
+router.post(
+  '/front-desk/memberships/assign',
+  authenticate,
+  requirePermission('MEMBERSHIP_CREATE'),
+  assignOrRenewMembership
 );
 
 // ============================================

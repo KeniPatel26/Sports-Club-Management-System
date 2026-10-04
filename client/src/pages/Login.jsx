@@ -2,14 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import {
-  Mail,
-  Lock,
-  LogIn,
-  Eye,
-  EyeOff,
-  ShieldCheck,
-} from 'lucide-react';
+import { Mail, Lock, LogIn } from 'lucide-react';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import AuthLayout from '../components/layout/AuthLayout';
@@ -19,7 +12,6 @@ import { isManagerRole, normalizeRole } from '../utils/roles';
 export const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -33,8 +25,8 @@ export const Login = () => {
     const errs = {};
     if (!email.trim()) {
       errs.email = 'Email address is required';
-    } else if (!isValidEmail(email.trim())) {
-      errs.email = 'Please enter a valid email address';
+    } else if (!isValidEmail(email.trim()) && !email.trim().includes('@')) {
+      // allow flexible input or standard email
     }
     if (!password) {
       errs.password = 'Password is required';
@@ -98,43 +90,21 @@ export const Login = () => {
           autoComplete="email"
         />
 
-        <div style={{ position: 'relative' }}>
-          <Input
-            label="Password"
-            type={showPassword ? 'text' : 'password'}
-            name="password"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
-            }}
-            placeholder="Enter your account password"
-            icon={Lock}
-            error={errors.password}
-            required
-            autoComplete="current-password"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            style={{
-              position: 'absolute',
-              right: '12px',
-              top: '38px',
-              background: 'none',
-              border: 'none',
-              color: '#94A3B8',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '4px',
-            }}
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
-          >
-            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
-        </div>
+        <Input
+          label="Password"
+          type="password"
+          name="password"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
+          }}
+          placeholder="Enter your account password"
+          icon={Lock}
+          error={errors.password}
+          required
+          autoComplete="current-password"
+        />
 
         {/* Remember me & Forgot Password */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.85rem' }}>
@@ -186,24 +156,6 @@ export const Login = () => {
           Sign In
         </Button>
       </form>
-
-      {/* Manager Provisioning Notice */}
-      <div
-        style={{
-          marginTop: '1.75rem',
-          paddingTop: '1.25rem',
-          borderTop: '1px solid #DDE2EC',
-          textAlign: 'center',
-          fontSize: '0.825rem',
-          color: '#64748B',
-          lineHeight: '1.4',
-        }}
-      >
-        <span style={{ fontWeight: 600, color: '#354962' }}>Member & Staff Access:</span>
-        <div style={{ marginTop: '0.25rem' }}>
-          Accounts are provisioned directly by the Club Manager at the Front Desk.
-        </div>
-      </div>
     </AuthLayout>
   );
 };

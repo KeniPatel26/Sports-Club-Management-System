@@ -5,6 +5,7 @@ import {
   CreditCard,
   QrCode,
   Banknote,
+  Landmark,
   ShieldCheck,
   ArrowRight,
   RefreshCw,
@@ -22,6 +23,8 @@ export const PaymentModal = ({
   amount = 0,
   purpose = 'COURT_BOOKING',
   referenceId,
+  customerName,
+  initialPaymentMethod = 'UPI',
   title,
   subtitle,
   itemDetails,
@@ -46,7 +49,7 @@ export const PaymentModal = ({
   useEffect(() => {
     if (isOpen) {
       setStep('SELECT');
-      setPaymentMethod('UPI');
+      setPaymentMethod(initialPaymentMethod);
       setUpiId('athlete@okhdfcbank');
       setCardNumber('4532 •••• •••• 8821');
       setCardExpiry('12/28');
@@ -55,7 +58,7 @@ export const PaymentModal = ({
       setErrorMsg('');
       setLoading(false);
     }
-  }, [isOpen, referenceId]);
+  }, [isOpen, referenceId, initialPaymentMethod]);
 
   if (!isOpen) return null;
 
@@ -88,6 +91,7 @@ export const PaymentModal = ({
         purpose,
         referenceId,
         paymentMethod,
+        customerName,
         notes: `Demo checkout for ${purposeLabels[purpose] || purpose}`,
       });
 
@@ -150,9 +154,6 @@ export const PaymentModal = ({
   };
 
   const handleClose = () => {
-    if (step === 'SUCCESS' && onSuccess && currentPayment) {
-      onSuccess(currentPayment);
-    }
     onClose();
   };
 
@@ -405,6 +406,25 @@ export const PaymentModal = ({
                       <strong style={{ display: 'block', fontSize: '0.9rem', color: '#0F172A' }}>Credit / Debit Card</strong>
                       <span style={{ fontSize: '0.75rem', color: '#64748B' }}>Visa, MasterCard, RuPay</span>
                     </div>
+                  </label>
+
+                  {/* Net banking option */}
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.85rem',
+                      padding: '0.85rem 1rem',
+                      borderRadius: '12px',
+                      border: paymentMethod === 'NET_BANKING' ? '2px solid #2563EB' : '1px solid #E2E8F0',
+                      backgroundColor: paymentMethod === 'NET_BANKING' ? '#EFF6FF' : '#FFFFFF',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <input type="radio" name="paymentMethod" value="NET_BANKING" checked={paymentMethod === 'NET_BANKING'} onChange={() => setPaymentMethod('NET_BANKING')} style={{ accentColor: '#2563EB' }} />
+                    <div style={{ width: '36px', height: '36px', borderRadius: '8px', backgroundColor: '#E0E7FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4F46E5' }}><Landmark size={20} /></div>
+                    <div style={{ flex: 1 }}><strong style={{ display: 'block', fontSize: '0.9rem', color: '#0F172A' }}>Net Banking</strong><span style={{ fontSize: '0.75rem', color: '#64748B' }}>Pay securely through your bank</span></div>
                   </label>
 
                   {/* Cash Option (Counter/Staff only) */}
@@ -798,7 +818,10 @@ export const PaymentModal = ({
                   boxSizing: 'border-box',
                 }}
               >
-                <strong>System Action:</strong> The pending slot / order has been safely cancelled and unlocked for other members.
+                <strong>System Action:</strong>{' '}
+                {purpose === 'COURT_BOOKING'
+                  ? 'Retry while the slot is held. Cancel checkout to release it; the hold expires automatically after 10 minutes.'
+                  : 'No successful payment was recorded. You can retry or close checkout.'}
               </div>
 
               <div style={{ display: 'flex', gap: '0.75rem', width: '100%', marginTop: '0.5rem' }}>

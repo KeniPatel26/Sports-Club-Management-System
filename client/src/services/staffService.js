@@ -88,8 +88,28 @@ export const staffService = {
     return res.data;
   },
 
-  getFrontDeskPayments: async () => {
-    const res = await api.get('/staff/front-desk/payments');
+  collectBookingPayment: async (bookingId, data) => {
+    const res = await api.post(`/staff/front-desk/bookings/${bookingId}/collect-payment`, data);
+    return res.data;
+  },
+
+  getFrontDeskPayments: async (params = {}) => {
+    const res = await api.get('/staff/front-desk/payments', { params });
+    return res.data;
+  },
+
+  getMembershipPlans: async () => {
+    const res = await api.get('/staff/front-desk/memberships/plans');
+    return res.data;
+  },
+
+  getMembershipsList: async (params = {}) => {
+    const res = await api.get('/staff/front-desk/memberships/list', { params });
+    return res.data;
+  },
+
+  assignOrRenewMembership: async (data) => {
+    const res = await api.post('/staff/front-desk/memberships/assign', data);
     return res.data;
   },
 
