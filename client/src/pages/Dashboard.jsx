@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { menuImageUrl } from '../utils/menuImage';
 import {
   Calendar,
   ShoppingBag,
@@ -58,7 +59,7 @@ const MemberDashboardView = ({ user, menuItems, bookings, loading, navigate }) =
           </div>
           {loading ? <div className="member-dashboard-empty">Loading the available menu…</div> : menuItems.filter((item) => item.stock == null || item.stock > 0).length ? (
             <div className="member-dashboard-menu-grid">{menuItems.filter((item) => item.stock == null || item.stock > 0).slice(0, 4).map((item) => <Card key={item._id} className="member-dashboard-menu-card">
-              <div className="member-menu-image">{item.image ? <img src={item.image} alt={item.name} loading="lazy" /> : <div className="member-menu-placeholder"><Coffee size={34} /><span>Club cafe</span></div>}<span className="member-menu-category">{item.category || 'Menu item'}</span></div>
+              <div className="member-menu-image">{item.image ? <img src={menuImageUrl(item.image)} alt={item.name} loading="lazy" /> : <div className="member-menu-placeholder"><Coffee size={34} /><span>Club cafe</span></div>}<span className="member-menu-category">{item.category || 'Menu item'}</span></div>
               <Card.Content><div className="member-menu-availability"><span className="member-menu-dot" />Available now</div><Card.Title className="member-menu-title">{item.name}</Card.Title>{item.description && <p className="member-menu-description">{item.description}</p>}<div className="member-menu-footer"><div><small>Price</small><strong>₹{Number(item.price).toLocaleString('en-IN')}</strong></div><Button variant="primary" size="sm" icon={ArrowRight} iconPosition="right" onClick={() => navigate('/canteen')}>Order</Button></div></Card.Content>
             </Card>)}</div>
           ) : <div className="member-dashboard-empty"><UtensilsCrossed size={22} /><span>No canteen items are available right now.</span></div>}
