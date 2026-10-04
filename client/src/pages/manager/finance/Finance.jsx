@@ -14,6 +14,8 @@ import {
   Filter,
 } from 'lucide-react';
 import ChartCard from '../../../components/ui/ChartCard';
+import Pagination from '../../../components/common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 export const FinanceManagement = () => {
   const { toastSuccess, toastError } = useToast();
@@ -23,6 +25,9 @@ export const FinanceManagement = () => {
   const [invoices, setInvoices] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const paymentsPage = usePagination(payments, 10, activeTab);
+  const invoicesPage = usePagination(invoices, 10, activeTab);
+  const expensesPage = usePagination(expenses, 10, activeTab);
 
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
   const [newExpense, setNewExpense] = useState({
@@ -279,7 +284,7 @@ export const FinanceManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {payments.map((p) => {
+              {paymentsPage.paginatedItems.map((p) => {
                 const status = (p.status || 'PAID').toUpperCase();
                 const isPaid = status === 'PAID' || status === 'SUCCESS';
                 const isFailed = status === 'FAILED';
@@ -327,6 +332,7 @@ export const FinanceManagement = () => {
               })}
             </tbody>
           </table>
+          <div style={{ padding: '0 1rem' }}><Pagination {...paymentsPage} onPageChange={paymentsPage.setCurrentPage} /></div>
         </div>
       )}
 
@@ -345,7 +351,7 @@ export const FinanceManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {invoices.map((inv) => (
+              {invoicesPage.paginatedItems.map((inv) => (
                 <tr key={inv._id} style={{ borderBottom: '1px solid #EEF2F6' }}>
                   <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#354962' }}>{inv.invoiceNumber}</td>
                   <td style={{ padding: '0.85rem 1rem', fontWeight: 600, color: '#17263B' }}>{inv.customerName}</td>
@@ -361,6 +367,7 @@ export const FinanceManagement = () => {
               ))}
             </tbody>
           </table>
+          <div style={{ padding: '0 1rem' }}><Pagination {...invoicesPage} onPageChange={invoicesPage.setCurrentPage} /></div>
         </div>
       )}
 
@@ -379,7 +386,7 @@ export const FinanceManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {expenses.map((exp) => (
+              {expensesPage.paginatedItems.map((exp) => (
                 <tr key={exp._id} style={{ borderBottom: '1px solid #EEF2F6' }}>
                   <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#17263B' }}>{exp.title}</td>
                   <td style={{ padding: '0.85rem 1rem' }}>
@@ -395,6 +402,7 @@ export const FinanceManagement = () => {
               ))}
             </tbody>
           </table>
+          <div style={{ padding: '0 1rem' }}><Pagination {...expensesPage} onPageChange={expensesPage.setCurrentPage} /></div>
         </div>
       )}
 

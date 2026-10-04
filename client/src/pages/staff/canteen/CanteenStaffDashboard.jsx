@@ -24,6 +24,8 @@ import { useAuth } from '../../../context/AuthContext';
 import Loader from '../../../components/ui/Loader';
 import Alert from '../../../components/ui/Alert';
 import FilterDropdown from '../../../components/ui/FilterDropdown';
+import Pagination from '../../../components/common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 export const CanteenStaffDashboard = () => {
   const { user } = useAuth();
@@ -66,6 +68,7 @@ export const CanteenStaffDashboard = () => {
 
   // Payments state
   const [canteenPayments, setCanteenPayments] = useState([]);
+  const paymentsPage = usePagination(canteenPayments, 10, currentTab);
   const [loadingPayments, setLoadingPayments] = useState(false);
 
   // New Kitchen Order Modal state
@@ -1428,7 +1431,7 @@ export const CanteenStaffDashboard = () => {
               </thead>
               <tbody>
                 {canteenPayments.length > 0 ? (
-                  canteenPayments.map((p) => (
+                  paymentsPage.paginatedItems.map((p) => (
                     <tr key={p._id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-main)' }}>
                         {p.paymentId || `PAY-${p._id.slice(-6)}`}
@@ -1481,6 +1484,7 @@ export const CanteenStaffDashboard = () => {
                 )}
               </tbody>
             </table>
+            <div style={{ padding: '0 1rem' }}><Pagination {...paymentsPage} onPageChange={paymentsPage.setCurrentPage} /></div>
           </div>
         </div>
       )}

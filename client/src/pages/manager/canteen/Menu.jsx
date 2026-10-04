@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import managerService from '../../../services/managerService';
+import Pagination from '../../../components/common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import { useToast } from '../../../context/ToastContext';
 import {
   Coffee,
@@ -20,6 +22,9 @@ export const CanteenManagement = () => {
   const [tables, setTables] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const menuPage = usePagination(menuItems, 10, activeTab);
+  const tablesPage = usePagination(tables, 8, activeTab);
+  const ordersPage = usePagination(orders, 10, activeTab);
 
   const [showAddMenuModal, setShowAddMenuModal] = useState(false);
   const [newMenuItem, setNewMenuItem] = useState({
@@ -166,7 +171,7 @@ export const CanteenManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {menuItems.map((it) => (
+              {menuPage.paginatedItems.map((it) => (
                 <tr key={it._id} style={{ borderBottom: '1px solid #EEF2F6' }}>
                   <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#17263B' }}>{it.name}</td>
                   <td style={{ padding: '0.85rem 1rem', color: '#64748B' }}>{it.category}</td>
@@ -206,13 +211,14 @@ export const CanteenManagement = () => {
               ))}
             </tbody>
           </table>
+          <div style={{ padding: '0 1rem' }}><Pagination {...menuPage} onPageChange={menuPage.setCurrentPage} /></div>
         </div>
       )}
 
       {/* TAB 2: DINING TABLES */}
       {activeTab === 'tables' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
-          {tables.map((t) => (
+          {tablesPage.paginatedItems.map((t) => (
             <div
               key={t._id}
               style={{
@@ -286,6 +292,7 @@ export const CanteenManagement = () => {
               </div>
             </div>
           ))}
+          <div style={{ gridColumn: '1 / -1' }}><Pagination {...tablesPage} onPageChange={tablesPage.setCurrentPage} /></div>
         </div>
       )}
 
@@ -303,7 +310,7 @@ export const CanteenManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {orders.map((o) => (
+              {ordersPage.paginatedItems.map((o) => (
                 <tr key={o._id} style={{ borderBottom: '1px solid #EEF2F6' }}>
                   <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#17263B' }}>
                     {o.customerName || (o.member ? `${o.member.firstName} ${o.member.lastName}` : 'Walk-in Guest')}
@@ -326,6 +333,7 @@ export const CanteenManagement = () => {
               ))}
             </tbody>
           </table>
+          <div style={{ padding: '0 1rem' }}><Pagination {...ordersPage} onPageChange={ordersPage.setCurrentPage} /></div>
         </div>
       )}
 

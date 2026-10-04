@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 export const Pagination = ({
   currentPage = 1,
@@ -24,6 +24,8 @@ export const Pagination = ({
         padding: '0.85rem 0.25rem',
         fontSize: '0.85rem',
         color: 'var(--text-muted)',
+        flexWrap: 'wrap',
+        gap: '0.75rem',
       }}
     >
       <div>
@@ -33,6 +35,22 @@ export const Pagination = ({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+        <button
+          type="button"
+          aria-label="Go to first page"
+          title="First page"
+          disabled={currentPage <= 1}
+          onClick={() => onPageChange(1)}
+          style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: '32px', height: '32px', borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)',
+            color: 'var(--text-main)', cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
+            opacity: currentPage <= 1 ? 0.5 : 1, transition: 'var(--transition)',
+          }}
+        >
+          <ChevronsLeft size={16} />
+        </button>
         <button
           type="button"
           disabled={currentPage <= 1}
@@ -109,6 +127,22 @@ export const Pagination = ({
           }}
         >
           <ChevronRight size={16} />
+        </button>
+        <button
+          type="button"
+          aria-label="Go to last page"
+          title="Last page"
+          disabled={currentPage >= totalPages}
+          onClick={() => onPageChange(totalPages)}
+          style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: '32px', height: '32px', borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)',
+            color: 'var(--text-main)', cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
+            opacity: currentPage >= totalPages ? 0.5 : 1, transition: 'var(--transition)',
+          }}
+        >
+          <ChevronsRight size={16} />
         </button>
       </div>
     </div>

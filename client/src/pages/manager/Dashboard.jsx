@@ -23,11 +23,25 @@ import {
 } from 'lucide-react';
 import ChartCard from '../../components/ui/ChartCard';
 
+const COURT_UTILIZATION_CACHE_KEY = 'manager-dashboard-court-utilization';
+
+const readCachedCourtUtilization = () => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const value = window.sessionStorage.getItem(COURT_UTILIZATION_CACHE_KEY);
+    const parsed = value ? JSON.parse(value) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 export const ManagerDashboard = () => {
   const { user } = useAuth();
   const { toastSuccess, toastError } = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [cachedCourtUtilization, setCachedCourtUtilization] = useState(readCachedCourtUtilization);
 
   const fetchOverview = async () => {
     try {
@@ -35,6 +49,14 @@ export const ManagerDashboard = () => {
       const res = await managerService.getDashboardOverview();
       if (res.success && res.data) {
         setData(res.data);
+        if (Array.isArray(res.data.courtUtilization)) {
+          setCachedCourtUtilization(res.data.courtUtilization);
+          try {
+            window.sessionStorage.setItem(COURT_UTILIZATION_CACHE_KEY, JSON.stringify(res.data.courtUtilization));
+          } catch {
+            // The live response still renders if browser storage is unavailable.
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to load dashboard:', err);
@@ -65,12 +87,9 @@ export const ManagerDashboard = () => {
     canteen: 45000,
   };
 
-  const courtUtilization = data?.courtUtilization || [
-    { name: 'Center Court (Tennis)', type: 'TENNIS', utilization: 85 },
-    { name: 'Court 2 (Tennis)', type: 'TENNIS', utilization: 72 },
-    { name: 'Box Cricket Turf 1', type: 'CRICKET', utilization: 88 },
-    { name: 'Padel Glass Court A', type: 'PADEL', utilization: 78 },
-  ];
+  const courtUtilization = Array.isArray(data?.courtUtilization)
+    ? data.courtUtilization
+    : cachedCourtUtilization;
 
   const alerts = data?.alerts || [
     {
@@ -353,14 +372,33 @@ export const ManagerDashboard = () => {
               <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#17263B' }}>
                 Court Utilization Today
               </h3>
-              <span style={{ fontSize: '0.78rem', color: '#64748B' }}>Peak hours 06:00 PM - 09:00 PM</span>
+              <span style={{ fontSize: '0.78rem', color: '#64748B' }}>
+                Booked time as a share of today&apos;s court capacity (06:00–22:00)
+                {loading && cachedCourtUtilization.length > 0 ? ' · Updating live data…' : ''}
+              </span>
             </div>
             <Link to="/manager/courts" style={{ fontSize: '0.8rem', color: '#D98E68', fontWeight: 700, textDecoration: 'none' }}>
               Schedule &rarr;
             </Link>
           </div>
 
-          <ChartCard bare type="bar" horizontal height={230} data={courtUtilization.map((c) => ({ label: c.name, value: c.utilization, color: c.utilization > 80 ? '#D98E68' : '#8FAF98' }))} />
+          <ChartCard
+            bare
+            type="bar"
+            horizontal
+            height={Math.max(230, courtUtilization.length * 38 + 58)}
+            maxValue={100}
+            valueSuffix="%"
+            xAxisTitle="Daily capacity booked (%)"
+            datasetLabel="Utilization"
+            data={[...courtUtilization]
+              .sort((a, b) => b.utilization - a.utilization)
+              .map((court) => ({
+                label: court.name,
+                value: court.utilization,
+                color: court.utilization >= 80 ? '#D98E68' : '#8FAF98',
+              }))}
+          />
         </div>
       </div>
 

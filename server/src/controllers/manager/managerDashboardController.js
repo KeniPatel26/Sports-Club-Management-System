@@ -112,33 +112,35 @@ export const getDashboardOverview = async (req, res) => {
 
     // 6. Court Utilization
     const allCourts = await Court.find({ isActive: true }).lean().maxTimeMS(2500).catch(() => []);
-    let courtStats = [];
-    if (allCourts.length > 0) {
-      courtStats = await Promise.all(
-        allCourts.map(async (court) => {
-          const bookingsToday = await Booking.countDocuments({
-            court: court._id,
-            date: { $gte: todayStart, $lte: todayEnd },
-            status: { $ne: 'CANCELLED' },
-          }).maxTimeMS(2000).catch(() => 3);
-          const utilization = Math.min(Math.round((bookingsToday / 10) * 100), 100);
-          return {
-            id: court._id,
-            name: court.name,
-            type: court.type,
-            utilization: utilization > 0 ? utilization : 75,
-            bookingsToday,
-          };
-        })
-      );
-    } else {
-      courtStats = [
-        { name: 'Center Court (Tennis)', type: 'TENNIS', utilization: 85, bookingsToday: 8 },
-        { name: 'Court 2 (Tennis)', type: 'TENNIS', utilization: 72, bookingsToday: 7 },
-        { name: 'Box Cricket Turf 1', type: 'CRICKET', utilization: 88, bookingsToday: 9 },
-        { name: 'Padel Glass Court A', type: 'PADEL', utilization: 78, bookingsToday: 7 },
-      ];
-    }
+    const courtIds = allCourts.map((court) => court._id);
+    const courtBookings = courtIds.length ? await Booking.find({
+      court: { $in: courtIds },
+      date: { $gte: todayStart, $lte: todayEnd },
+      status: { $in: ['CONFIRMED', 'CHECKED_IN', 'COMPLETED'] },
+    }).select('court startTime endTime').lean().maxTimeMS(2500) : [];
+    const courtCapacityMinutes = (22 - 6) * 60;
+    const toMinutes = (time) => {
+      const [hours, minutes] = String(time || '').split(':').map(Number);
+      return Number.isFinite(hours) && Number.isFinite(minutes) ? hours * 60 + minutes : null;
+    };
+    const courtStats = allCourts.map((court) => {
+      const bookings = courtBookings.filter((booking) => booking.court?.toString() === court._id.toString());
+      const bookedMinutes = bookings.reduce((total, booking) => {
+        const start = toMinutes(booking.startTime);
+        const end = toMinutes(booking.endTime);
+        if (start === null || end === null || end <= start) return total;
+        return total + Math.max(0, Math.min(end, 22 * 60) - Math.max(start, 6 * 60));
+      }, 0);
+      return {
+        id: court._id,
+        name: court.name,
+        type: court.type,
+        utilization: Math.min(Math.round((bookedMinutes / courtCapacityMinutes) * 100), 100),
+        bookingsToday: bookings.length,
+        bookedMinutes,
+        capacityMinutes: courtCapacityMinutes,
+      };
+    });
 
     // 7. Membership Tier Overview
     const memberships = await Membership.find().populate('plan').lean().maxTimeMS(2500).catch(() => []);
@@ -292,12 +294,7 @@ const getFallbackDashboardData = () => ({
     shop: 60000,
     canteen: 45000,
   },
-  courtUtilization: [
-    { name: 'Center Court (Tennis)', type: 'TENNIS', utilization: 85, bookingsToday: 8 },
-    { name: 'Court 2 (Tennis)', type: 'TENNIS', utilization: 72, bookingsToday: 7 },
-    { name: 'Box Cricket Turf 1', type: 'CRICKET', utilization: 88, bookingsToday: 9 },
-    { name: 'Padel Glass Court A', type: 'PADEL', utilization: 78, bookingsToday: 7 },
-  ],
+  courtUtilization: [],
   membershipOverview: {
     gold: 150,
     silver: 180,

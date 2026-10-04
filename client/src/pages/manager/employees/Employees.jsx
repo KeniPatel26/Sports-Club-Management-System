@@ -22,6 +22,8 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import FilterDropdown from '../../../components/ui/FilterDropdown';
+import Pagination from '../../../components/common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 export const Employees = () => {
   const { toastSuccess, toastError } = useToast();
@@ -54,6 +56,11 @@ export const Employees = () => {
   const [attDept, setAttDept] = useState('ALL');
   const [attStatus, setAttStatus] = useState('ALL');
   const [attSearch, setAttSearch] = useState('');
+  const staffPage = usePagination(staff, 10, activeTab);
+  const shiftsPage = usePagination(shifts, 10, activeTab);
+  const attendancePage = usePagination(attendanceData.records, 10, `${activeTab}|${attDate}|${attDept}|${attStatus}|${attSearch}`);
+  const leavePage = usePagination(leaveRequests, 10, activeTab);
+  const payrollPage = usePagination(payroll, 10, activeTab);
 
   // Manager Correction Modal state
   const [selectedRecordForEdit, setSelectedRecordForEdit] = useState(null);
@@ -444,7 +451,7 @@ export const Employees = () => {
                     </td>
                   </tr>
                 ) : (
-                  attendanceData.records.map((r) => (
+                  attendancePage.paginatedItems.map((r) => (
                     <tr key={r.id} style={{ borderBottom: '1px solid #EEF2F6', transition: 'background-color 0.15s ease' }}>
                       <td style={{ padding: '0.9rem 1.15rem' }}>
                         <div style={{ fontWeight: 700, color: '#354962' }}>{r.name}</div>
@@ -554,6 +561,7 @@ export const Employees = () => {
                 )}
               </tbody>
             </table>
+            <div style={{ padding: '0 1rem' }}><Pagination {...attendancePage} onPageChange={attendancePage.setCurrentPage} /></div>
           </div>
         </div>
       )}
@@ -575,7 +583,7 @@ export const Employees = () => {
               </tr>
             </thead>
             <tbody>
-              {staff.map((s) => (
+              {staffPage.paginatedItems.map((s) => (
                 <tr key={s.id || s._id} style={{ borderBottom: '1px solid #EEF2F6' }}>
                   <td style={{ padding: '0.9rem 1.15rem', fontWeight: 700, color: '#354962' }}>
                     {s.name}
@@ -598,6 +606,7 @@ export const Employees = () => {
               ))}
             </tbody>
           </table>
+          <div style={{ padding: '0 1rem' }}><Pagination {...staffPage} onPageChange={staffPage.setCurrentPage} /></div>
         </div>
       )}
 
@@ -617,7 +626,7 @@ export const Employees = () => {
               </tr>
             </thead>
             <tbody>
-              {shifts.map((s) => (
+              {shiftsPage.paginatedItems.map((s) => (
                 <tr key={s._id} style={{ borderBottom: '1px solid #EEF2F6' }}>
                   <td style={{ padding: '0.9rem 1.15rem', fontWeight: 700, color: '#354962' }}>
                     {s.staff?.firstName} {s.staff?.lastName}
@@ -634,6 +643,7 @@ export const Employees = () => {
               ))}
             </tbody>
           </table>
+          <div style={{ padding: '0 1rem' }}><Pagination {...shiftsPage} onPageChange={shiftsPage.setCurrentPage} /></div>
         </div>
       )}
 
@@ -660,7 +670,7 @@ export const Employees = () => {
                   </td>
                 </tr>
               ) : (
-                leaveRequests.map((l) => (
+                leavePage.paginatedItems.map((l) => (
                   <tr key={l._id} style={{ borderBottom: '1px solid #EEF2F6' }}>
                     <td style={{ padding: '0.9rem 1.15rem', fontWeight: 700, color: '#354962' }}>
                       {l.staff?.firstName} {l.staff?.lastName}
@@ -707,6 +717,7 @@ export const Employees = () => {
               )}
             </tbody>
           </table>
+          <div style={{ padding: '0 1rem' }}><Pagination {...leavePage} onPageChange={leavePage.setCurrentPage} /></div>
         </div>
       )}
 
@@ -728,7 +739,7 @@ export const Employees = () => {
               </tr>
             </thead>
             <tbody>
-              {payroll.map((p) => (
+              {payrollPage.paginatedItems.map((p) => (
                 <tr key={p.id} style={{ borderBottom: '1px solid #EEF2F6' }}>
                   <td style={{ padding: '0.9rem 1.15rem', fontWeight: 700, color: '#354962' }}>
                     {p.employeeName}
@@ -756,6 +767,7 @@ export const Employees = () => {
               ))}
             </tbody>
           </table>
+          <div style={{ padding: '0 1rem' }}><Pagination {...payrollPage} onPageChange={payrollPage.setCurrentPage} /></div>
         </div>
       )}
 

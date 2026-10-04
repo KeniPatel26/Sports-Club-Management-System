@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import Pagination from '../../../components/common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import managerService from '../../../services/managerService';
 import { useToast } from '../../../context/ToastContext';
 import {
@@ -20,6 +22,9 @@ export const ShopManagement = () => {
   const [inventoryLogs, setInventoryLogs] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const productsPage = usePagination(products, 10, activeTab);
+  const inventoryPage = usePagination(inventoryLogs, 10, activeTab);
+  const ordersPage = usePagination(orders, 10, activeTab);
 
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [showStockModal, setShowStockModal] = useState(false);
@@ -173,7 +178,7 @@ export const ShopManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {products.map((p) => {
+              {productsPage.paginatedItems.map((p) => {
                 const isLow = p.stock <= p.lowStockThreshold;
                 return (
                   <tr key={p._id} style={{ borderBottom: '1px solid #EEF2F6' }}>
@@ -223,6 +228,7 @@ export const ShopManagement = () => {
               })}
             </tbody>
           </table>
+          <div style={{ padding: '0 1rem' }}><Pagination {...productsPage} onPageChange={productsPage.setCurrentPage} /></div>
         </div>
       )}
 
@@ -235,26 +241,25 @@ export const ShopManagement = () => {
                 <th style={{ padding: '0.85rem 1rem' }}>Product</th>
                 <th style={{ padding: '0.85rem 1rem' }}>Movement Type</th>
                 <th style={{ padding: '0.85rem 1rem' }}>Qty</th>
-                <th style={{ padding: '0.85rem 1rem' }}>Previous &rarr; New Stock</th>
                 <th style={{ padding: '0.85rem 1rem' }}>Notes</th>
                 <th style={{ padding: '0.85rem 1rem' }}>Date</th>
               </tr>
             </thead>
             <tbody>
-              {inventoryLogs.map((log) => (
+              {inventoryPage.paginatedItems.map((log) => (
                 <tr key={log._id} style={{ borderBottom: '1px solid #EEF2F6' }}>
                   <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#17263B' }}>{log.product?.name || 'Sports Item'}</td>
                   <td style={{ padding: '0.85rem 1rem' }}>
                     <span style={{ fontWeight: 700, color: '#D98E68' }}>{log.type}</span>
                   </td>
-                  <td style={{ padding: '0.85rem 1rem', fontWeight: 700 }}>{log.quantity}</td>
-                  <td style={{ padding: '0.85rem 1rem', color: '#354962' }}>{log.previousStock} &rarr; {log.newStock}</td>
+                  <td style={{ padding: '0.85rem 1rem', color: '#354962', fontWeight: 700 }}>{log.newStock}</td>
                   <td style={{ padding: '0.85rem 1rem', color: '#64748B' }}>{log.notes || '-'}</td>
                   <td style={{ padding: '0.85rem 1rem', color: '#64748B' }}>{new Date(log.createdAt).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          <div style={{ padding: '0 1rem' }}><Pagination {...inventoryPage} onPageChange={inventoryPage.setCurrentPage} /></div>
         </div>
       )}
 
@@ -273,7 +278,7 @@ export const ShopManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {orders.map((o) => (
+              {ordersPage.paginatedItems.map((o) => (
                 <tr key={o._id} style={{ borderBottom: '1px solid #EEF2F6' }}>
                   <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#17263B' }}>
                     {o.customerName || (o.member ? `${o.member.firstName} ${o.member.lastName}` : 'Walk-in Member')}
@@ -295,6 +300,7 @@ export const ShopManagement = () => {
               ))}
             </tbody>
           </table>
+          <div style={{ padding: '0 1rem' }}><Pagination {...ordersPage} onPageChange={ordersPage.setCurrentPage} /></div>
         </div>
       )}
 
