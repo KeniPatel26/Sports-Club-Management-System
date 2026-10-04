@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 /**
  * Booking Schema - Real-time Court booking reservations
- * Prevents double-booking and enforces 2 bookings/day member limits
+ * Prevents double-booking and powers dynamic member reservations
  */
 const bookingSchema = new mongoose.Schema(
   {

@@ -465,17 +465,23 @@ export const processCounterSale = async (req, res) => {
       paymentMethod: paymentMethod.toUpperCase(),
     }).catch(() => null);
 
+    const transactionId = `TXN-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
     const paymentId = `PAY-POS-${Date.now().toString().slice(-6)}`;
     await Payment.create({
       paymentId,
+      transactionId,
       user: memberUser ? memberUser._id : null,
       customerName: order.customerName,
       customerPhone: order.customerPhone,
       type: 'SHOP',
+      purpose: 'SHOP_ORDER',
+      purposeRef: 'Order',
       amount: total,
       method: paymentMethod.toUpperCase(),
-      status: 'SUCCESS',
-      referenceId: invoiceNumber,
+      paymentMethod: paymentMethod.toUpperCase(),
+      status: 'PAID',
+      referenceId: order._id,
+      paidAt: new Date(),
       notes: 'Counter POS sale receipt',
     });
 

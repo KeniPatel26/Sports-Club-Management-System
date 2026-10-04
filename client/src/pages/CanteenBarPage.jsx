@@ -29,6 +29,7 @@ import { useAuth } from '../context/AuthContext';
 import shopCanteenService from '../services/shopCanteenService';
 import membershipService from '../services/membershipService';
 import managerService from '../services/managerService';
+import PaymentModal from '../components/payment/PaymentModal';
 
 const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
@@ -180,11 +181,17 @@ export const CanteenBarPage = () => {
         paymentMethod: isTab ? 'tab' : paymentMethod,
       };
 
-      await shopCanteenService.createOrder(payload);
-      toastSuccess(isTab ? `Tab opened for ${selectedTable}!` : `Kitchen order placed for ${selectedTable}!`);
+      const res = await shopCanteenService.createOrder(payload);
       setCart([]);
       setOrderModalOpen(false);
-      await loadData();
+
+      if (!isTab && res.data?._id && (res.data.total > 0 || totalAmount > 0)) {
+        setPendingPaymentOrder(res.data);
+        setPaymentModalOpen(true);
+      } else {
+        toastSuccess(isTab ? `Tab opened for ${selectedTable}!` : `Kitchen order placed for ${selectedTable}!`);
+        await loadData();
+      }
     } catch (error) {
       toastError(error.response?.data?.message || 'Could not place your order. Please try again.');
       await loadData();
@@ -193,13 +200,22 @@ export const CanteenBarPage = () => {
     }
   };
 
-  const handleSettleTab = async (tabId) => {
-    try {
-      await shopCanteenService.settleTab(tabId);
-      toastSuccess('Bar tab settled and marked paid!');
-      fetchTabs();
-    } catch (e) {
-      toastError('Failed to settle tab');
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [pendingPaymentOrder, setPendingPaymentOrder] = useState(null);
+
+  const handleSettleTab = async (tab) => {
+    const tabObj = typeof tab === 'object' ? tab : activeTabs.find((t) => t._id === tab);
+    if (tabObj) {
+      setPendingPaymentOrder(tabObj);
+      setPaymentModalOpen(true);
+    } else {
+      try {
+        await shopCanteenService.settleTab(tab);
+        toastSuccess('Bar tab settled and marked paid!');
+        loadData();
+      } catch (e) {
+        toastError('Failed to settle tab');
+      }
     }
   };
 
@@ -635,6 +651,33 @@ export const CanteenBarPage = () => {
           </div>
         )}
       </Modal>
+
+      {/* Reusable Payment Modal for Canteen Orders and Tabs */}
+      <PaymentModal
+        isOpen={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        amount={pendingPaymentOrder?.total || totalAmount}
+        purpose="CANTEEN_ORDER"
+        referenceId={pendingPaymentOrder?._id}
+        title={pendingPaymentOrder?.isTab ? `Settle Tab - Table ${pendingPaymentOrder?.tableNumber || ''}` : 'Cafe & Bar Checkout'}
+        subtitle={`Order #${String(pendingPaymentOrder?._id || '').slice(-6).toUpperCase()} • Table: ${pendingPaymentOrder?.tableNumber || selectedTable || 'Counter'}`}
+        itemDetails={{
+          service: pendingPaymentOrder?.isTab ? 'Table Service Tab' : 'Counter Pickup Order',
+          table: pendingPaymentOrder?.tableNumber || selectedTable || 'Counter Pickup',
+          items: `${pendingPaymentOrder?.items?.length || cart.length} item(s)`,
+          totalPayable: money(pendingPaymentOrder?.total || totalAmount),
+        }}
+        allowCash={true}
+        onSuccess={(payment) => {
+          toastSuccess('Bill settled and payment confirmed!', 'Payment Successful');
+          setPaymentModalOpen(false);
+          loadData();
+          fetchTabs();
+        }}
+        onFailure={() => {
+          toastError('Payment failed or was declined.');
+        }}
+      />
     </DashboardLayout>
   );
 };

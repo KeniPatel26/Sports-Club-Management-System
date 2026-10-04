@@ -218,8 +218,8 @@ export const createOrder = async (req, res, next) => {
         tabStatus: isTab ? 'OPEN' : 'CLOSED',
         deliveryAddress: deliveryAddress || '',
         paymentMethod,
-        paymentStatus: isTab ? 'pending' : 'paid',
-        status: 'confirmed',
+        paymentStatus: req.body.paymentStatus || (isTab ? 'pending' : 'pending'),
+        status: isTab ? 'confirmed' : (req.body.paymentStatus === 'paid' ? 'confirmed' : 'pending'),
       });
     } catch (error) {
       await Promise.all(reserved.map(({ id, qty }) => Product.updateOne({ _id: id }, { $inc: { stock: qty } })));

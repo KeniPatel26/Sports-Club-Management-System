@@ -151,8 +151,10 @@ router.patch('/canteen/tables/:id/status', authenticate, requirePermission('TABL
 router.get('/canteen/orders', authenticate, requirePermission('CANTEEN_ORDER_VIEW'), getCanteenOrders);
 
 // ============================================
-// 8. FINANCE
+// 8. FINANCE & PAYMENTS
 // ============================================
+router.get('/payments', authenticate, requirePermission('PAYMENT_VIEW'), getPayments);
+router.get('/payments/summary', authenticate, requirePermission('PAYMENT_VIEW'), getFinancialOverview);
 router.get('/finance/overview', authenticate, requirePermission('PAYMENT_VIEW'), getFinancialOverview);
 router.get('/finance/payments', authenticate, requirePermission('PAYMENT_VIEW'), getPayments);
 router.get('/finance/invoices', authenticate, requirePermission('INVOICE_VIEW'), getInvoices);
