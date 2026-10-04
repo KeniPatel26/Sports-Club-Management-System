@@ -55,6 +55,7 @@ const resolvePageTitle = (pathname, search) => {
     if (tab === 'orders') return 'Kitchen Order Queue';
     if (tab === 'tabs') return 'Open Tabs & Running Bills';
     if (tab === 'payments') return 'Canteen Payments';
+    if (tab === 'profile') return 'My Profile & Shift';
     return 'Canteen & Bar Dashboard';
   }
 

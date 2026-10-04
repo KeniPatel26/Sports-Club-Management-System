@@ -8,7 +8,6 @@ import {
   Plus,
   RefreshCw,
   Search,
-  ShoppingBag,
   Utensils,
   Receipt,
   Percent,
@@ -20,40 +19,28 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
-import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Loader from '../components/ui/Loader';
 import FilterDropdown from '../components/ui/FilterDropdown';
 import { useToast } from '../context/ToastContext';
-import { useAuth } from '../context/AuthContext';
 import shopCanteenService from '../services/shopCanteenService';
 import membershipService from '../services/membershipService';
-import managerService from '../services/managerService';
 import PaymentModal from '../components/payment/PaymentModal';
 
 const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
 export const CanteenBarPage = () => {
-  const { user } = useAuth();
   const { toastSuccess, toastError } = useToast();
   const [menuItems, setMenuItems] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [activeTabs, setActiveTabs] = useState([]);
-  const [tables, setTables] = useState([]);
-  const [selectedTable, setSelectedTable] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [cart, setCart] = useState([]);
   const [orderModalOpen, setOrderModalOpen] = useState(false);
-  const [isTab, setIsTab] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('upi');
-  const [customerName, setCustomerName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [loadingTables, setLoadingTables] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [userMembership, setUserMembership] = useState(null);
-
-  const isStaffOrOwner = ['OWNER', 'ADMIN', 'CANTEEN_STAFF', 'STAFF'].includes(user?.role?.toUpperCase());
 
   useEffect(() => {
     loadData();
@@ -62,15 +49,16 @@ export const CanteenBarPage = () => {
   const fetchMenu = async () => {
     try {
       setLoading(true);
-      const [menuRes, orderRes, memRes] = await Promise.all([
+      const [menuResult, orderResult, membershipResult] = await Promise.allSettled([
         shopCanteenService.getProducts({ type: 'canteen' }),
         shopCanteenService.getOrders({ type: 'canteen' }),
         membershipService.getMyMembership(),
       ]);
-      setMenuItems(menuRes.data || []);
-      setOrders(orderRes.data || []);
-      if (memRes.success) {
-        setUserMembership(memRes.data?.membership);
+      if (menuResult.status === 'fulfilled') setMenuItems(menuResult.value.data || []);
+      else throw menuResult.reason;
+      if (orderResult.status === 'fulfilled') setOrders(orderResult.value.data || []);
+      if (membershipResult.status === 'fulfilled' && membershipResult.value.success) {
+        setUserMembership(membershipResult.value.data?.membership);
       }
     } catch (error) {
       toastError(error.response?.data?.message || 'Could not load the canteen menu.');
@@ -80,40 +68,9 @@ export const CanteenBarPage = () => {
   };
 
   const loadData = async () => {
-    await Promise.all([fetchMenu(), fetchTabs(), fetchTables()]);
+    await fetchMenu();
   };
 
-  const fetchTabs = async () => {
-    try {
-      const res = await shopCanteenService.getOrders({ type: 'canteen', isTab: true, status: 'ALL' });
-      if (res.success) {
-        setActiveTabs(res.data?.filter((o) => o.tabStatus === 'OPEN') || []);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const fetchTables = async () => {
-    try {
-      setLoadingTables(true);
-      const res = await managerService.getTables();
-      if (res.success) {
-        const rows = res.data || [];
-        setTables(rows);
-        setSelectedTable((current) => rows.some((table) => table.tableNumber === current)
-          ? current
-          : (rows.find((table) => table.status === 'AVAILABLE') || rows[0])?.tableNumber || '');
-      }
-    } catch (error) {
-      console.error('Failed to load canteen tables:', error);
-      toastError('Could not load dining tables from the database.');
-    } finally {
-      setLoadingTables(false);
-    }
-  };
-
-  const itemCount = cart.reduce((total, item) => total + item.quantity, 0);
   const subtotal = cart.reduce((total, item) => total + (item.product.price || 0) * item.quantity, 0);
 
   const discountRate = userMembership?.plan?.benefits?.cafeDiscount ?? userMembership?.plan?.benefits?.canteenDiscount ?? userMembership?.plan?.canteenDiscount ?? 0;
@@ -159,11 +116,6 @@ export const CanteenBarPage = () => {
   const handlePlaceOrder = async (e) => {
     e?.preventDefault?.();
     if (cart.length === 0) return;
-    if (!selectedTable) {
-      toastError('Select a dining table before placing the order.');
-      return;
-    }
-
     try {
       setSubmitting(true);
       const payload = {
@@ -174,22 +126,19 @@ export const CanteenBarPage = () => {
           price: product.price,
         })),
         type: 'canteen',
-        fulfillment: 'table',
-        tableNumber: selectedTable,
-        isTab,
-        customerName: customerName || user?.name || 'Guest',
-        paymentMethod: isTab ? 'tab' : paymentMethod,
+        fulfillment: 'pickup',
+        paymentMethod,
       };
 
       const res = await shopCanteenService.createOrder(payload);
       setCart([]);
       setOrderModalOpen(false);
 
-      if (!isTab && res.data?._id && (res.data.total > 0 || totalAmount > 0)) {
+      if (res.data?._id && (res.data.total > 0 || totalAmount > 0)) {
         setPendingPaymentOrder(res.data);
         setPaymentModalOpen(true);
       } else {
-        toastSuccess(isTab ? `Tab opened for ${selectedTable}!` : `Kitchen order placed for ${selectedTable}!`);
+        toastSuccess('Kitchen order placed for counter pickup!');
         await loadData();
       }
     } catch (error) {
@@ -202,22 +151,6 @@ export const CanteenBarPage = () => {
 
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [pendingPaymentOrder, setPendingPaymentOrder] = useState(null);
-
-  const handleSettleTab = async (tab) => {
-    const tabObj = typeof tab === 'object' ? tab : activeTabs.find((t) => t._id === tab);
-    if (tabObj) {
-      setPendingPaymentOrder(tabObj);
-      setPaymentModalOpen(true);
-    } else {
-      try {
-        await shopCanteenService.settleTab(tab);
-        toastSuccess('Bar tab settled and marked paid!');
-        loadData();
-      } catch (e) {
-        toastError('Failed to settle tab');
-      }
-    }
-  };
 
   const filteredMenu = menuItems.filter(
     (item) => selectedCategory === 'ALL' || item.category === selectedCategory
@@ -238,86 +171,18 @@ export const CanteenBarPage = () => {
             <Button
               variant="primary"
               icon={Utensils}
-              disabled={loadingTables || !selectedTable}
+              disabled={!cart.length}
               onClick={() => setOrderModalOpen(true)}
             >
-              {selectedTable ? `Order for ${selectedTable}` : 'No Table Available'} ({cart.reduce((sum, i) => sum + i.quantity, 0)})
+              Counter Pickup ({cart.reduce((sum, i) => sum + i.quantity, 0)})
             </Button>
           </div>
         }
       />
 
-      <div className="grid-cols-3" style={{ alignItems: 'start' }}>
-        {/* Left: Table Status & Active Tabs (1 col) */}
+      <div>
+        {/* Member canteen orders use counter pickup; table access is staff-managed. */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {/* Table Selector */}
-          <Card>
-            <Card.Header>
-              <Card.Title>Select Active Table</Card.Title>
-            </Card.Header>
-            <Card.Content>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '0.5rem' }}>
-                {tables.map((table) => {
-                  const tableNumber = table.tableNumber;
-                  const isSelected = selectedTable === tableNumber;
-                  const status = String(table.status || 'AVAILABLE').toUpperCase();
-                  const hasTab = activeTabs.some((tab) => tab.tableNumber === tableNumber);
-
-                  let bg = 'var(--table-available-bg)';
-                  let color = 'var(--table-available-text)';
-                  let border = '1px solid var(--border-color)';
-
-                  if (hasTab || status === 'OCCUPIED') {
-                    bg = 'var(--table-occupied-bg)';
-                    color = 'var(--table-occupied-text)';
-                    border = '1px solid var(--border-color)';
-                  } else if (status !== 'AVAILABLE') {
-                    bg = 'var(--bg-subtle)';
-                    color = 'var(--text-muted)';
-                    border = '1px solid var(--border-color)';
-                  }
-                  if (isSelected) {
-                    bg = 'var(--court-selected)';
-                    color = 'var(--court-selected-text)';
-                    border = '1px solid var(--court-selected)';
-                  }
-
-                  return (
-                    <button
-                      key={table._id}
-                      type="button"
-                      onClick={() => setSelectedTable(tableNumber)}
-                      style={{
-                        padding: '0.65rem 0.35rem',
-                        borderRadius: 'var(--radius-md)',
-                        border,
-                        background: bg,
-                        color,
-                        fontWeight: 700,
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        position: 'relative',
-                        transition: 'var(--transition)',
-                      }}
-                    >
-                      {tableNumber}
-                      <span style={{ display: 'block', fontSize: '0.65rem', fontWeight: 600, opacity: 0.9 }}>
-                        {hasTab ? 'Occupied' : status.charAt(0) + status.slice(1).toLowerCase()}
-                      </span>
-                    </button>
-                  );
-                })}
-                {!loadingTables && tables.length === 0 && (
-                  <p style={{ gridColumn: '1 / -1', margin: 0, padding: '1rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                    No dining tables are configured in the database.
-                  </p>
-                )}
-                {loadingTables && <p style={{ gridColumn: '1 / -1', margin: 0, padding: '1rem', color: 'var(--text-muted)', textAlign: 'center' }}>Loading tables…</p>}
-              </div>
-            </Card.Content>
-          </Card>
-
           <Card>
             <Card.Header>
               <Card.Title>Active Orders</Card.Title>
@@ -380,7 +245,7 @@ export const CanteenBarPage = () => {
 
         {/* Search & Category Filter Section */}
         <div className="commerce-toolbar">
-          <FilterDropdown label="Category" value={category} onChange={(event) => setCategory(event.target.value)} options={categories.map((cat) => ({ value: cat, label: cat === 'ALL' ? 'All menu items' : cat }))} />
+          <FilterDropdown label="Category" value={selectedCategory} onChange={(event) => setSelectedCategory(event.target.value)} options={menuCategories.map((cat) => ({ value: cat, label: cat === 'ALL' ? 'All menu items' : cat }))} />
 
           <div className="shop-search">
             <Search size={16} />
@@ -536,7 +401,7 @@ export const CanteenBarPage = () => {
       <Modal
         isOpen={orderModalOpen}
         onClose={() => setOrderModalOpen(false)}
-        title={`Order for ${selectedTable || 'dining table'}`}
+        title="Counter pickup order"
         subtitle={`${cart.length} item(s) selected`}
         footer={
           <>
@@ -613,13 +478,6 @@ export const CanteenBarPage = () => {
               ))}
             </div>
 
-            <Input
-              label="Customer / Guest Name"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Customer name"
-            />
-
             {/* Price Calculations */}
             <div style={{ padding: '0.85rem 1rem', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
@@ -652,18 +510,18 @@ export const CanteenBarPage = () => {
         )}
       </Modal>
 
-      {/* Reusable Payment Modal for Canteen Orders and Tabs */}
+      {/* Payment modal for the member's counter pickup order */}
       <PaymentModal
         isOpen={paymentModalOpen}
         onClose={() => setPaymentModalOpen(false)}
         amount={pendingPaymentOrder?.total || totalAmount}
         purpose="CANTEEN_ORDER"
         referenceId={pendingPaymentOrder?._id}
-        title={pendingPaymentOrder?.isTab ? `Settle Tab - Table ${pendingPaymentOrder?.tableNumber || ''}` : 'Cafe & Bar Checkout'}
-        subtitle={`Order #${String(pendingPaymentOrder?._id || '').slice(-6).toUpperCase()} • Table: ${pendingPaymentOrder?.tableNumber || selectedTable || 'Counter'}`}
+        title="Cafe & Bar Checkout"
+        subtitle={`Order #${String(pendingPaymentOrder?._id || '').slice(-6).toUpperCase()} • Counter pickup`}
         itemDetails={{
-          service: pendingPaymentOrder?.isTab ? 'Table Service Tab' : 'Counter Pickup Order',
-          table: pendingPaymentOrder?.tableNumber || selectedTable || 'Counter Pickup',
+          service: 'Counter Pickup Order',
+          table: 'Counter Pickup',
           items: `${pendingPaymentOrder?.items?.length || cart.length} item(s)`,
           totalPayable: money(pendingPaymentOrder?.total || totalAmount),
         }}
@@ -672,7 +530,6 @@ export const CanteenBarPage = () => {
           toastSuccess('Bill settled and payment confirmed!', 'Payment Successful');
           setPaymentModalOpen(false);
           loadData();
-          fetchTabs();
         }}
         onFailure={() => {
           toastError('Payment failed or was declined.');

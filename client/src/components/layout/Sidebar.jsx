@@ -269,18 +269,13 @@ export const Sidebar = ({
             icon: Coffee,
           },
           {
-            label: 'Bills',
-            path: '/staff/canteen?tab=tabs',
-            icon: FileText,
-          },
-          {
             label: 'Canteen Payments',
             path: '/staff/canteen?tab=payments',
             icon: CreditCard,
           },
           {
             label: 'My Profile & Shift',
-            path: '/staff/profile',
+            path: '/staff/canteen?tab=profile',
             icon: User,
           },
         ];

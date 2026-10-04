@@ -14,6 +14,9 @@ import {
   X,
   FileText,
   Sparkles,
+  UtensilsCrossed,
+  Receipt,
+  DollarSign,
   ArrowRight,
   AlertCircle,
   ShieldCheck,
@@ -26,6 +29,26 @@ import Alert from '../../../components/ui/Alert';
 import FilterDropdown from '../../../components/ui/FilterDropdown';
 import Pagination from '../../../components/common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
+
+const CANTEEN_PAYMENT_METHODS = [
+  { value: 'UPI', label: 'UPI', fullLabel: 'UPI / QR Code' },
+  { value: 'CARD', label: 'Card', fullLabel: 'Credit / Debit Card' },
+  { value: 'NET_BANKING', label: 'Net Banking', fullLabel: 'Net Banking' },
+  { value: 'CASH', label: 'Cash', fullLabel: 'Counter Cash' },
+];
+
+const getCanteenCustomerName = (name) => {
+  const value = String(name || '').trim();
+  return !value || /^table\s+\S+\s+guest$/i.test(value) ? 'Guest Customer' : value;
+};
+
+const formatMembershipDate = (value) => {
+  if (!value) return 'Not available';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? 'Not available'
+    : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+};
 
 export const CanteenStaffDashboard = () => {
   const { user } = useAuth();
@@ -65,11 +88,13 @@ export const CanteenStaffDashboard = () => {
   // Open Tabs state
   const [openTabsList, setOpenTabsList] = useState([]);
   const [loadingTabs, setLoadingTabs] = useState(false);
+  const [tabsLoadError, setTabsLoadError] = useState('');
 
   // Payments state
   const [canteenPayments, setCanteenPayments] = useState([]);
   const paymentsPage = usePagination(canteenPayments, 10, currentTab);
   const [loadingPayments, setLoadingPayments] = useState(false);
+  const [paymentsLoadError, setPaymentsLoadError] = useState('');
 
   // New Kitchen Order Modal state
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -92,6 +117,8 @@ export const CanteenStaffDashboard = () => {
   const [cancelReason, setCancelReason] = useState('Customer requested cancellation');
   const [submittingCancel, setSubmittingCancel] = useState(false);
   const [staffProfile, setStaffProfile] = useState(null);
+  const [loadingStaffProfile, setLoadingStaffProfile] = useState(false);
+  const [staffProfileError, setStaffProfileError] = useState('');
 
 
   const fetchCanteenData = async () => {
@@ -153,21 +180,31 @@ export const CanteenStaffDashboard = () => {
 
   useEffect(() => {
     if (activeTab !== 'profile') return;
+    setLoadingStaffProfile(true);
+    setStaffProfileError('');
     staffService.getMyProfile()
-      .then((result) => { if (result?.success) setStaffProfile(result.data); })
-      .catch(() => setAlert({ type: 'danger', message: 'Failed to load staff profile.' }));
+      .then((result) => {
+        if (result?.success && result.data) setStaffProfile(result.data);
+        else setStaffProfileError(result?.message || 'Your profile could not be loaded.');
+      })
+      .catch((error) => setStaffProfileError(error.response?.data?.message || 'Your profile could not be loaded.'))
+      .finally(() => setLoadingStaffProfile(false));
   }, [activeTab]);
 
   // Fetch open tabs
   const fetchOpenTabs = async () => {
     setLoadingTabs(true);
+    setTabsLoadError('');
     try {
       const res = await staffService.getOpenTabs();
       if (res.success) {
-        setOpenTabsList(res.data);
+        setOpenTabsList(Array.isArray(res.data) ? res.data : []);
+      } else {
+        setTabsLoadError(res.message || 'Could not load open bills.');
       }
     } catch (err) {
       console.error(err);
+      setTabsLoadError(err.response?.data?.message || 'Could not load open bills. Please refresh and try again.');
     } finally {
       setLoadingTabs(false);
     }
@@ -182,13 +219,17 @@ export const CanteenStaffDashboard = () => {
   // Fetch payments
   const fetchPayments = async () => {
     setLoadingPayments(true);
+    setPaymentsLoadError('');
     try {
       const res = await staffService.getCanteenPayments();
       if (res.success) {
-        setCanteenPayments(res.data);
+        setCanteenPayments(Array.isArray(res.data) ? res.data : []);
+      } else {
+        setPaymentsLoadError(res.message || 'Could not load payment history.');
       }
     } catch (err) {
       console.error(err);
+      setPaymentsLoadError(err.response?.data?.message || 'Could not load payment history. Please refresh and try again.');
     } finally {
       setLoadingPayments(false);
     }
@@ -363,7 +404,7 @@ export const CanteenStaffDashboard = () => {
       setMemberSearchQuery('');
       setMemberSearchResults([]);
         fetchCanteenData();
-        if (activeTab === 'tabs') fetchOpenTabs();
+        await fetchOpenTabs();
       }
     } catch (err) {
       setAlert({ type: 'danger', message: err.response?.data?.message || 'Failed to create order' });
@@ -454,7 +495,6 @@ export const CanteenStaffDashboard = () => {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {activeTab === 'menu' && <UtensilsCrossed size={28} color="var(--primary-navy)" />}
-          {activeTab === 'tables' && <Building2 size={28} color="var(--primary-navy)" />}
           {activeTab === 'orders' && <ChefHat size={28} color="var(--primary-navy)" />}
           {activeTab === 'tabs' && <Receipt size={28} color="var(--primary-navy)" />}
           {activeTab === 'payments' && <DollarSign size={28} color="var(--primary-navy)" />}
@@ -469,10 +509,10 @@ export const CanteenStaffDashboard = () => {
             }}
           >
             {activeTab === 'menu' && 'Menu & Item Availability'}
-            {activeTab === 'tables' && 'Table Floor Map'}
             {activeTab === 'orders' && 'Kitchen Order Queue'}
-            {activeTab === 'tabs' && 'Open Tabs & Running Bills'}
+            {activeTab === 'tabs' && 'Bills'}
             {activeTab === 'payments' && 'Canteen Payments'}
+            {activeTab === 'profile' && 'My Profile & Shift'}
             {activeTab === 'dashboard' && 'Canteen & Bar Dashboard'}
           </h1>
         </div>
@@ -830,216 +870,6 @@ export const CanteenStaffDashboard = () => {
       )}
 
       {/* ======================================================== */}
-      {/* TAB 3: TABLE MANAGEMENT & STATUS LIFECYCLE */}
-      {/* ======================================================== */}
-      {activeTab === 'tables' && (
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            padding: '1.5rem',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              borderBottom: '1px solid var(--border)',
-              paddingBottom: '1rem',
-              marginBottom: '1.25rem',
-              flexWrap: 'wrap',
-              gap: '1rem',
-            }}
-          >
-            <div>
-              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                Visual Dining & Bar Table Layout
-              </h3>
-              <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                Lifecycle: 🟢 AVAILABLE ➔ 🔴 OCCUPIED ➔ 🟡 CLEANING ➔ 🟢 AVAILABLE
-              </p>
-            </div>
-
-            {/* Status Legend */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.8rem', fontWeight: 600 }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--success)' }}>
-                <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: 'var(--success)' }} />
-                Available
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--danger)' }}>
-                <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: 'var(--danger)' }} />
-                Occupied
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--warning)' }}>
-                <span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: 'var(--warning)' }} />
-                Cleaning
-              </span>
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-              gap: '1.25rem',
-            }}
-          >
-            {tables.map((t) => {
-              const isAvail = t.status === 'AVAILABLE';
-              const isOccupied = t.status === 'OCCUPIED';
-              const isCleaning = t.status === 'CLEANING';
-
-              return (
-                <div
-                  key={t._id}
-                  style={{
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-lg)',
-                    padding: '1.25rem',
-                    backgroundColor: isAvail
-                      ? '#FFFFFF'
-                      : isOccupied
-                      ? 'rgba(239, 68, 68, 0.04)'
-                      : 'rgba(245, 158, 11, 0.04)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
-                        {t.tableNumber}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: '0.725rem',
-                          fontWeight: 700,
-                          padding: '3px 8px',
-                          borderRadius: 'var(--radius-full)',
-                          backgroundColor: isAvail
-                            ? 'var(--light-green)'
-                            : isOccupied
-                            ? 'var(--light-danger)'
-                            : 'var(--light-warning)',
-                          color: isAvail ? 'var(--success)' : isOccupied ? 'var(--danger)' : 'var(--warning)',
-                        }}
-                      >
-                        {t.status}
-                      </span>
-                    </div>
-
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-                      Capacity: {t.capacity || 4} Seats • Section: {t.section || 'INDOOR_CAFE'}
-                    </div>
-
-                    {isOccupied && (
-                      <div
-                        style={{
-                          marginTop: '0.75rem',
-                          backgroundColor: 'var(--lavender)',
-                          padding: '0.5rem 0.75rem',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '0.8rem',
-                        }}
-                      >
-                        Guest: <strong>{t.currentCustomer?.name || 'Seated Guest'}</strong>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Operational Transition Buttons */}
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                    {isAvail && (
-                      <button
-                        onClick={() => {
-                          setSelectedTableNum(t.tableNumber);
-                          setShowOrderModal(true);
-                        }}
-                        style={{
-                          flex: 1,
-                          padding: '0.5rem',
-                          backgroundColor: 'var(--primary)',
-                          color: '#FFFFFF',
-                          border: 'none',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '0.8rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Seat & Open Tab
-                      </button>
-                    )}
-
-                    {isOccupied && (
-                      <button
-                        onClick={() => handleQuickTableTransition(t, 'CLEANING')}
-                        style={{
-                          flex: 1,
-                          padding: '0.5rem',
-                          backgroundColor: 'var(--warning)',
-                          color: '#FFFFFF',
-                          border: 'none',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '0.8rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Move to Cleaning
-                      </button>
-                    )}
-
-                    {isCleaning && (
-                      <button
-                        onClick={() => handleQuickTableTransition(t, 'AVAILABLE')}
-                        style={{
-                          flex: 1,
-                          padding: '0.5rem',
-                          backgroundColor: 'var(--success)',
-                          color: '#FFFFFF',
-                          border: 'none',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '0.8rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Mark Clean & Ready
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => {
-                        setSelectedTable(t);
-                        setTableStatus(t.status);
-                        setSeatedGuest(t.currentCustomer?.name || '');
-                        setShowTableModal(true);
-                      }}
-                      style={{
-                        padding: '0.5rem 0.75rem',
-                        backgroundColor: '#FFFFFF',
-                        border: '1px solid var(--border)',
-                        borderRadius: 'var(--radius-sm)',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Edit
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ======================================================== */}
       {/* TAB 4: KITCHEN PIPELINE & DISPATCH */}
       {/* ======================================================== */}
       {activeTab === 'orders' && (
@@ -1293,12 +1123,12 @@ export const CanteenStaffDashboard = () => {
                           borderRadius: 'var(--radius-full)',
                         }}
                       >
-                        OPEN TAB
+                        UNPAID BILL
                       </span>
                     </div>
 
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginTop: '0.5rem' }}>
-                      Open tab
+                      Unpaid bill
                     </div>
 
                     {/* Items Breakdown */}
@@ -1341,7 +1171,7 @@ export const CanteenStaffDashboard = () => {
                           marginTop: '0.35rem',
                         }}
                       >
-                        <span>Current Tab Total:</span>
+                        <span>Bill Total:</span>
                         <span>₹{tab.total}</span>
                       </div>
                     </div>
@@ -1356,14 +1186,14 @@ export const CanteenStaffDashboard = () => {
                         setShowSettleModal(true);
                       }}
                     >
-                      Settle & Close Tab
+                      Settle Bill
                     </button>
                   </div>
                 </div>
               ))
             ) : (
               <div style={{ colSpan: 3, textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                {loadingTabs ? 'Loading open tabs...' : 'No open tabs currently running.'}
+                      {loadingTabs ? 'Loading open bills...' : tabsLoadError || 'No open bills currently running.'}
               </div>
             )}
           </div>
@@ -1478,7 +1308,7 @@ export const CanteenStaffDashboard = () => {
                 ) : (
                   <tr>
                     <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      {loadingPayments ? 'Loading canteen payments...' : 'No payments found.'}
+                      {loadingPayments ? 'Loading canteen payments...' : paymentsLoadError || 'No payments found.'}
                     </td>
                   </tr>
                 )}
@@ -1489,19 +1319,25 @@ export const CanteenStaffDashboard = () => {
         </div>
       )}
 
-      {activeTab === 'profile' && staffProfile && (
-        <section className="canteen-profile-card" aria-label="My profile">
-          {user?.profileImage
-            ? <img className="canteen-profile-photo" src={user.profileImage} alt="Profile" />
-            : <div className="canteen-profile-photo canteen-profile-placeholder" aria-label="Profile photo unavailable">{staffProfile.name?.charAt(0) || 'S'}</div>}
-          <dl className="canteen-profile-details">
-            <div><dt>Name</dt><dd>{staffProfile.name || '—'}</dd></div>
-            <div><dt>Employee ID</dt><dd>{staffProfile.employeeId || '—'}</dd></div>
-            <div><dt>Department</dt><dd>{staffProfile.department === 'CANTEEN' ? 'Canteen' : staffProfile.department || '—'}</dd></div>
-            <div><dt>Phone</dt><dd>{staffProfile.phone || '—'}</dd></div>
-            <div><dt>Email</dt><dd>{staffProfile.email || '—'}</dd></div>
-          </dl>
-        </section>
+      {activeTab === 'profile' && (
+        loadingStaffProfile ? (
+          <Loader text="Loading your profile..." />
+        ) : staffProfileError ? (
+          <Alert type="danger" message={staffProfileError} />
+        ) : staffProfile && (
+          <section className="canteen-profile-card" aria-label="My profile">
+            {user?.profileImage
+              ? <img className="canteen-profile-photo" src={user.profileImage} alt="Profile" />
+              : <div className="canteen-profile-photo canteen-profile-placeholder" aria-label="Profile photo unavailable">{staffProfile.name?.charAt(0) || 'S'}</div>}
+            <dl className="canteen-profile-details">
+              <div><dt>Name</dt><dd>{staffProfile.name || '—'}</dd></div>
+              <div><dt>Employee ID</dt><dd>{staffProfile.employeeId || '—'}</dd></div>
+              <div><dt>Department</dt><dd>{staffProfile.department === 'CANTEEN' ? 'Canteen' : staffProfile.department || '—'}</dd></div>
+              <div><dt>Phone</dt><dd>{staffProfile.phone || '—'}</dd></div>
+              <div><dt>Email</dt><dd>{staffProfile.email || '—'}</dd></div>
+            </dl>
+          </section>
+        )
       )}
 
       {cancelOrder && (
@@ -1822,24 +1658,25 @@ export const CanteenStaffDashboard = () => {
                   PAYMENT METHOD
                 </label>
                 <div className="canteen-payment-methods">
-                  {['UPI', 'CARD', 'CASH'].map((pm) => (
+                  {CANTEEN_PAYMENT_METHODS.map(({ value, label, fullLabel }) => (
                     <button
                       type="button"
-                      key={pm}
-                      aria-pressed={settlePaymentMethod === pm}
+                      key={value}
+                      aria-pressed={settlePaymentMethod === value}
+                      title={fullLabel}
                       className="canteen-payment-method"
-                      onClick={() => setSettlePaymentMethod(pm)}
+                      onClick={() => setSettlePaymentMethod(value)}
                       style={{
                         padding: '0.45rem',
                         borderRadius: 'var(--radius-sm)',
-                        border: settlePaymentMethod === pm ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                        backgroundColor: settlePaymentMethod === pm ? 'var(--bg-card)' : 'var(--bg-main)',
+                        border: settlePaymentMethod === value ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                        backgroundColor: settlePaymentMethod === value ? 'var(--bg-card)' : 'var(--bg-main)',
                         fontWeight: 700,
                         fontSize: '0.75rem',
                         cursor: 'pointer',
                       }}
                     >
-                      {pm}
+                      {label}
                     </button>
                   ))}
                 </div>
@@ -1861,7 +1698,7 @@ export const CanteenStaffDashboard = () => {
                   cursor: submittingSettle ? 'not-allowed' : 'pointer',
                 }}
               >
-                {submittingSettle ? 'Settling Tab...' : `Collect ₹${settleOrder.total} & Move Table to Cleaning`}
+                {submittingSettle ? 'Processing Payment…' : `Confirm Payment · ₹${settleOrder.total}`}
               </button>
             </form>
           </div>
@@ -1959,98 +1796,6 @@ export const CanteenStaffDashboard = () => {
         </div>
       )}
 
-      {/* ======================================================== */}
-      {/* TABLE STATUS EDIT MODAL */}
-      {/* ======================================================== */}
-      {showTableModal && selectedTable && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(23, 38, 59, 0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '1rem',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: 'var(--radius-lg)',
-              maxWidth: '420px',
-              width: '100%',
-              padding: '1.5rem',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--primary-navy)' }}>
-                Manage {selectedTable.tableNumber}
-              </h3>
-              <button onClick={() => setShowTableModal(false)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleUpdateTable}>
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Table Status</label>
-                <select
-                  value={tableStatus}
-                  onChange={(e) => setTableStatus(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border)',
-                    marginTop: '0.25rem',
-                  }}
-                >
-                  <option value="AVAILABLE">AVAILABLE (🟢 Free for guests)</option>
-                  <option value="OCCUPIED">OCCUPIED (🔴 Dining in progress)</option>
-                  <option value="CLEANING">CLEANING (🟡 Sanitizing / Clearing)</option>
-                </select>
-              </div>
-
-              {tableStatus === 'OCCUPIED' && (
-                <div style={{ marginBottom: '1.25rem' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>Seated Customer Name</label>
-                  <input
-                    type="text"
-                    placeholder="Guest Name"
-                    value={seatedGuest}
-                    onChange={(e) => setSeatedGuest(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '0.5rem',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border)',
-                      marginTop: '0.25rem',
-                    }}
-                  />
-                </div>
-              )}
-
-              <button
-                type="submit"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  backgroundColor: 'var(--primary)',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  borderRadius: 'var(--radius-md)',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                Update Table State
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

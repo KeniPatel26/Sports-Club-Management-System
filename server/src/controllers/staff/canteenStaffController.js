@@ -340,10 +340,10 @@ export const updateCanteenOrderStatus = async (req, res) => {
  */
 export const settleCanteenTab = async (req, res) => {
   try {
-    const { orderId, tableNumber, paymentMethod = 'UPI' } = req.body;
+    const { orderId, paymentMethod = 'UPI' } = req.body;
     const method = String(paymentMethod).toUpperCase();
-    if (!['UPI', 'CARD', 'CASH'].includes(method)) {
-      return res.status(400).json({ success: false, message: 'Choose Cash, Card, or UPI.' });
+    if (!['UPI', 'CARD', 'NET_BANKING', 'CASH'].includes(method)) {
+      return res.status(400).json({ success: false, message: 'Choose UPI, Card, Net Banking, or Cash.' });
     }
 
     const order = await Order.findById(orderId);
@@ -356,7 +356,7 @@ export const settleCanteenTab = async (req, res) => {
 
     order.tabStatus = 'CLOSED';
     order.paymentStatus = 'paid';
-    order.paymentMethod = method.toLowerCase();
+    order.paymentMethod = method === 'NET_BANKING' ? 'online' : method.toLowerCase();
     await order.save();
 
     // Record invoice & payment
@@ -394,7 +394,7 @@ export const settleCanteenTab = async (req, res) => {
       status: 'PAID',
       referenceId: order._id,
       paidAt: new Date(),
-      notes: `Canteen settlement for Table ${order.tableNumber || 'Counter'}`,
+      notes: `Canteen bill settlement for order ${order._id}`,
     });
 
     return res.status(200).json({
@@ -445,14 +445,15 @@ export const getCanteenOrders = async (req, res) => {
 
 /**
  * GET /api/staff/canteen/tabs/open
- * List open running table tabs
+ * List unpaid, non-cancelled canteen orders for the Bills screen.
+ * Failed and legacy statuses are still unpaid and must remain settleable.
  */
 export const getOpenTabs = async (req, res) => {
   try {
     const openOrders = await Order.find({
       type: 'canteen',
-      tabStatus: 'OPEN',
-      paymentStatus: 'pending',
+      paymentStatus: { $nin: ['paid', 'PAID', 'refunded', 'REFUNDED'] },
+      status: { $nin: ['cancelled', 'CANCELLED'] },
     })
       .populate('member', 'firstName lastName phone')
       .sort({ createdAt: -1 });
@@ -476,7 +477,7 @@ export const getOpenTabs = async (req, res) => {
  */
 export const getCanteenPayments = async (req, res) => {
   try {
-    const payments = await Payment.find({ type: 'CANTEEN' })
+    const payments = await Payment.find({ purpose: 'CANTEEN_ORDER' })
       .sort({ createdAt: -1 })
       .limit(40);
 
