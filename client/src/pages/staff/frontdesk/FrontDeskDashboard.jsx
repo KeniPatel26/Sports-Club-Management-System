@@ -41,6 +41,8 @@ import courtBookingService from '../../../services/courtBookingService';
 import { useAuth } from '../../../context/AuthContext';
 import Loader from '../../../components/ui/Loader';
 import Alert from '../../../components/ui/Alert';
+import Pagination from '../../../components/common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 const toDateInputValue = (date = new Date()) => {
   const year = date.getFullYear();
@@ -764,6 +766,8 @@ export const FrontDeskDashboard = () => {
       return true;
     });
   }, [overview?.schedule, bookingFilter]);
+  const schedulePage = usePagination(filteredSchedule, 10, `${activeTab}|${bookingFilter}`);
+  const paymentsPage = usePagination(paymentsList, 10, activeTab);
 
   // -------------------------------------------------------------
   // Filtered Court Availability Grid
@@ -1275,7 +1279,7 @@ export const FrontDeskDashboard = () => {
                 </thead>
                 <tbody>
                   {filteredSchedule.length > 0 ? (
-                    filteredSchedule.map((item) => (
+                    schedulePage.paginatedItems.map((item) => (
                       <tr
                         key={item.id}
                         style={{ borderBottom: '1px solid var(--border)', transition: 'background-color 0.15s' }}
@@ -1438,6 +1442,7 @@ export const FrontDeskDashboard = () => {
                   )}
                 </tbody>
               </table>
+              <div style={{ padding: '0 1rem' }}><Pagination {...schedulePage} onPageChange={schedulePage.setCurrentPage} /></div>
             </div>
           </div>
         </div>
@@ -2147,7 +2152,7 @@ export const FrontDeskDashboard = () => {
               </thead>
               <tbody>
                 {filteredSchedule.length > 0 ? (
-                  filteredSchedule.map((item) => (
+                  schedulePage.paginatedItems.map((item) => (
                     <tr key={item.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--text-main)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -2287,6 +2292,7 @@ export const FrontDeskDashboard = () => {
                 )}
               </tbody>
             </table>
+            <div style={{ padding: '0 1rem' }}><Pagination {...schedulePage} onPageChange={schedulePage.setCurrentPage} /></div>
           </div>
         </div>
       )}
@@ -2365,7 +2371,7 @@ export const FrontDeskDashboard = () => {
               </thead>
               <tbody>
                 {paymentsList.length > 0 ? (
-                  paymentsList.map((p) => (
+                  paymentsPage.paginatedItems.map((p) => (
                     <tr key={p._id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
                         {p.paymentId || `PAY-${p._id.slice(-6)}`}
@@ -2418,6 +2424,7 @@ export const FrontDeskDashboard = () => {
                 )}
               </tbody>
             </table>
+            <div style={{ padding: '0 1rem' }}><Pagination {...paymentsPage} onPageChange={paymentsPage.setCurrentPage} /></div>
           </div>
         </div>
       )}

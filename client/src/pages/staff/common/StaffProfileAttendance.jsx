@@ -17,6 +17,8 @@ import staffService from '../../../services/staffService';
 import { useAuth } from '../../../context/AuthContext';
 import Loader from '../../../components/ui/Loader';
 import Alert from '../../../components/ui/Alert';
+import Pagination from '../../../components/common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 export const StaffProfileAttendance = () => {
   const { user } = useAuth();
@@ -98,6 +100,7 @@ export const StaffProfileAttendance = () => {
     { id: '3', date: '02 Oct 2026', shift: '09:00 - 18:00', checkIn: '09:18 AM', checkOut: '18:00 PM', workedHours: '8h 42m', status: 'LATE', source: 'LOGIN' },
     { id: '4', date: '01 Oct 2026', shift: '09:00 - 18:00', checkIn: '08:58 AM', checkOut: '17:55 PM', workedHours: '8h 57m', status: 'PRESENT', source: 'LOGIN' },
   ];
+  const historyPage = usePagination(history, 10);
 
   return (
     <div style={{ padding: '1.75rem', maxWidth: '1240px', margin: '0 auto', fontFamily: "'Space Grotesk', sans-serif" }}>
@@ -303,7 +306,7 @@ export const StaffProfileAttendance = () => {
             </tr>
           </thead>
           <tbody>
-            {history.map((h) => (
+            {historyPage.paginatedItems.map((h) => (
               <tr key={h.id} style={{ borderBottom: '1px solid #EEF2F6' }}>
                 <td style={{ padding: '0.85rem 1.15rem', fontWeight: 700, color: '#354962' }}>{h.date}</td>
                 <td style={{ padding: '0.85rem 1.15rem', color: '#64748B' }}>{h.shift}</td>
@@ -352,6 +355,7 @@ export const StaffProfileAttendance = () => {
             ))}
           </tbody>
         </table>
+        <div style={{ padding: '0 1rem' }}><Pagination {...historyPage} onPageChange={historyPage.setCurrentPage} /></div>
       </div>
 
       {/* Department Notices */}

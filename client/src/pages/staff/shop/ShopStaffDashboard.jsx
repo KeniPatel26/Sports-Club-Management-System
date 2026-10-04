@@ -37,6 +37,8 @@ import { useAuth } from '../../../context/AuthContext';
 import Loader from '../../../components/ui/Loader';
 import Alert from '../../../components/ui/Alert';
 import FilterDropdown from '../../../components/ui/FilterDropdown';
+import Pagination from '../../../components/common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 export const ShopStaffDashboard = () => {
   const { user } = useAuth();
@@ -130,6 +132,10 @@ export const ShopStaffDashboard = () => {
   // Attendance state
   const [checkedIn, setCheckedIn] = useState(true);
   const [checkInTime, setCheckInTime] = useState('09:00 AM');
+  const recentOrdersPage = usePagination(overview?.recentOrders || [], 10, activeTab);
+  const inventoryHistoryPage = usePagination(inventoryHistory, 10, activeTab);
+  const shopOrdersPage = usePagination(shopOrders, 10, `${activeTab}|${orderFilter}`);
+  const paymentsPage = usePagination(paymentsList, 10, activeTab);
 
   const fetchShopData = async () => {
     try {
@@ -759,7 +765,7 @@ export const ShopStaffDashboard = () => {
                 </thead>
                 <tbody>
                   {(overview?.recentOrders || []).length > 0 ? (
-                    overview.recentOrders.map((o) => (
+                    recentOrdersPage.paginatedItems.map((o) => (
                       <tr key={o._id} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--primary-navy)' }}>
                           #{o._id.slice(-4).toUpperCase()}
@@ -872,6 +878,7 @@ export const ShopStaffDashboard = () => {
                   )}
                 </tbody>
               </table>
+              <div style={{ padding: '0 1rem' }}><Pagination {...recentOrdersPage} onPageChange={recentOrdersPage.setCurrentPage} /></div>
             </div>
           </div>
 
@@ -1280,7 +1287,7 @@ export const ShopStaffDashboard = () => {
                 </thead>
                 <tbody>
                   {inventoryHistory.length > 0 ? (
-                    inventoryHistory.map((h) => (
+                    inventoryHistoryPage.paginatedItems.map((h) => (
                       <tr key={h._id} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td style={{ padding: '0.85rem 1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
                           {new Date(h.createdAt).toLocaleString()}
@@ -1338,6 +1345,7 @@ export const ShopStaffDashboard = () => {
                   )}
                 </tbody>
               </table>
+              <div style={{ padding: '0 1rem' }}><Pagination {...inventoryHistoryPage} onPageChange={inventoryHistoryPage.setCurrentPage} /></div>
             </div>
           </div>
         </div>
@@ -2347,7 +2355,7 @@ export const ShopStaffDashboard = () => {
                   </thead>
                   <tbody>
                     {shopOrders.length > 0 ? (
-                      shopOrders.map((o) => (
+                      shopOrdersPage.paginatedItems.map((o) => (
                         <tr
                           key={o._id}
                           style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
@@ -2503,6 +2511,7 @@ export const ShopStaffDashboard = () => {
                     )}
                   </tbody>
                 </table>
+                <div style={{ padding: '0 1rem' }}><Pagination {...shopOrdersPage} onPageChange={shopOrdersPage.setCurrentPage} /></div>
               </div>
             </div>
           )}
@@ -2834,7 +2843,7 @@ export const ShopStaffDashboard = () => {
               </thead>
               <tbody>
                 {paymentsList.length > 0 ? (
-                  paymentsList.map((p) => (
+                  paymentsPage.paginatedItems.map((p) => (
                     <tr key={p._id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: 'var(--primary-navy)' }}>
                         {p.paymentId || `PAY-${p._id.slice(-6)}`}
@@ -2887,6 +2896,7 @@ export const ShopStaffDashboard = () => {
                 )}
               </tbody>
             </table>
+            <div style={{ padding: '0 1rem' }}><Pagination {...paymentsPage} onPageChange={paymentsPage.setCurrentPage} /></div>
           </div>
         </div>
       )}

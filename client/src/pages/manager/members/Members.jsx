@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Pagination from '../../../components/common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import managerService from '../../../services/managerService';
 import { useToast } from '../../../context/ToastContext';
 import FilterDropdown from '../../../components/ui/FilterDropdown';
@@ -32,6 +34,7 @@ export const Members = () => {
   const [memberDetails, setMemberDetails] = useState(null);
   const [detailTab, setDetailTab] = useState('overview');
   const membersRequestId = useRef(0);
+  const membersPage = usePagination(members, 10, `${search}|${statusFilter}`);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -269,7 +272,7 @@ export const Members = () => {
                 </td>
               </tr>
             ) : (
-              members.map((m) => (
+              membersPage.paginatedItems.map((m) => (
                 <tr key={m.id} style={{ borderBottom: '1px solid #EEF2F6' }}>
                   <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#17263B' }}>
                     {m.name}
@@ -358,6 +361,7 @@ export const Members = () => {
             )}
           </tbody>
         </table>
+        <div style={{ padding: '0 1rem' }}><Pagination {...membersPage} onPageChange={membersPage.setCurrentPage} /></div>
       </div>
 
       {/* Add Member Modal */}

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import Pagination from '../../../components/common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import managerService from '../../../services/managerService';
 import { useToast } from '../../../context/ToastContext';
 import {
@@ -20,6 +22,8 @@ export const Courts = () => {
   const [activeTab, setActiveTab] = useState('courts'); // 'courts' | 'bookings'
   const [loading, setLoading] = useState(true);
   const [showAddCourtModal, setShowAddCourtModal] = useState(false);
+  const courtsPage = usePagination(courts, 8, activeTab);
+  const bookingsPage = usePagination(bookings, 10, activeTab);
 
   const [newCourt, setNewCourt] = useState({
     name: '',
@@ -159,7 +163,7 @@ export const Courts = () => {
       {/* 1. Courts Tab */}
       {activeTab === 'courts' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
-          {courts.map((c) => (
+          {courtsPage.paginatedItems.map((c) => (
             <div
               key={c._id}
               style={{
@@ -234,6 +238,7 @@ export const Courts = () => {
               </div>
             </div>
           ))}
+          <div style={{ gridColumn: '1 / -1', padding: '0 1rem' }}><Pagination {...courtsPage} onPageChange={courtsPage.setCurrentPage} /></div>
         </div>
       )}
 
@@ -253,7 +258,7 @@ export const Courts = () => {
               </tr>
             </thead>
             <tbody>
-              {bookings.map((b) => (
+              {bookingsPage.paginatedItems.map((b) => (
                 <tr key={b.id} style={{ borderBottom: '1px solid #EEF2F6' }}>
                   <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#17263B' }}>
                     {b.courtName}
@@ -312,6 +317,7 @@ export const Courts = () => {
               ))}
             </tbody>
           </table>
+          <div style={{ padding: '0 1rem' }}><Pagination {...bookingsPage} onPageChange={bookingsPage.setCurrentPage} /></div>
         </div>
       )}
 

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import Pagination from '../../../components/common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import managerService from '../../../services/managerService';
 import { useToast } from '../../../context/ToastContext';
 import {
@@ -84,6 +86,12 @@ export const Memberships = () => {
   );
   const activeMemberships = memberships.filter((m) => m.expiryCategory === 'ACTIVE');
   const expiredMemberships = memberships.filter((m) => m.expiryCategory === 'EXPIRED');
+  const displayedMemberships = activeTab === 'active'
+    ? activeMemberships
+    : activeTab === 'expiring'
+      ? expiringMemberships
+      : expiredMemberships;
+  const membershipPage = usePagination(displayedMemberships, 10, activeTab);
 
   return (
     <div style={{ padding: '1.5rem', maxWidth: '1400px', margin: '0 auto', fontFamily: "'Space Grotesk', sans-serif" }}>
@@ -266,12 +274,7 @@ export const Memberships = () => {
               </tr>
             </thead>
             <tbody>
-              {(activeTab === 'active'
-                ? activeMemberships
-                : activeTab === 'expiring'
-                ? expiringMemberships
-                : expiredMemberships
-              ).map((m) => (
+              {membershipPage.paginatedItems.map((m) => (
                 <tr key={m.id} style={{ borderBottom: '1px solid #EEF2F6' }}>
                   <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#17263B' }}>
                     {m.memberName}
@@ -322,6 +325,7 @@ export const Memberships = () => {
               ))}
             </tbody>
           </table>
+          <div style={{ padding: '0 1rem' }}><Pagination {...membershipPage} onPageChange={membershipPage.setCurrentPage} /></div>
         </div>
       )}
 

@@ -39,6 +39,10 @@ export const ChartCard = ({
   horizontal = false,
   stacked = false,
   currency = false,
+  valueSuffix = '',
+  maxValue,
+  xAxisTitle,
+  datasetLabel,
   showLegend,
   bare = false,
 }) => {
@@ -46,7 +50,7 @@ export const ChartCard = ({
   const values = Array.isArray(data) ? data.map((item) => Number(item.value ?? item.amount ?? 0)) : [];
   const colors = Array.isArray(data) ? data.map((item, i) => item.color || PALETTE[i % PALETTE.length]) : PALETTE;
   const chartData = Array.isArray(data)
-    ? { labels, datasets: [{ label: title, data: values, backgroundColor: type === 'line' ? 'rgba(56, 189, 248, .18)' : colors, borderColor: type === 'line' ? '#38bdf8' : colors, borderWidth: type === 'line' ? 2 : 1, borderRadius: type === 'bar' ? 6 : 0, pointBackgroundColor: '#38bdf8', pointRadius: 3, fill: type === 'line', tension: 0.35 }] }
+    ? { labels, datasets: [{ label: title || datasetLabel, data: values, backgroundColor: type === 'line' ? 'rgba(56, 189, 248, .18)' : colors, borderColor: type === 'line' ? '#38bdf8' : colors, borderWidth: type === 'line' ? 2 : 1, borderRadius: type === 'bar' ? 6 : 0, pointBackgroundColor: '#38bdf8', pointRadius: 3, fill: type === 'line', tension: 0.35 }] }
     : data;
 
   const options = {
@@ -55,11 +59,13 @@ export const ChartCard = ({
     indexAxis: horizontal ? 'y' : 'x',
     plugins: {
       legend: { display: showLegend ?? ['pie', 'doughnut'].includes(type), position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, padding: 16 } },
-      tooltip: { callbacks: { label: (context) => `${context.dataset.label ? `${context.dataset.label}: ` : ''}${currency ? '₹' : ''}${Number(horizontal ? context.parsed?.x : context.parsed?.y ?? context.parsed?.r ?? context.raw ?? 0).toLocaleString('en-IN')}` } },
+      tooltip: { callbacks: { label: (context) => `${context.dataset.label ? `${context.dataset.label}: ` : ''}${currency ? '₹' : ''}${Number(horizontal ? context.parsed?.x : context.parsed?.y ?? context.parsed?.r ?? context.raw ?? 0).toLocaleString('en-IN')}${valueSuffix}` } },
     },
     scales: ['pie', 'doughnut'].includes(type) ? {} : {
-      x: { beginAtZero: true, stacked, grid: { display: horizontal }, ticks: { color: '#64748B', maxRotation: 0, autoSkip: true, callback: (value) => currency && horizontal ? `₹${Number(value).toLocaleString('en-IN')}` : value } },
-      y: { beginAtZero: true, stacked, grid: { color: 'rgba(100, 116, 139, .12)' }, ticks: { color: '#64748B', callback: (value) => currency && !horizontal ? `₹${Number(value).toLocaleString('en-IN')}` : value } },
+      x: { beginAtZero: true, ...(maxValue !== undefined ? { max: maxValue } : {}), stacked, title: { display: Boolean(horizontal && xAxisTitle), text: horizontal ? xAxisTitle : undefined, color: '#64748B', font: { size: 11, weight: '600' } }, grid: { display: horizontal }, ticks: { color: '#64748B', maxRotation: 0, autoSkip: true, callback: (value) => currency && horizontal ? `₹${Number(value).toLocaleString('en-IN')}` : `${value}${valueSuffix}` } },
+      y: horizontal
+        ? { type: 'category', stacked, reverse: true, grid: { display: false }, ticks: { color: '#354962', autoSkip: false, callback: (value) => labels[value] ?? value } }
+        : { beginAtZero: true, stacked, grid: { color: 'rgba(100, 116, 139, .12)' }, ticks: { color: '#64748B', callback: (value) => currency ? `₹${Number(value).toLocaleString('en-IN')}` : value } },
     },
   };
 

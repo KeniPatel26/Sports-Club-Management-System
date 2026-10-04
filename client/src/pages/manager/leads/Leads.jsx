@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import Pagination from '../../../components/common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import managerService from '../../../services/managerService';
 import { useToast } from '../../../context/ToastContext';
 import {
@@ -18,6 +20,7 @@ export const LeadsManagement = () => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const leadsPage = usePagination(leads, 10);
 
   const [newLead, setNewLead] = useState({
     name: '',
@@ -121,7 +124,7 @@ export const LeadsManagement = () => {
             </tr>
           </thead>
           <tbody>
-            {leads.map((l) => (
+            {leadsPage.paginatedItems.map((l) => (
               <tr key={l._id} style={{ borderBottom: '1px solid #EEF2F6' }}>
                 <td style={{ padding: '0.85rem 1rem', fontWeight: 700, color: '#17263B' }}>{l.name}</td>
                 <td style={{ padding: '0.85rem 1rem', color: '#64748B' }}>
@@ -189,6 +192,7 @@ export const LeadsManagement = () => {
             ))}
           </tbody>
         </table>
+        <div style={{ padding: '0 1rem' }}><Pagination {...leadsPage} onPageChange={leadsPage.setCurrentPage} /></div>
       </div>
 
       {/* Add Lead Modal */}

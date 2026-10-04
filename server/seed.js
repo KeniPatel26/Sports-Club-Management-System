@@ -228,6 +228,39 @@ const seedAllChampionsClubData = async () => {
         isEmailVerified: true,
         profileImage: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=150&auto=format&fit=crop&q=80',
       },
+      // Additional member for realistic booking history
+      {
+        firstName: 'Nisha',
+        lastName: 'Shah',
+        email: 'nisha.shah@championsclub.com',
+        phone: '+91-9898000016',
+        password: memberPassword,
+        role: 'MEMBER',
+        department: null,
+        status: 'ACTIVE',
+        isEmailVerified: true,
+        profileImage: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=150&auto=format&fit=crop&q=80',
+      },
+      {
+        firstName: 'Farah', lastName: 'Khan', email: 'farah.khan@championsclub.com', phone: '+91-9898000017',
+        password: memberPassword, role: 'MEMBER', department: null, status: 'ACTIVE', isEmailVerified: true,
+      },
+      {
+        firstName: 'Dev', lastName: 'Mehta', email: 'dev.mehta@championsclub.com', phone: '+91-9898000018',
+        password: memberPassword, role: 'MEMBER', department: null, status: 'ACTIVE', isEmailVerified: true,
+      },
+      {
+        firstName: 'Isha', lastName: 'Rao', email: 'isha.rao@championsclub.com', phone: '+91-9898000019',
+        password: memberPassword, role: 'MEMBER', department: null, status: 'ACTIVE', isEmailVerified: true,
+      },
+      {
+        firstName: 'Arnav', lastName: 'Joshi', email: 'arnav.joshi@championsclub.com', phone: '+91-9898000020',
+        password: memberPassword, role: 'MEMBER', department: null, status: 'ACTIVE', isEmailVerified: true,
+      },
+      {
+        firstName: 'Tara', lastName: 'Desai', email: 'tara.desai@championsclub.com', phone: '+91-9898000021',
+        password: memberPassword, role: 'MEMBER', department: null, status: 'ACTIVE', isEmailVerified: true,
+      },
     ]);
 
     const [
@@ -241,6 +274,12 @@ const seedAllChampionsClubData = async () => {
       rohanMember,
       meeraMember,
       kabirMember,
+      nishaMember,
+      farahMember,
+      devMember,
+      ishaMember,
+      arnavMember,
+      taraMember,
     ] = users;
 
     console.log('2. 📜 Creating Membership Plans...');
@@ -440,6 +479,20 @@ const seedAllChampionsClubData = async () => {
         emergencyContact: { name: 'Aarti Singhania', phone: '+91-9898000095', relation: 'Spouse' },
         notes: 'Corporate weekend turf league organizer.',
       },
+      {
+        user: nishaMember._id,
+        memberId: 'MEM-1006',
+        gender: 'FEMALE',
+        dateOfBirth: new Date('1999-07-21'),
+        address: { street: '28 Riverfront Road', city: 'Ahmedabad', state: 'Gujarat', pincode: '380006' },
+        emergencyContact: { name: 'Amit Shah', phone: '+91-9898000094', relation: 'Father' },
+        notes: 'Regular badminton and tennis player.',
+      },
+      { user: farahMember._id, memberId: 'MEM-1007', gender: 'FEMALE', dateOfBirth: new Date('1997-02-18'), address: { city: 'Ahmedabad', state: 'Gujarat', pincode: '380001' }, notes: 'Gold member; regular tennis player.' },
+      { user: devMember._id, memberId: 'MEM-1008', gender: 'MALE', dateOfBirth: new Date('1996-09-04'), address: { city: 'Ahmedabad', state: 'Gujarat', pincode: '380002' }, notes: 'Silver member; plays tennis and padel.' },
+      { user: ishaMember._id, memberId: 'MEM-1009', gender: 'FEMALE', dateOfBirth: new Date('2007-06-12'), address: { city: 'Ahmedabad', state: 'Gujarat', pincode: '380003' }, notes: 'Junior member; academy badminton player.' },
+      { user: arnavMember._id, memberId: 'MEM-1010', gender: 'MALE', dateOfBirth: new Date('1998-04-25'), address: { city: 'Ahmedabad', state: 'Gujarat', pincode: '380004' }, notes: 'Gold member; box cricket regular.' },
+      { user: taraMember._id, memberId: 'MEM-1011', gender: 'FEMALE', dateOfBirth: new Date('2000-11-30'), address: { city: 'Ahmedabad', state: 'Gujarat', pincode: '380005' }, notes: 'Silver member; padel player.' },
     ]);
 
     await Membership.create([
@@ -498,6 +551,22 @@ const seedAllChampionsClubData = async () => {
         paymentMethod: 'CARD',
         amountPaid: goldPlan.price,
       },
+      {
+        member: nishaMember._id,
+        user: nishaMember._id,
+        plan: silverPlan._id,
+        startDate: new Date(),
+        expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        status: 'ACTIVE',
+        paymentStatus: 'PAID',
+        paymentMethod: 'UPI',
+        amountPaid: silverPlan.price,
+      },
+      { member: farahMember._id, user: farahMember._id, plan: goldPlan._id, startDate: new Date(), expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), status: 'ACTIVE', paymentStatus: 'PAID', paymentMethod: 'UPI', amountPaid: goldPlan.price },
+      { member: devMember._id, user: devMember._id, plan: silverPlan._id, startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), expiryDate: new Date(Date.now() + 335 * 24 * 60 * 60 * 1000), status: 'ACTIVE', paymentStatus: 'PAID', paymentMethod: 'CARD', amountPaid: silverPlan.price },
+      { member: ishaMember._id, user: ishaMember._id, plan: juniorPlan._id, startDate: new Date(), expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), status: 'ACTIVE', paymentStatus: 'PAID', paymentMethod: 'UPI', amountPaid: juniorPlan.price },
+      { member: arnavMember._id, user: arnavMember._id, plan: goldPlan._id, startDate: new Date(), expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), status: 'ACTIVE', paymentStatus: 'PAID', paymentMethod: 'CARD', amountPaid: goldPlan.price },
+      { member: taraMember._id, user: taraMember._id, plan: silverPlan._id, startDate: new Date(), expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), status: 'ACTIVE', paymentStatus: 'PAID', paymentMethod: 'UPI', amountPaid: silverPlan.price },
     ]);
 
     console.log('4. 👔 Creating Staff Profiles, Shifts, Attendance, Leaves & Payroll...');
@@ -771,6 +840,15 @@ const seedAllChampionsClubData = async () => {
     ]);
 
     console.log('6. 📅 Creating Court Bookings Across All Statuses...');
+    const pastBookingDate = new Date(todayStart);
+    pastBookingDate.setDate(pastBookingDate.getDate() - 1);
+    const upcomingBookingDate = new Date(todayStart);
+    upcomingBookingDate.setDate(upcomingBookingDate.getDate() + 1);
+    const addBookingDays = (days) => {
+      const date = new Date(todayStart);
+      date.setDate(date.getDate() + days);
+      return date;
+    };
     await Booking.create([
       // 1. Center Court - Completed Morning Slot
       {
@@ -919,6 +997,72 @@ const seedAllChampionsClubData = async () => {
         paymentStatus: 'PAID',
         status: 'CONFIRMED',
         bookedBy: rohanMember._id,
+      },
+      // 9. Nisha's completed session from yesterday
+      {
+        court: courts[5]._id,
+        member: nishaMember._id,
+        bookingType: 'MEMBER',
+        bookingSource: 'ONLINE',
+        date: pastBookingDate,
+        startTime: '08:00',
+        endTime: '09:00',
+        durationMinutes: 60,
+        price: courts[5].hourlyRate,
+        discountApplied: courts[5].hourlyRate * 0.1,
+        finalAmount: courts[5].hourlyRate * 0.9,
+        paymentMethod: 'UPI',
+        paymentStatus: 'PAID',
+        status: 'COMPLETED',
+        bookedBy: nishaMember._id,
+      },
+      // 10. Nisha's upcoming session tomorrow
+      {
+        court: courts[5]._id,
+        member: nishaMember._id,
+        bookingType: 'MEMBER',
+        bookingSource: 'ONLINE',
+        date: upcomingBookingDate,
+        startTime: '08:00',
+        endTime: '09:00',
+        durationMinutes: 60,
+        price: courts[5].hourlyRate,
+        discountApplied: courts[5].hourlyRate * 0.1,
+        finalAmount: courts[5].hourlyRate * 0.9,
+        paymentMethod: 'UPI',
+        paymentStatus: 'PAID',
+        status: 'CONFIRMED',
+        bookedBy: nishaMember._id,
+      },
+      {
+        court: courts[0]._id, member: farahMember._id, bookingType: 'MEMBER', bookingSource: 'ONLINE',
+        date: addBookingDays(2), startTime: '18:00', endTime: '19:00', durationMinutes: 60,
+        price: courts[0].hourlyRate, discountApplied: courts[0].hourlyRate * 0.2, finalAmount: courts[0].hourlyRate * 0.8,
+        paymentMethod: 'UPI', paymentStatus: 'PAID', status: 'CONFIRMED', bookedBy: farahMember._id,
+      },
+      {
+        court: courts[1]._id, member: devMember._id, bookingType: 'MEMBER', bookingSource: 'ONLINE',
+        date: addBookingDays(-2), startTime: '10:00', endTime: '11:00', durationMinutes: 60,
+        price: courts[1].hourlyRate, discountApplied: courts[1].hourlyRate * 0.1, finalAmount: courts[1].hourlyRate * 0.9,
+        paymentMethod: 'UPI', paymentStatus: 'PAID', status: 'COMPLETED', bookedBy: devMember._id,
+      },
+      {
+        court: courts[6]._id, member: ishaMember._id, bookingType: 'MEMBER', bookingSource: 'ONLINE',
+        date: addBookingDays(3), startTime: '11:00', endTime: '12:00', durationMinutes: 60,
+        price: courts[6].hourlyRate, discountApplied: courts[6].hourlyRate * 0.15, finalAmount: courts[6].hourlyRate * 0.85,
+        paymentMethod: 'UPI', paymentStatus: 'PAID', status: 'CONFIRMED', bookedBy: ishaMember._id,
+      },
+      {
+        court: courts[4]._id, member: arnavMember._id, bookingType: 'MEMBER', bookingSource: 'ONLINE',
+        date: addBookingDays(4), startTime: '13:00', endTime: '14:00', durationMinutes: 60,
+        price: courts[4].hourlyRate, discountApplied: courts[4].hourlyRate * 0.2, finalAmount: courts[4].hourlyRate * 0.8,
+        paymentMethod: 'UPI', paymentStatus: 'PAID', status: 'CONFIRMED', bookedBy: arnavMember._id,
+      },
+      {
+        court: courts[2]._id, member: taraMember._id, bookingType: 'MEMBER', bookingSource: 'ONLINE',
+        date: addBookingDays(5), startTime: '09:00', endTime: '10:00', durationMinutes: 60,
+        price: courts[2].hourlyRate, discountApplied: courts[2].hourlyRate * 0.1, finalAmount: courts[2].hourlyRate * 0.9,
+        paymentMethod: 'UPI', paymentStatus: 'PAID', status: 'CONFIRMED', bookedBy: taraMember._id,
       },
     ]);
 
@@ -1690,8 +1834,14 @@ const seedAllChampionsClubData = async () => {
     console.log('🥇 Member (Platinum VIP):  meera.d@championsclub.com        | Member@123');
     console.log('🥇 Member (Gold Tier):     keni@championsclub.com           | Member@123');
     console.log('🥈 Member (Silver Tier):   alex@championsclub.com           | Member@123');
+    console.log('🥈 Member (Silver Tier):   nisha.shah@championsclub.com       | Member@123');
     console.log('🥉 Member (Junior Tier):   junior@championsclub.com         | Member@123');
     console.log('🏸 Member (Corporate):     kabir.s@championsclub.com        | Member@123');
+    console.log('🥇 Member (Gold Tier):     farah.khan@championsclub.com      | Member@123');
+    console.log('🥈 Member (Silver Tier):   dev.mehta@championsclub.com       | Member@123');
+    console.log('🥉 Member (Junior Tier):   isha.rao@championsclub.com        | Member@123');
+    console.log('🥇 Member (Gold Tier):     arnav.joshi@championsclub.com     | Member@123');
+    console.log('🥈 Member (Silver Tier):   tara.desai@championsclub.com      | Member@123');
     console.log('========================================================================');
 
     process.exit(0);

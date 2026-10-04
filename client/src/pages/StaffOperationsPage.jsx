@@ -28,6 +28,8 @@ import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Loader from '../components/ui/Loader';
+import Pagination from '../components/common/Pagination';
+import { usePagination } from '../hooks/usePagination';
 
 export const StaffOperationsPage = () => {
   const { user } = useAuth();
@@ -40,6 +42,9 @@ export const StaffOperationsPage = () => {
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const staffPage = usePagination(staffList, 10, `${activeTab}|${departmentFilter}`);
+  const shiftsPage = usePagination(shifts, 10, activeTab);
+  const leavesPage = usePagination(leaves, 10, activeTab);
 
   // Modals
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
@@ -339,7 +344,7 @@ export const StaffOperationsPage = () => {
                 gap: '1.5rem',
               }}
             >
-              {staffList.map((item) => {
+              {staffPage.paginatedItems.map((item) => {
                 const staffUser = item.user;
                 return (
                   <Card key={item._id} style={{ position: 'relative' }}>
@@ -428,6 +433,7 @@ export const StaffOperationsPage = () => {
                   </Card>
                 );
               })}
+              <div style={{ gridColumn: '1 / -1' }}><Pagination {...staffPage} onPageChange={staffPage.setCurrentPage} /></div>
             </div>
           )}
 
@@ -453,7 +459,7 @@ export const StaffOperationsPage = () => {
                         </td>
                       </tr>
                     ) : (
-                      shifts.map((s) => (
+                      shiftsPage.paginatedItems.map((s) => (
                         <tr key={s._id} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '0.9rem' }}>
                           <td style={{ padding: '0.75rem', fontWeight: 600 }}>
                             {s.staff?.firstName} {s.staff?.lastName}
@@ -482,6 +488,7 @@ export const StaffOperationsPage = () => {
                     )}
                   </tbody>
                 </table>
+                <div style={{ padding: '0 1rem' }}><Pagination {...shiftsPage} onPageChange={shiftsPage.setCurrentPage} /></div>
               </div>
             </Card>
           )}
@@ -496,7 +503,7 @@ export const StaffOperationsPage = () => {
                   </p>
                 </Card>
               ) : (
-                leaves.map((leave) => (
+                leavesPage.paginatedItems.map((leave) => (
                   <Card key={leave._id}>
                     <div
                       style={{
@@ -558,6 +565,7 @@ export const StaffOperationsPage = () => {
                   </Card>
                 ))
               )}
+              {leaves.length > 0 && <Pagination {...leavesPage} onPageChange={leavesPage.setCurrentPage} />}
             </div>
           )}
         </>
