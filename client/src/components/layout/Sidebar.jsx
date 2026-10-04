@@ -269,11 +269,6 @@ export const Sidebar = ({
             icon: Coffee,
           },
           {
-            label: 'Bills',
-            path: '/staff/canteen?tab=tabs',
-            icon: FileText,
-          },
-          {
             label: 'Canteen Payments',
             path: '/staff/canteen?tab=payments',
             icon: CreditCard,
