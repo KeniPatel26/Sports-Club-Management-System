@@ -22,6 +22,7 @@ import {
   getMemberHistory,
   getFrontDeskPayments,
   getDailyClosingSummary,
+  submitDailyClosingReport,
 } from '../controllers/staff/frontDeskController.js';
 import {
   getShopOverview,
@@ -143,6 +144,12 @@ router.get(
   authenticate,
   requirePermission('BOOKING_VIEW'),
   getDailyClosingSummary
+);
+router.post(
+  '/front-desk/daily-closing',
+  authenticate,
+  requirePermission('BOOKING_UPDATE'),
+  submitDailyClosingReport
 );
 
 // ============================================

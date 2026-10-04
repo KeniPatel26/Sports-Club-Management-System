@@ -14,9 +14,11 @@ export const getMyStaffProfile = async (req, res) => {
     const profile = await StaffProfile.findOne({ user: user._id });
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const shift = await Shift.findOne({ staff: user._id, date: { $gte: today } });
-    const attendance = await Attendance.findOne({ staff: user._id, date: today });
+    const shift = await Shift.findOne({ staff: user._id, date: { $gte: today, $lt: tomorrow }, status: 'SCHEDULED' }).sort({ startTime: 1 });
+    const attendance = await Attendance.findOne({ staff: user._id, date: { $gte: today, $lt: tomorrow } });
 
     return res.status(200).json({
       success: true,
@@ -26,18 +28,18 @@ export const getMyStaffProfile = async (req, res) => {
         lastName: user.lastName,
         email: user.email,
         phone: user.phone,
-        department: user.department || profile?.department || 'FRONT_DESK',
-        designation: profile?.designation || 'Staff Associate',
-        employeeId: profile?.employeeId || `EMP${user._id.toString().slice(-4).toUpperCase()}`,
-        employmentType: profile?.employmentType || 'FULL_TIME',
-        joiningDate: profile?.joiningDate || user.createdAt,
+        department: user.department || profile?.department || null,
+        designation: profile?.designation || null,
+        employeeId: profile?.employeeId || null,
+        employmentType: profile?.employmentType || null,
+        joiningDate: profile?.joiningDate || null,
         currentShift: shift
           ? `${shift.startTime} - ${shift.endTime}`
-          : '09:00 AM - 05:00 PM',
+          : null,
         attendanceToday: {
-          checkIn: attendance?.checkInTime || '08:55 AM',
+          checkIn: attendance?.checkInTime || null,
           checkOut: attendance?.checkOutTime || null,
-          status: attendance?.status || 'PRESENT',
+          status: attendance?.status || null,
         },
       },
     });
@@ -127,25 +129,10 @@ export const staffCheckOut = async (req, res) => {
  */
 export const getStaffNotifications = async (req, res) => {
   try {
-    const department = req.user?.department;
-    const notifications = [];
-
-    if (department === 'FRONT_DESK') {
-      notifications.push(
-        { title: 'Court 2 Maintenance', message: 'Flooring inspection scheduled at 08:00 PM tonight.', time: '10 mins ago', type: 'info' },
-        { title: 'Walk-in Surge Alert', message: '5 weekend walk-ins registered today.', time: '1 hour ago', type: 'success' }
-      );
-    } else if (department === 'SPORTS_SHOP') {
-      notifications.push(
-        { title: 'Low Stock: Head Tennis Balls', message: 'Stock level is 3 cans. Restock requisition sent to Manager.', time: '20 mins ago', type: 'warning' },
-        { title: 'New Online Order #ORD102', message: 'Member Amit ordered Yonex Grip Tape for pickup.', time: '45 mins ago', type: 'info' }
-      );
-    } else if (department === 'CANTEEN') {
-      notifications.push(
-        { title: 'Table 4 Reserved', message: 'Party of 4 booked for 07:00 PM courtside dining.', time: '15 mins ago', type: 'info' },
-        { title: 'Kitchen Rush Hour', message: 'Peak breakfast & espresso orders stream active.', time: '30 mins ago', type: 'success' }
-      );
-    }
+    const notifications = await Notification.find({ recipient: req.user._id })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
 
     return res.status(200).json({
       success: true,

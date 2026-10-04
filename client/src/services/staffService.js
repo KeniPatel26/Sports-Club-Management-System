@@ -98,6 +98,11 @@ export const staffService = {
     return res.data;
   },
 
+  submitDailyClosingReport: async () => {
+    const res = await api.post('/staff/front-desk/daily-closing');
+    return res.data;
+  },
+
   // ============================================
   // 2. SPORTS SHOP STAFF
   // ============================================
