@@ -12,6 +12,7 @@ import memberCourtService from '../../services/member/memberCourtService';
 import membershipService from '../../services/membershipService';
 import Loader from '../../components/ui/Loader';
 import Badge from '../../components/ui/Badge';
+import { courtDiscountForPlan } from '../../utils/membershipDiscounts';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import {
@@ -151,8 +152,8 @@ export const MemberCourtBookingPage = () => {
     setCurrentStep(1);
   };
 
-  const userDiscount = memberStats?.courtDiscount ?? userMembership?.plan?.courtDiscount ?? 100;
   const userPlanName = memberStats?.currentTier || userMembership?.plan?.name || 'GOLD';
+  const userDiscount = courtDiscountForPlan(userPlanName);
 
   if (loading) {
     return (

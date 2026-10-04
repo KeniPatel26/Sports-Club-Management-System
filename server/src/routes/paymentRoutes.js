@@ -19,8 +19,10 @@ router.get('/my', protect, getMyPayments);
 router.get('/summary', protect, getPaymentSummary);
 router.get('/:id', protect, getPaymentById);
 
-// Manager / Admin payment endpoints
+// Manager / Staff payment endpoints
+router.get('/manager', protect, authorize('OWNER', 'CLUB_MANAGER', 'STAFF'), getManagerPayments);
 router.get('/manager/all', protect, authorize('OWNER', 'CLUB_MANAGER', 'STAFF'), getManagerPayments);
+router.get('/all', protect, authorize('OWNER', 'CLUB_MANAGER', 'STAFF'), getManagerPayments);
 router.get('/manager/summary', protect, authorize('OWNER', 'CLUB_MANAGER', 'STAFF'), getPaymentSummary);
 
 export default router;

@@ -49,6 +49,7 @@ export const MembershipsPage = () => {
 
   const [plans, setPlans] = useState([]);
   const [myMembership, setMyMembership] = useState(null);
+  const [pastMemberships, setPastMemberships] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -75,7 +76,8 @@ export const MembershipsPage = () => {
           .filter(Boolean));
       }
       if (myMemRes.status === 'fulfilled' && myMemRes.value.success) {
-        setMyMembership(myMemRes.value.data?.membership || myMemRes.value.data);
+        setMyMembership(myMemRes.value.data?.membership || null);
+        setPastMemberships(myMemRes.value.data?.pastMemberships || []);
       }
     } catch (err) {
       console.error(err);
@@ -244,6 +246,61 @@ export const MembershipsPage = () => {
             </div>
           </div>
         </Card>
+      )}
+
+      {/* Past Memberships History Section */}
+      {pastMemberships && pastMemberships.length > 0 && (
+        <div style={{ marginBottom: '2.5rem', backgroundColor: '#FFFFFF', borderRadius: '14px', border: '1px solid #DDE2EC', padding: '1.25rem 1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <div>
+              <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: '#17263B' }}>
+                Previous Membership Subscriptions & Renewals
+              </h4>
+              <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: '#64748B' }}>
+                Your completed and expired membership terms at Champions Club
+              </p>
+            </div>
+            <Badge variant="secondary">{pastMemberships.length} Past Term(s)</Badge>
+          </div>
+
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            {pastMemberships.map((pm, idx) => (
+              <div
+                key={pm._id || idx}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '0.85rem 1.15rem',
+                  backgroundColor: '#F4F6FC',
+                  borderRadius: '10px',
+                  border: '1px solid #DDE2EC',
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <strong style={{ fontSize: '0.95rem', color: '#17263B' }}>
+                      {pm.plan?.name || 'Membership'} Tier
+                    </strong>
+                    <Badge variant="secondary" size="sm">
+                      {pm.status || 'EXPIRED'}
+                    </Badge>
+                  </div>
+                  <span style={{ fontSize: '0.78rem', color: '#64748B' }}>
+                    Valid from {new Date(pm.startDate).toLocaleDateString()} to {new Date(pm.endDate || pm.expiryDate).toLocaleDateString()}
+                    {pm.paymentMethod && ` • Paid via ${pm.paymentMethod}`}
+                  </span>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <strong style={{ fontSize: '1rem', color: '#17263B' }}>₹{pm.amountPaid || pm.plan?.price || 0}</strong>
+                  <div style={{ fontSize: '0.72rem', color: '#137333', fontWeight: 700 }}>
+                    Payment: {pm.paymentStatus || 'PAID'}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {loading ? (

@@ -4,7 +4,9 @@ import Membership from '../models/Membership.js';
 import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import DiningTable from '../models/DiningTable.js';
+import Invoice from '../models/Invoice.js';
 import { logActivity } from './activityService.js';
+import { PENDING_BOOKING_HOLD_MS } from '../utils/bookingHold.js';
 
 /**
  * Generate demo/production transaction ID
@@ -38,9 +40,14 @@ export const createPaymentIntent = async ({
       purposeRef = 'Booking';
       const booking = await Booking.findById(referenceId).populate('court member');
       if (!booking) throw new Error('Court booking not found');
-      if (booking.paymentStatus === 'PAID') throw new Error('Booking has already been paid');
+      if (booking.status !== 'PENDING' || booking.paymentStatus !== 'PENDING') throw new Error('This booking is no longer awaiting payment');
+      if (booking.createdAt.getTime() < Date.now() - PENDING_BOOKING_HOLD_MS) {
+        await Booking.findByIdAndUpdate(booking._id, { status: 'CANCELLED', paymentStatus: 'FAILED' });
+        await Invoice.updateOne({ booking: booking._id, paymentStatus: 'PENDING' }, { paymentStatus: 'CANCELLED' });
+        throw new Error('The booking payment hold expired. Please choose another timeslot.');
+      }
       verifiedAmount = Number(booking.finalAmount ?? booking.price ?? 0);
-      targetUser = targetUser || booking.member?._id || booking.member;
+      targetUser = booking.member?._id || booking.member || null;
       targetCustomerName = customerName || (booking.walkInDetails?.name) || (booking.member?.firstName ? `${booking.member.firstName} ${booking.member.lastName || ''}`.trim() : 'Athlete');
       break;
     }
@@ -72,6 +79,17 @@ export const createPaymentIntent = async ({
       throw new Error(`Unsupported payment purpose: ${purpose}`);
   }
 
+  const pendingPayment = purpose === 'COURT_BOOKING'
+    ? await Payment.findOne({ purpose, referenceId, status: 'PENDING' }).sort({ createdAt: -1 })
+    : null;
+  if (pendingPayment) {
+    pendingPayment.paymentMethod = paymentMethod.toUpperCase();
+    pendingPayment.customerName = targetCustomerName;
+    pendingPayment.notes = notes || pendingPayment.notes;
+    await pendingPayment.save();
+    return pendingPayment;
+  }
+
   // Create payment record
   const payment = await Payment.create({
     user: targetUser,
@@ -101,11 +119,43 @@ export const processPaymentConfirmation = async ({
   if (!payment) {
     throw new Error('Payment record not found');
   }
+  if (payment.status !== 'PENDING') {
+    throw new Error(`This payment is already ${payment.status.toLowerCase()}`);
+  }
 
   const method = (paymentMethod || payment.paymentMethod || 'UPI').toUpperCase();
 
   if (simulateSuccess) {
     const transactionId = generateTransactionId();
+    if (payment.purpose === 'COURT_BOOKING') {
+      const booking = await Booking.findOneAndUpdate(
+        {
+          _id: payment.referenceId,
+          status: 'PENDING',
+          paymentStatus: 'PENDING',
+          createdAt: { $gte: new Date(Date.now() - PENDING_BOOKING_HOLD_MS) },
+        },
+        { status: 'CONFIRMED', paymentStatus: 'PAID', paymentMethod: method },
+        { new: true }
+      );
+      if (!booking) {
+        const expiredBooking = await Booking.findOneAndUpdate(
+          { _id: payment.referenceId, status: 'PENDING', createdAt: { $lt: new Date(Date.now() - PENDING_BOOKING_HOLD_MS) } },
+          { status: 'CANCELLED', paymentStatus: 'FAILED' }
+        );
+        if (expiredBooking) {
+          await Invoice.updateOne({ booking: expiredBooking._id, paymentStatus: 'PENDING' }, { paymentStatus: 'CANCELLED' });
+        }
+        payment.status = 'FAILED';
+        await payment.save();
+        await Invoice.updateOne({ booking: payment.referenceId, paymentStatus: 'PENDING' }, { paymentStatus: 'CANCELLED' });
+        throw new Error('The booking hold expired or was cancelled. Please choose another timeslot.');
+      }
+      await Invoice.updateOne(
+        { booking: booking._id, paymentStatus: 'PENDING' },
+        { paymentStatus: 'PAID', paymentMethod: method, paidDate: new Date() }
+      );
+    }
     payment.status = 'PAID';
     payment.transactionId = transactionId;
     payment.paidAt = new Date();
@@ -114,11 +164,6 @@ export const processPaymentConfirmation = async ({
 
     // 1. COURT_BOOKING
     if (payment.purpose === 'COURT_BOOKING') {
-      await Booking.findByIdAndUpdate(payment.referenceId, {
-        status: 'CONFIRMED',
-        paymentStatus: 'PAID',
-        paymentMethod: method,
-      });
       if (userId) {
         await logActivity({
           userId,
@@ -212,13 +257,9 @@ export const processPaymentConfirmation = async ({
     payment.status = 'FAILED';
     await payment.save();
 
-    // Release court slots / cancel pending order
-    if (payment.purpose === 'COURT_BOOKING') {
-      await Booking.findByIdAndUpdate(payment.referenceId, {
-        status: 'CANCELLED',
-        paymentStatus: 'FAILED',
-      });
-    } else if (payment.purpose === 'MEMBERSHIP') {
+    // Keep a court slot held briefly after a failed attempt so the customer can retry.
+    // Closing checkout cancels the pending booking; otherwise its 10-minute hold expires.
+    if (payment.purpose === 'MEMBERSHIP') {
       await Membership.findByIdAndUpdate(payment.referenceId, {
         status: 'EXPIRED',
         paymentStatus: 'FAILED',

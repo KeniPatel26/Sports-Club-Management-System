@@ -2,10 +2,11 @@ import React from 'react';
 import { Crown, CalendarCheck, Zap, Award, CheckCircle2 } from 'lucide-react';
 import Card from '../ui/Card';
 import Badge from '../ui/Badge';
+import { courtDiscountForPlan } from '../../utils/membershipDiscounts';
 
 export const MemberStatsSummary = ({ stats, userPlan }) => {
   const tierName = stats?.currentTier || userPlan?.name || 'GOLD';
-  const discount = stats?.courtDiscount ?? userPlan?.courtDiscount ?? 100;
+  const discount = courtDiscountForPlan(tierName);
   const activeCount = stats?.activeBookings ?? 1;
   const totalPlayed = stats?.totalBookingsPlayed ?? 14;
 

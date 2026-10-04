@@ -121,17 +121,28 @@ export const getMemberMembership = async (req, res, next) => {
   try {
     const userId = req.params.userId || req.user._id;
 
-    const membership = await Membership.findOne({
+    const allMemberships = await Membership.find({
       $or: [{ member: userId }, { user: userId }],
-      status: 'ACTIVE',
-    }).populate('plan');
+    })
+      .populate('plan')
+      .sort({ startDate: -1, createdAt: -1 });
+
+    const activeMembership = allMemberships.find(
+      (m) => m.status === 'ACTIVE' && (!m.expiryDate || new Date(m.expiryDate) > new Date())
+    ) || allMemberships.find((m) => m.status === 'ACTIVE') || null;
+
+    const pastMemberships = allMemberships.filter(
+      (m) => m._id.toString() !== activeMembership?._id?.toString()
+    );
 
     const profile = await MemberProfile.findOne({ user: userId });
 
     return sendSuccess(res, {
       message: 'Member membership details retrieved',
       data: {
-        membership,
+        membership: activeMembership,
+        pastMemberships,
+        allMemberships,
         profile,
       },
     });

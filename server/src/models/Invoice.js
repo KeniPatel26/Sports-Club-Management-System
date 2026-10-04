@@ -18,6 +18,12 @@ const invoiceSchema = new mongoose.Schema(
       default: null,
     },
 
+    booking: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Booking',
+      default: null,
+    },
+
     customerName: {
       type: String,
       default: 'Guest Customer',
@@ -80,7 +86,7 @@ const invoiceSchema = new mongoose.Schema(
 
     paymentMethod: {
       type: String,
-      enum: ['UPI', 'CARD', 'CASH', 'NET_BANKING', 'WALLET'],
+      enum: ['UPI', 'CARD', 'CASH', 'NET_BANKING', 'WALLET', 'MEMBERSHIP_INCLUDED'],
       default: 'UPI',
     },
 

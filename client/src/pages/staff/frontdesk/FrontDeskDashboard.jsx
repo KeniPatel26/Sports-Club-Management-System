@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Calendar,
@@ -41,12 +41,12 @@ import courtBookingService from '../../../services/courtBookingService';
 import { useAuth } from '../../../context/AuthContext';
 import Loader from '../../../components/ui/Loader';
 import Alert from '../../../components/ui/Alert';
-import Pagination from '../../../components/common/Pagination';
-import { usePagination } from '../../../hooks/usePagination';
+import FilterDropdown from '../../../components/ui/FilterDropdown';
+import PaymentModal from '../../../components/payment/PaymentModal';
 
 const toDateInputValue = (date = new Date()) => {
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');``
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
@@ -137,6 +137,9 @@ export const FrontDeskDashboard = () => {
   const [walkInEmail, setWalkInEmail] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('UPI'); // CASH, UPI, CARD
   const [submittingBooking, setSubmittingBooking] = useState(false);
+  const [pendingFrontDeskBooking, setPendingFrontDeskBooking] = useState(null);
+  const [showFrontDeskPaymentModal, setShowFrontDeskPaymentModal] = useState(false);
+  const frontDeskPaymentSettled = useRef(false);
 
   // -------------------------------------------------------------
   // Booking Confirmation Modal State (Receipt / Done)
@@ -613,26 +616,32 @@ export const FrontDeskDashboard = () => {
 
       const res = await staffService.createFrontDeskBooking(payload);
       if (res.success) {
-        const confirmedData = {
-          bookingId: res.data?._id,
-          customerName: bookingCustomerType === 'MEMBER' ? selectedMember.name : walkInName,
-          customerType: bookingCustomerType,
-          courtName: res.data?.receipt?.courtName || selectedCourtObj?.name || '',
-          date: bookingDate,
-          startTime: bookingTime,
-          endTime,
-          finalAmount: res.data?.receipt?.finalAmount ?? res.data?.finalAmount ?? 0,
-          paymentMethod,
-          invoiceNumber: res.data?.receipt?.invoiceNumber || '',
-        };
-
-        setConfirmedBookingData(confirmedData);
         setShowBookingModal(false);
         setWalkInName('');
         setWalkInPhone('');
         setWalkInEmail('');
         setSelectedMember(null);
         setModalMemberQuery('');
+        const createdBooking = res.data;
+        if (createdBooking?.receipt?.paymentRequired) {
+          frontDeskPaymentSettled.current = false;
+          setPendingFrontDeskBooking(createdBooking);
+          setShowFrontDeskPaymentModal(true);
+        } else {
+          setConfirmedBookingData({
+            bookingId: createdBooking?._id,
+            customerName: createdBooking?.receipt?.customerName || (bookingCustomerType === 'MEMBER' ? selectedMember?.name : walkInName),
+            customerType: bookingCustomerType,
+            courtName: createdBooking?.receipt?.courtName || selectedCourtObj?.name || '',
+            date: bookingDate,
+            startTime: bookingTime,
+            endTime,
+            finalAmount: createdBooking?.receipt?.finalAmount ?? createdBooking?.finalAmount ?? 0,
+            paymentMethod: 'MEMBERSHIP_INCLUDED',
+            invoiceNumber: createdBooking?.receipt?.invoiceNumber || '',
+            transactionId: '',
+          });
+        }
         fetchOverview();
         fetchGrid(gridDate);
       }
@@ -644,6 +653,46 @@ export const FrontDeskDashboard = () => {
     } finally {
       setSubmittingBooking(false);
     }
+  };
+
+  const handleFrontDeskPaymentSuccess = (payment) => {
+    frontDeskPaymentSettled.current = true;
+    const booking = pendingFrontDeskBooking;
+    if (booking) {
+      setConfirmedBookingData({
+        bookingId: booking._id,
+        customerName: booking.receipt?.customerName || booking.walkInDetails?.name || booking.memberName || 'Customer',
+        customerType: booking.bookingType,
+        courtName: booking.receipt?.courtName || booking.court?.name || '',
+        date: booking.receipt?.date || bookingDate,
+        startTime: booking.startTime || booking.receipt?.timeSlot?.split(' - ')?.[0],
+        endTime: booking.endTime || booking.receipt?.timeSlot?.split(' - ')?.[1],
+        finalAmount: payment?.amount ?? booking.receipt?.finalAmount ?? booking.finalAmount ?? 0,
+        paymentMethod: payment?.paymentMethod || paymentMethod,
+        invoiceNumber: booking.receipt?.invoiceNumber || '',
+        transactionId: payment?.transactionId || '',
+      });
+    }
+    setShowFrontDeskPaymentModal(false);
+    setPendingFrontDeskBooking(null);
+    fetchOverview();
+    fetchGrid(gridDate);
+    fetchPayments();
+  };
+
+  const handleFrontDeskPaymentFailure = () => {
+    setAlert({ type: 'danger', message: 'Payment did not complete. Retry payment or cancel checkout; the slot is held for up to 10 minutes.' });
+  };
+
+  const handleCloseFrontDeskPayment = () => {
+    setShowFrontDeskPaymentModal(false);
+    const bookingId = pendingFrontDeskBooking?._id;
+    if (bookingId && !frontDeskPaymentSettled.current) {
+      staffService.cancelBooking(bookingId, { reason: 'Front desk checkout was closed before payment' })
+        .catch(() => {})
+        .finally(() => { fetchOverview(); fetchGrid(gridDate); });
+    }
+    setPendingFrontDeskBooking(null);
   };
 
   // -------------------------------------------------------------
@@ -2298,62 +2347,113 @@ export const FrontDeskDashboard = () => {
       )}
 
       {/* ======================================================== */}
-      {/* TAB 5: FRONT DESK PAYMENTS */}
+      {/* TAB 5: FRONT DESK PAYMENTS & REVENUE HUB */}
       {/* ======================================================== */}
       {activeTab === 'payments' && (
-        <div
-          style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            overflow: 'hidden',
-            boxShadow: 'var(--shadow-sm)',
-          }}
-        >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Revenue KPI Summary Bar */}
           <div
             style={{
-              padding: '1.25rem',
-              borderBottom: '1px solid var(--border)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '1rem',
             }}
           >
-            <div>
-              <h2
-                style={{
-                  fontSize: '1.15rem',
-                  fontWeight: 800,
-                  color: 'var(--text-main)',
-                  margin: 0,
-                  fontFamily: 'var(--font-family-display)',
-                }}
-              >
-                Front Desk Collected Payments
-              </h2>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.15rem 0 0 0' }}>
-                Operational ledger of court booking transactions & walk-in collections (Cash, Card, UPI)
-              </p>
+            <div style={{ backgroundColor: '#FFFFFF', padding: '1.15rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>TOTAL COLLECTED</span>
+              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--primary-navy)', marginTop: '0.2rem' }}>
+                ₹{paymentsList.reduce((acc, p) => acc + (Number(p.amount) || 0), 0).toLocaleString('en-IN')}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 700, marginTop: '0.25rem' }}>
+                {paymentsList.length} Transactions Verified
+              </div>
             </div>
-            <button
-              onClick={fetchPayments}
+
+            <div style={{ backgroundColor: '#FFFFFF', padding: '1.15rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>UPI PAYMENTS</span>
+              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#2563EB', marginTop: '0.2rem' }}>
+                ₹{paymentsList.filter(p => (p.paymentMethod || p.method) === 'UPI').reduce((acc, p) => acc + (Number(p.amount) || 0), 0).toLocaleString('en-IN')}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                Instant QR & Handle
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: '#FFFFFF', padding: '1.15rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>CASH COLLECTIONS</span>
+              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--success)', marginTop: '0.2rem' }}>
+                ₹{paymentsList.filter(p => (p.paymentMethod || p.method) === 'CASH').reduce((acc, p) => acc + (Number(p.amount) || 0), 0).toLocaleString('en-IN')}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                Counter Cash Drawer
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: '#FFFFFF', padding: '1.15rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>CARD & BANK</span>
+              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#D97706', marginTop: '0.2rem' }}>
+                ₹{paymentsList.filter(p => ['CARD', 'NET_BANKING', 'BANK_TRANSFER'].includes(p.paymentMethod || p.method)).reduce((acc, p) => acc + (Number(p.amount) || 0), 0).toLocaleString('en-IN')}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                POS Machine Swipes
+              </div>
+            </div>
+          </div>
+
+          {/* Payments Table Card */}
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border)',
+              overflow: 'hidden',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            <div
               style={{
-                background: 'transparent',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '0.35rem 0.65rem',
-                cursor: 'pointer',
+                padding: '1.25rem',
+                borderBottom: '1px solid var(--border)',
                 display: 'flex',
+                justifyContent: 'space-between',
                 alignItems: 'center',
-                gap: '0.35rem',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                color: 'var(--text-muted)',
               }}
             >
-              <RefreshCw size={13} /> Refresh
-            </button>
-          </div>
+              <div>
+                <h2
+                  style={{
+                    fontSize: '1.15rem',
+                    fontWeight: 800,
+                    color: 'var(--text-main)',
+                    margin: 0,
+                    fontFamily: 'var(--font-family-display)',
+                  }}
+                >
+                  Front Desk Collected Payments & Receipts
+                </h2>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.15rem 0 0 0' }}>
+                  Operational ledger of court booking transactions & walk-in collections (Cash, Card, UPI)
+                </p>
+              </div>
+              <button
+                onClick={fetchPayments}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '0.35rem 0.65rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <RefreshCw size={13} /> Refresh
+              </button>
+            </div>
 
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
@@ -2371,7 +2471,7 @@ export const FrontDeskDashboard = () => {
               </thead>
               <tbody>
                 {paymentsList.length > 0 ? (
-                  paymentsPage.paginatedItems.map((p) => (
+                  paymentsList.map((p) => (
                     <tr key={p._id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: 800, color: 'var(--primary-navy)' }}>
                         {p.paymentId || `PAY-${p._id.slice(-6)}`}
@@ -2424,7 +2524,6 @@ export const FrontDeskDashboard = () => {
                 )}
               </tbody>
             </table>
-            <div style={{ padding: '0 1rem' }}><Pagination {...paymentsPage} onPageChange={paymentsPage.setCurrentPage} /></div>
           </div>
         </div>
       )}
@@ -3037,6 +3136,31 @@ export const FrontDeskDashboard = () => {
         </div>
       )}
 
+      <PaymentModal
+        isOpen={showFrontDeskPaymentModal}
+        onClose={handleCloseFrontDeskPayment}
+        amount={pendingFrontDeskBooking?.finalAmount || 0}
+        purpose="COURT_BOOKING"
+        referenceId={pendingFrontDeskBooking?._id}
+        customerName={pendingFrontDeskBooking?.receipt?.customerName}
+        initialPaymentMethod={paymentMethod}
+        allowCash
+        title="Collect Court Booking Payment"
+        subtitle={`${pendingFrontDeskBooking?.receipt?.courtName || ''} • ${pendingFrontDeskBooking?.receipt?.date || ''} • ${pendingFrontDeskBooking?.receipt?.timeSlot || ''}`}
+        itemDetails={{
+          court: pendingFrontDeskBooking?.receipt?.courtName,
+          date: pendingFrontDeskBooking?.receipt?.date,
+          timeSlot: pendingFrontDeskBooking?.receipt?.timeSlot,
+          baseRate: `₹${Number(pendingFrontDeskBooking?.receipt?.baseRate || 0).toLocaleString('en-IN')}`,
+          memberDiscount: pendingFrontDeskBooking?.receipt?.discountPercent
+            ? `${pendingFrontDeskBooking.receipt.discountPercent}% (−₹${Number(pendingFrontDeskBooking.receipt.discountAmount || 0).toLocaleString('en-IN')})`
+            : 'None',
+          totalPayable: `₹${Number(pendingFrontDeskBooking?.finalAmount || 0).toLocaleString('en-IN')}`,
+        }}
+        onSuccess={handleFrontDeskPaymentSuccess}
+        onFailure={handleFrontDeskPaymentFailure}
+      />
+
       {/* ======================================================== */}
       {/* 6. BOOKING CONFIRMATION MODAL (RECEIPT / DONE) */}
       {/* ======================================================== */}
@@ -3133,6 +3257,14 @@ export const FrontDeskDashboard = () => {
                 <span style={{ color: 'var(--text-muted)' }}>Payment Method:</span>
                 <strong style={{ color: 'var(--success)' }}>{confirmedBookingData.paymentMethod} • PAID</strong>
               </div>
+              {confirmedBookingData.transactionId && <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Transaction:</span>
+                <strong>{confirmedBookingData.transactionId}</strong>
+              </div>}
+              {confirmedBookingData.invoiceNumber && <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Invoice:</span>
+                <strong>{confirmedBookingData.invoiceNumber}</strong>
+              </div>}
             </div>
 
             {/* Action Buttons */}

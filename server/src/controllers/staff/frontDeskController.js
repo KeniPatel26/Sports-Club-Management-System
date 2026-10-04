@@ -8,6 +8,8 @@ import Invoice from '../../models/Invoice.js';
 import Order from '../../models/Order.js';
 import Activity from '../../models/Activity.js';
 import { logActivity } from '../../services/activityService.js';
+import { activeBookingStatusFilter, pendingBookingCutoff } from '../../utils/bookingHold.js';
+import { courtDiscountForPlan } from '../../utils/membershipDiscounts.js';
 
 const toLocalDateKey = (date) => {
   const year = date.getFullYear();
@@ -30,7 +32,10 @@ export const getFrontDeskOverview = async (req, res) => {
 
     const [todayBookings, upcomingBookings, totalCourts, courts, todayPayments] = await Promise.all([Booking.find({
       date: { $gte: todayStart, $lte: todayEnd },
-      status: { $ne: 'CANCELLED' },
+      $or: [
+        { status: { $in: ['CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] } },
+        { status: 'PENDING', createdAt: { $gte: pendingBookingCutoff() } },
+      ],
     })
       .populate('court')
       .populate('member', 'firstName lastName phone email')
@@ -39,7 +44,7 @@ export const getFrontDeskOverview = async (req, res) => {
       .maxTimeMS(2500), Booking.countDocuments({
         $or: [{ date: { $gt: todayEnd } }, { date: { $gte: todayStart, $lte: todayEnd }, startTime: { $gt: new Date().toTimeString().slice(0, 5) } }],
         status: 'CONFIRMED',
-      }).maxTimeMS(2500), Court.countDocuments({ isActive: true }).maxTimeMS(2000), Court.find({ isActive: true }).lean().maxTimeMS(2000), Payment.find({ type: 'BOOKING', createdAt: { $gte: todayStart, $lte: todayEnd }, status: 'SUCCESS' }).select('amount').lean().maxTimeMS(2000)]);
+      }).maxTimeMS(2500), Court.countDocuments({ isActive: true }).maxTimeMS(2000), Court.find({ isActive: true }).lean().maxTimeMS(2000), Payment.find({ purpose: 'COURT_BOOKING', createdAt: { $gte: todayStart, $lte: todayEnd }, status: 'PAID' }).select('amount').lean().maxTimeMS(2000)]);
 
     const walkInsCount = todayBookings.filter(
       (b) => b.bookingType === 'WALK_IN' || b.bookingSource === 'WALK_IN'
@@ -94,7 +99,7 @@ export const getFrontDeskOverview = async (req, res) => {
       success: true,
       data: {
         kpi: {
-          todayBookingsCount: todayBookings.length,
+          todayBookingsCount: todayBookings.filter((booking) => booking.status !== 'CANCELLED').length,
           upcomingBookingsCount: upcomingBookings,
           availableCourts,
           occupiedCourts,
@@ -172,7 +177,7 @@ export const searchMembers = async (req, res) => {
           planName: activeMembership?.plan?.name || null,
           membershipTier: activeMembership?.plan?.name || null,
           membershipActive: Boolean(activeMembership),
-          courtDiscount: activeMembership?.plan?.benefits?.courtDiscount ?? activeMembership?.plan?.courtDiscount ?? 0,
+          courtDiscount: courtDiscountForPlan(activeMembership?.plan),
           shopDiscount: activeMembership?.plan?.benefits?.shopDiscount ?? activeMembership?.plan?.shopDiscount ?? 0,
           cafeDiscount: activeMembership?.plan?.benefits?.cafeDiscount ?? activeMembership?.plan?.benefits?.canteenDiscount ?? activeMembership?.plan?.canteenDiscount ?? 0,
           status: u.status,
@@ -209,7 +214,7 @@ export const createFrontDeskBooking = async (req, res) => {
       walkInPhone,
       walkInEmail = '',
       bookingType = 'MEMBER', // MEMBER | WALK_IN
-      bookingSource = 'FRONT_DESK', // FRONT_DESK | WALK_IN
+      bookingSource = 'FRONT_DESK', // FRONT_DESK | PHONE | WALK_IN
       date,
       startTime,
       endTime,
@@ -225,7 +230,7 @@ export const createFrontDeskBooking = async (req, res) => {
       });
     }
 
-    if (!['MEMBER', 'WALK_IN'].includes(bookingType) || !['FRONT_DESK', 'WALK_IN'].includes(bookingSource)) {
+    if (!['MEMBER', 'WALK_IN'].includes(bookingType) || !['FRONT_DESK', 'PHONE', 'WALK_IN'].includes(bookingSource)) {
       return res.status(400).json({ success: false, message: 'Only member and walk-in bookings are supported.' });
     }
 
@@ -256,7 +261,7 @@ export const createFrontDeskBooking = async (req, res) => {
       date: bookingDate,
       startTime: { $lt: endTime },
       endTime: { $gt: startTime },
-      status: { $in: ['CONFIRMED', 'CHECKED_IN'] },
+      ...activeBookingStatusFilter(),
     });
 
     if (overlapping) {
@@ -284,7 +289,10 @@ export const createFrontDeskBooking = async (req, res) => {
       const dayBookingsCount = await Booking.countDocuments({
         member: memberUser._id,
         date: bookingDate,
-        status: { $ne: 'CANCELLED' },
+        $or: [
+          { status: { $in: ['CONFIRMED', 'CHECKED_IN', 'COMPLETED'] } },
+          { status: 'PENDING', createdAt: { $gte: pendingBookingCutoff() } },
+        ],
       });
 
       if (dayBookingsCount >= 2) {
@@ -301,7 +309,7 @@ export const createFrontDeskBooking = async (req, res) => {
       }).populate('plan');
 
       if (activeMembership && activeMembership.plan) {
-        discountPercent = activeMembership.plan.courtDiscount || 0;
+        discountPercent = courtDiscountForPlan(activeMembership.plan);
         planTierName = activeMembership.plan.name;
       }
     }
@@ -313,6 +321,7 @@ export const createFrontDeskBooking = async (req, res) => {
 
     const resolvedSource = bookingSource || (bookingType === 'PHONE' ? 'PHONE' : bookingType === 'WALK_IN' ? 'WALK_IN' : 'FRONT_DESK');
 
+    const paymentRequired = finalAmount > 0;
     const booking = await Booking.create({
       court: court._id,
       member: memberUser ? memberUser._id : null,
@@ -330,36 +339,21 @@ export const createFrontDeskBooking = async (req, res) => {
       price: baseRate,
       discountApplied: discountAmount,
       finalAmount,
-      paymentMethod,
-      paymentStatus: 'PAID',
-      status: 'CONFIRMED',
+      paymentMethod: paymentRequired ? paymentMethod : 'MEMBERSHIP_INCLUDED',
+      paymentStatus: paymentRequired ? 'PENDING' : 'PAID',
+      status: paymentRequired ? 'PENDING' : 'CONFIRMED',
       notes,
       bookedBy: req.user._id,
     });
 
-    // Record Payment Entry
-    const paymentId = `PAY-FD-${Date.now().toString().slice(-6)}`;
-    await Payment.create({
-      paymentId,
+    const invoiceNumber = `INV-BK-${Date.now().toString().slice(-6)}`;
+    await Invoice.create({
+      invoiceNumber,
+      booking: booking._id,
       user: memberUser ? memberUser._id : null,
       customerName: memberUser ? `${memberUser.firstName} ${memberUser.lastName || ''}`.trim() : (walkInName || 'Walk-in Guest'),
       customerPhone: memberUser ? memberUser.phone : (walkInPhone || ''),
       type: 'BOOKING',
-      amount: finalAmount,
-      method: paymentMethod,
-      status: 'SUCCESS',
-      referenceId: booking._id.toString(),
-      notes: `Front Desk booking for ${court.name} [${startTime} - ${endTime}]`,
-    });
-
-    // Record Invoice Entry
-    const invoiceNumber = `INV-BK-${Date.now().toString().slice(-6)}`;
-    await Invoice.create({
-      invoiceNumber,
-      user: memberUser ? memberUser._id : null,
-      customerName: memberUser ? `${memberUser.firstName} ${memberUser.lastName || ''}`.trim() : (walkInName || 'Walk-in Guest'),
-      customerPhone: memberUser ? memberUser.phone : (walkInPhone || ''),
-      type: 'COURT',
       items: [
         {
           description: `${court.name} Reservation (${startTime} - ${endTime})`,
@@ -371,15 +365,16 @@ export const createFrontDeskBooking = async (req, res) => {
       subtotal: baseRate,
       discount: discountAmount,
       totalAmount: finalAmount,
-      paymentStatus: 'PAID',
-      paymentMethod,
-    }).catch(() => null);
+      paymentStatus: paymentRequired ? 'PENDING' : 'PAID',
+      paymentMethod: paymentRequired ? paymentMethod : 'MEMBERSHIP_INCLUDED',
+      paidDate: paymentRequired ? null : new Date(),
+    });
 
     // Audit Log
     try {
       await logActivity({
         userId: req.user._id,
-        action: `Front Desk confirmed ${bookingType} booking #${booking._id.toString().slice(-4)} for ${court.name} (${startTime})`,
+        action: `Front Desk ${paymentRequired ? 'created pending' : 'confirmed'} ${bookingType} booking #${booking._id.toString().slice(-4)} for ${court.name} (${startTime})`,
         entity: 'Booking',
         entityId: booking._id,
       });
@@ -389,13 +384,15 @@ export const createFrontDeskBooking = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: `Booking #${booking._id.toString().slice(-4)} confirmed for ${court.name} at ${startTime}! (Amount: ₹${finalAmount})`,
+      message: paymentRequired
+        ? `Booking #${booking._id.toString().slice(-4)} is held for payment for ${court.name} at ${startTime}.`
+        : `Booking #${booking._id.toString().slice(-4)} confirmed for ${court.name} at ${startTime}!`,
       data: {
         ...booking.toObject(),
         court,
         receipt: {
           invoiceNumber,
-          paymentId,
+          paymentId: null,
           baseRate,
           discountPercent,
           discountAmount,
@@ -403,8 +400,9 @@ export const createFrontDeskBooking = async (req, res) => {
           customerName: memberUser ? `${memberUser.firstName} ${memberUser.lastName || ''}`.trim() : walkInName,
           courtName: court.name,
           timeSlot: `${startTime} - ${endTime}`,
-          paymentMethod,
-          date: bookingDate.toISOString().split('T')[0],
+          paymentMethod: paymentRequired ? paymentMethod : 'MEMBERSHIP_INCLUDED',
+          date,
+          paymentRequired,
         },
       },
     });
@@ -431,8 +429,8 @@ export const checkInBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    if (booking.status === 'CANCELLED') {
-      return res.status(400).json({ success: false, message: 'Cannot check-in a cancelled booking' });
+    if (booking.status !== 'CONFIRMED') {
+      return res.status(400).json({ success: false, message: `Cannot check-in a ${booking.status.toLowerCase()} booking` });
     }
 
     booking.status = 'CHECKED_IN';
@@ -466,6 +464,10 @@ export const checkOutBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
+    if (booking.status !== 'CHECKED_IN') {
+      return res.status(400).json({ success: false, message: `Cannot check-out a ${booking.status.toLowerCase()} booking` });
+    }
+
     booking.status = 'COMPLETED';
     booking.checkOutTime = new Date();
     await booking.save();
@@ -486,25 +488,26 @@ export const checkOutBooking = async (req, res) => {
 
 /**
  * PATCH /api/staff/front-desk/bookings/:id/status
- * Update status: CONFIRMED ➔ CHECKED_IN ➔ COMPLETED or NO_SHOW / CANCELLED
+ * Update exceptional status: CONFIRMED ➔ NO_SHOW / CANCELLED
  */
 export const updateBookingStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body; // 'CHECKED_IN', 'COMPLETED', 'NO_SHOW', 'CANCELLED'
+    const { status } = req.body; // 'NO_SHOW' or 'CANCELLED'
 
     const booking = await Booking.findById(id).populate('court');
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
+    const allowedStatuses = ['NO_SHOW', 'CANCELLED'];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Unsupported booking status update' });
+    }
+    if (booking.status !== 'CONFIRMED') {
+      return res.status(400).json({ success: false, message: `Cannot mark a ${booking.status.toLowerCase()} booking as ${status.toLowerCase()}` });
+    }
     booking.status = status;
-    if (status === 'CHECKED_IN' && !booking.checkInTime) {
-      booking.checkInTime = new Date();
-    }
-    if (status === 'COMPLETED' && !booking.checkOutTime) {
-      booking.checkOutTime = new Date();
-    }
     await booking.save();
 
     return res.status(200).json({
@@ -550,7 +553,7 @@ export const getCourtAvailability = async (req, res) => {
 
     const [courts, bookings] = await Promise.all([Court.find().sort({ name: 1 }).lean().maxTimeMS(2500), Booking.find({
       date: { $gte: queryDate, $lte: dateEnd },
-      status: { $in: ['CONFIRMED', 'CHECKED_IN'] },
+      ...activeBookingStatusFilter(),
     }).populate('member', 'firstName lastName phone email').populate('court', 'name type hourlyRate').lean().maxTimeMS(2500)]);
 
     // 30-minute time slots from 06:00 to 22:00
@@ -657,7 +660,7 @@ export const rescheduleBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    if (booking.status === 'CANCELLED' || booking.status === 'COMPLETED') {
+    if (booking.status !== 'CONFIRMED') {
       return res.status(400).json({
         success: false,
         message: `Cannot reschedule a ${booking.status.toLowerCase()} booking`,
@@ -728,9 +731,18 @@ export const cancelBooking = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
+    if (!['PENDING', 'CONFIRMED'].includes(booking.status)) {
+      return res.status(400).json({ success: false, message: `Cannot cancel a ${booking.status.toLowerCase()} booking` });
+    }
+
     booking.status = 'CANCELLED';
+    if (booking.paymentStatus === 'PENDING') booking.paymentStatus = 'FAILED';
     booking.cancellationReason = reason;
     await booking.save();
+    await Promise.all([
+      Payment.updateMany({ referenceId: booking._id, purpose: 'COURT_BOOKING', status: 'PENDING' }, { status: 'FAILED' }),
+      Invoice.updateOne({ booking: booking._id, paymentStatus: 'PENDING' }, { paymentStatus: 'CANCELLED' }),
+    ]);
 
     return res.status(200).json({
       success: true,
@@ -802,7 +814,7 @@ export const getMemberHistory = async (req, res) => {
           membership: membership?.plan?.name?.toUpperCase() || null,
           membershipTier: membership?.plan?.name || null,
           membershipActive: Boolean(membership),
-          courtDiscount: membership?.plan?.benefits?.courtDiscount ?? membership?.plan?.courtDiscount ?? 0,
+          courtDiscount: courtDiscountForPlan(membership?.plan),
           shopDiscount: membership?.plan?.benefits?.shopDiscount ?? membership?.plan?.shopDiscount ?? 0,
           cafeDiscount: membership?.plan?.benefits?.cafeDiscount ?? membership?.plan?.benefits?.canteenDiscount ?? membership?.plan?.canteenDiscount ?? 0,
           validUntil: membership?.expiryDate || membership?.endDate || null,
@@ -850,14 +862,35 @@ export const getMemberHistory = async (req, res) => {
  */
 export const getFrontDeskPayments = async (req, res) => {
   try {
-    const payments = await Payment.find({ type: 'BOOKING' })
+    const { purpose, method, search } = req.query;
+    const query = { status: 'PAID' };
+
+    if (purpose && purpose !== 'ALL') {
+      query.purpose = purpose;
+    }
+    if (method && method !== 'ALL') {
+      query.paymentMethod = method.toUpperCase();
+    }
+
+    let payments = await Payment.find(query)
+      .populate('user', 'firstName lastName email phone')
       .sort({ createdAt: -1 })
-      .limit(40)
-      .lean()
-      .maxTimeMS(2500);
+      .limit(100)
+      .lean();
+
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      payments = payments.filter((p) => {
+        const txn = (p.transactionId || p.paymentId || '').toLowerCase();
+        const cName = (p.customerName || '').toLowerCase();
+        const email = (p.user?.email || '').toLowerCase();
+        return txn.includes(q) || cName.includes(q) || email.includes(q);
+      });
+    }
 
     return res.status(200).json({
       success: true,
+      count: payments.length,
       data: payments,
     });
   } catch (error) {
@@ -938,6 +971,92 @@ export const submitDailyClosingReport = async (req, res) => {
   }
 };
 
+
+/**
+ * POST /api/staff/front-desk/bookings/:id/collect-payment
+ * Collect payment on an unpaid / pending booking at the counter
+ */
+export const collectBookingPayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { paymentMethod = 'UPI', notes = '' } = req.body;
+
+    const booking = await Booking.findById(id).populate('court member');
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    if (booking.paymentStatus === 'PAID') {
+      return res.status(400).json({ success: false, message: 'This booking is already paid.' });
+    }
+
+    booking.paymentStatus = 'PAID';
+    booking.paymentMethod = paymentMethod;
+    if (booking.status === 'PENDING') {
+      booking.status = 'CONFIRMED';
+    }
+    await booking.save();
+
+    const transactionId = `PAY-FD-${Date.now().toString().slice(-6)}`;
+    const payment = await Payment.create({
+      transactionId,
+      user: booking.member ? booking.member._id : null,
+      customerName: booking.member
+        ? `${booking.member.firstName} ${booking.member.lastName || ''}`.trim()
+        : (booking.walkInDetails?.name || 'Walk-in Guest'),
+      purpose: 'COURT_BOOKING',
+      amount: booking.finalAmount || booking.price || 0,
+      paymentMethod,
+      status: 'PAID',
+      paidAt: new Date(),
+      referenceId: booking._id,
+      notes: notes || `Counter payment collection for ${booking.court?.name || 'Court'}`,
+    });
+
+    const invoiceNumber = `INV-BK-${Date.now().toString().slice(-6)}`;
+    await Invoice.create({
+      invoiceNumber,
+      user: booking.member ? booking.member._id : null,
+      customerName: booking.member
+        ? `${booking.member.firstName} ${booking.member.lastName || ''}`.trim()
+        : (booking.walkInDetails?.name || 'Walk-in Guest'),
+      customerPhone: booking.member?.phone || booking.walkInDetails?.phone || '',
+      type: 'BOOKING',
+      items: [
+        {
+          description: `${booking.court?.name || 'Court'} Session (${booking.startTime} - ${booking.endTime})`,
+          quantity: 1,
+          unitPrice: booking.price || booking.finalAmount,
+          amount: booking.price || booking.finalAmount,
+        },
+      ],
+      subtotal: booking.price || booking.finalAmount,
+      discount: booking.discountApplied || 0,
+      totalAmount: booking.finalAmount || booking.price,
+      paymentStatus: 'PAID',
+      paymentMethod,
+      paidDate: new Date(),
+    }).catch(() => null);
+
+    return res.status(200).json({
+      success: true,
+      message: `Payment of ₹${booking.finalAmount} collected successfully via ${paymentMethod}!`,
+      data: {
+        booking,
+        payment,
+        invoiceNumber,
+      },
+    });
+  } catch (error) {
+    console.error('collectBookingPayment error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to collect payment',
+      error: error.message,
+    });
+  }
+};
+
 export default {
   getFrontDeskOverview,
   searchMembers,
@@ -952,5 +1071,6 @@ export default {
   getFrontDeskPayments,
   getDailyClosingSummary,
   submitDailyClosingReport,
+  collectBookingPayment,
 };
 

@@ -3,6 +3,9 @@ import Booking from '../models/Booking.js';
 import Membership from '../models/Membership.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
 import { logActivity } from '../services/activityService.js';
+import { activeBookingStatusFilter } from '../utils/bookingHold.js';
+import Payment from '../models/Payment.js';
+import { courtDiscountForPlan } from '../utils/membershipDiscounts.js';
 
 const parseBookingDate = (value) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
@@ -71,7 +74,7 @@ export const getCourtSlots = async (req, res, next) => {
     const existingBookings = await Booking.find({
       court: id,
       date: { $gte: startOfDay, $lte: endOfDay },
-      status: { $in: ['CONFIRMED', 'CHECKED_IN', 'COMPLETED'] },
+      ...activeBookingStatusFilter(),
     }).select('startTime endTime bookingType walkInDetails member');
 
     // Return only one-hour sessions that are still available. Slots start
@@ -154,7 +157,7 @@ export const createBooking = async (req, res, next) => {
       date: { $gte: startOfDay, $lte: endOfDay },
       startTime: { $lt: endTime },
       endTime: { $gt: startTime },
-      status: { $in: ['CONFIRMED', 'COMPLETED'] },
+      ...activeBookingStatusFilter(),
     });
 
     if (conflict) {
@@ -174,11 +177,11 @@ export const createBooking = async (req, res, next) => {
       const activeMembership = await Membership.findOne({
         $or: [{ member: targetUserId }, { user: targetUserId }],
         status: 'ACTIVE',
+        expiryDate: { $gte: new Date() },
       }).populate('plan');
 
       if (activeMembership && activeMembership.plan) {
-        const plan = activeMembership.plan;
-        const discountPct = plan.benefits?.courtDiscount ?? plan.courtDiscount ?? 0;
+        const discountPct = courtDiscountForPlan(activeMembership.plan);
         if (discountPct > 0) {
           discountApplied = (basePrice * discountPct) / 100;
         }
@@ -187,7 +190,7 @@ export const createBooking = async (req, res, next) => {
 
     const finalAmount = Math.max(0, basePrice - discountApplied);
     const isFree = finalAmount === 0;
-    const initialPaymentStatus = req.body.paymentStatus || (isFree ? 'PAID' : 'PENDING');
+    const initialPaymentStatus = isFree ? 'PAID' : 'PENDING';
     const initialStatus = initialPaymentStatus === 'PAID' ? 'CONFIRMED' : 'PENDING';
 
     const booking = await Booking.create({
@@ -289,12 +292,15 @@ export const cancelBooking = async (req, res, next) => {
     const sessionStart = new Date(booking.date);
     const [sessionHour, sessionMinute] = booking.startTime.split(':').map(Number);
     sessionStart.setHours(sessionHour, sessionMinute, 0, 0);
-    if (booking.status !== 'CONFIRMED' || sessionStart <= new Date()) {
-      return sendError(res, { statusCode: 400, message: 'Only future confirmed bookings can be cancelled' });
+    if (!['PENDING', 'CONFIRMED'].includes(booking.status) || sessionStart <= new Date()) {
+      return sendError(res, { statusCode: 400, message: 'Only future bookings awaiting payment or confirmed can be cancelled' });
     }
 
     booking.status = 'CANCELLED';
+    if (booking.paymentStatus === 'PENDING') booking.paymentStatus = 'FAILED';
     await booking.save();
+
+    await Payment.updateMany({ referenceId: booking._id, purpose: 'COURT_BOOKING', status: 'PENDING' }, { status: 'FAILED' });
 
     await logActivity({
       userId: req.user._id,

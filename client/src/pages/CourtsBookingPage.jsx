@@ -15,6 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import courtBookingService from '../services/courtBookingService';
 import membershipService from '../services/membershipService';
 import PaymentModal from '../components/payment/PaymentModal';
+import { courtDiscountForPlan } from '../utils/membershipDiscounts';
 
 const today = () => {
   const now = new Date();
@@ -78,7 +79,7 @@ export const CourtsBookingPage = () => {
   const categories = useMemo(() => ['ALL', ...new Set(courts.map((item) => item.type).filter(Boolean))], [courts]);
   const isMember = user?.role?.toUpperCase() === 'MEMBER';
   const discount = isMember
-    ? Number(membership?.plan?.benefits?.courtDiscount ?? membership?.plan?.courtDiscount ?? 0)
+    ? courtDiscountForPlan(membership?.plan)
     : 0;
   const membershipPlanName = membership?.plan?.name || 'Member';
   const rate = (isMember ? court?.hourlyRate : court?.walkInRate) || court?.hourlyRate || 0;
@@ -88,6 +89,7 @@ export const CourtsBookingPage = () => {
   const chooseCourt = (selected) => { setCourt(selected); setSlot(''); setStep(2); };
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [pendingBooking, setPendingBooking] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('UPI');
 
   const submitBooking = async () => {
     if (!court || !slot || !date) return;
@@ -104,12 +106,16 @@ export const CourtsBookingPage = () => {
         startTime: slot,
         bookingType,
         walkInDetails: bookingType === 'WALK_IN' ? { name: walkInName, phone: walkInPhone } : undefined,
-        paymentMethod: 'UPI',
+        paymentMethod,
       });
 
       setConfirmOpen(false);
 
-      if (total > 0 && result.data?._id) {
+      const paymentRequired = result.data?.paymentStatus === 'PENDING'
+        || (Number(result.data?.finalAmount ?? total) > 0 && result.data?.paymentStatus !== 'PAID');
+
+      if (paymentRequired) {
+        if (!result.data?._id) throw new Error('Booking is pending, but its payment reference is missing. Refresh your bookings before trying again.');
         setPendingBooking(result.data);
         setPaymentModalOpen(true);
       } else {
@@ -117,12 +123,26 @@ export const CourtsBookingPage = () => {
         navigate('/booking-history', { state: { newBooking: result.data } });
       }
     } catch (error) {
-      toastError(error.response?.data?.message || 'This timeslot is no longer available. Select another slot.');
+      toastError(error.response?.data?.message || error.message || 'This timeslot is no longer available. Select another slot.');
       setConfirmOpen(false);
       const result = await courtBookingService.getCourtSlots(court._id, date).catch(() => ({ data: { slots: [] } }));
       setSlots((result.data?.slots || []).filter((item) => item.available));
       setSlot('');
     } finally { setSubmitting(false); }
+  };
+
+  const closePaymentModal = () => {
+    setPaymentModalOpen(false);
+    const pendingBookingId = pendingBooking?._id;
+    setPendingBooking(null);
+    if (pendingBookingId) {
+      setSlot('');
+      courtBookingService.cancelBooking(pendingBookingId)
+        .catch(() => {})
+        .finally(() => courtBookingService.getCourtSlots(court?._id, date)
+          .then((result) => setSlots((result.data?.slots || []).filter((item) => item.available)))
+          .catch(() => {}));
+    }
   };
 
   if (loading) return <DashboardLayout><div style={{ padding: '4rem 0' }}><Loader fullPage text="Loading courts..." /></div></DashboardLayout>;
@@ -155,11 +175,20 @@ export const CourtsBookingPage = () => {
       <div className="court-timeslot-actions"><Button variant="outline" onClick={() => { setStep(1); setSlot(''); }}><ArrowLeft size={15} /> Change court</Button><Button variant="primary" disabled={!slot || loadingSlots} onClick={() => setConfirmOpen(true)}>Review booking <ArrowRight size={15} /></Button></div>
     </Card.Content></Card></div>}
 
-    <Modal isOpen={confirmOpen} onClose={() => setConfirmOpen(false)} title="Review your booking" subtitle="Check your court and session details before confirming." maxWidth="620px" footer={<><Button variant="secondary" onClick={() => setConfirmOpen(false)}>Back to timeslots</Button><Button variant="primary" loading={submitting} onClick={submitBooking}><ShieldCheck size={16} /> Proceed to Pay</Button></>}>
+    <Modal isOpen={confirmOpen} onClose={() => setConfirmOpen(false)} title="Review your booking" subtitle="Check your court and session details before confirming." maxWidth="620px" footer={<><Button variant="secondary" onClick={() => setConfirmOpen(false)}>Back to timeslots</Button><Button variant="primary" loading={submitting} onClick={submitBooking}><ShieldCheck size={16} /> Confirm & Continue to Payment</Button></>}>
       <div className="court-confirmation">
         <div className="court-confirmation-banner"><div className="court-confirmation-icon"><CheckCircle2 size={23} /></div><div><strong>Session selected</strong><span>Review the details before submitting your booking.</span></div></div>
         <div className="court-confirmation-details"><div className="court-confirmation-row"><span><MapPin size={17} /> Court</span><strong>{court?.name}</strong></div><div className="court-confirmation-row"><span><CalendarDays size={17} /> Date</span><strong>{new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</strong></div><div className="court-confirmation-row"><span><Clock3 size={17} /> Session</span><strong>{slot}–{`${String(Number(slot?.slice(0, 2)) + 1).padStart(2, '0')}:${slot?.slice(3)}`}</strong></div></div>
         <div className="court-price-breakdown">{discount > 0 ? <div className="court-original-price"><span>Court fee · 1 hour</span><del>{money(rate)}</del></div> : <div><span>Court fee · 1 hour</span><strong>{money(rate)}</strong></div>}{discount > 0 && <div className="court-member-savings"><span>{membershipPlanName} discount ({discount}%)</span><strong>−{money(savings)}</strong></div>}<div className="court-confirmation-total"><div><span>{discount > 0 ? 'Member price' : 'Estimated total'}</span>{discount > 0 && <small>Membership pricing applied</small>}</div><strong>{money(total)}</strong></div></div>
+        <div style={{ marginTop: '1rem' }}>
+          <label htmlFor="court-payment-method" style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary, #354962)', marginBottom: '0.35rem' }}>Payment Method</label>
+          <select id="court-payment-method" value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} style={{ width: '100%', padding: '0.65rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border, #DDE2EC)', background: 'var(--surface, #fff)', color: 'var(--text-primary, #354962)', fontFamily: 'inherit', fontSize: '0.9rem' }}>
+            <option value="UPI">UPI / QR Code</option>
+            <option value="CARD">Credit / Debit Card</option>
+            <option value="NET_BANKING">Net Banking</option>
+            <option value="CASH">Counter Cash</option>
+          </select>
+        </div>
         {!isMember && <div className="court-guest-fields"><Input label="Guest name" value={walkInName} onChange={(event) => setWalkInName(event.target.value)} required /><Input label="Guest phone" type="tel" value={walkInPhone} onChange={(event) => setWalkInPhone(event.target.value)} required /></div>}
       </div>
     </Modal>
@@ -167,10 +196,13 @@ export const CourtsBookingPage = () => {
     {/* Reusable Payment Modal for Court Booking */}
     <PaymentModal
       isOpen={paymentModalOpen}
-      onClose={() => setPaymentModalOpen(false)}
+      onClose={closePaymentModal}
       amount={pendingBooking?.finalAmount || total}
       purpose="COURT_BOOKING"
       referenceId={pendingBooking?._id}
+      customerName={user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : ''}
+      initialPaymentMethod={paymentMethod}
+      allowCash
       title="Complete Court Reservation"
       subtitle={`${court?.name} • ${date} (${slot})`}
       itemDetails={{
@@ -188,7 +220,7 @@ export const CourtsBookingPage = () => {
         navigate('/booking-history', { state: { newBooking: pendingBooking, payment } });
       }}
       onFailure={() => {
-        toastError('Payment failed. Court slot released.');
+        toastError('Payment failed. You can retry while the slot is held, or cancel checkout to release it.');
       }}
     />
     </div>

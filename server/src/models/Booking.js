@@ -77,13 +77,13 @@ const bookingSchema = new mongoose.Schema(
 
     paymentMethod: {
       type: String,
-      enum: ['CASH', 'CARD', 'UPI', 'ONLINE', 'MEMBERSHIP_INCLUDED'],
+      enum: ['CASH', 'CARD', 'UPI', 'ONLINE', 'MEMBERSHIP_INCLUDED', 'NET_BANKING', 'WALLET', ''],
       default: 'UPI',
     },
 
     paymentStatus: {
       type: String,
-      enum: ['PENDING', 'PAID', 'REFUNDED'],
+      enum: ['PENDING', 'PAID', 'REFUNDED', 'UNPAID', 'FAILED'],
       default: 'PAID',
     },
 

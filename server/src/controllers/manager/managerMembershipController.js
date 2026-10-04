@@ -311,22 +311,29 @@ export const assignOrRenewMembership = async (req, res) => {
       paidDate: new Date(),
     });
 
+    const transactionId = `PAY-${Date.now().toString().slice(-6)}`;
     await Payment.create({
-      paymentId: `PAY-${Date.now().toString().slice(-6)}`,
+      transactionId,
       user: user._id,
-      customerName: `${user.firstName} ${user.lastName}`.trim(),
-      type: 'MEMBERSHIP',
+      customerName: `${user.firstName} ${user.lastName || ''}`.trim(),
+      purpose: 'MEMBERSHIP',
       amount: plan.price,
-      method: paymentMethod,
-      status: 'SUCCESS',
-      referenceId: invoiceNumber,
-      notes,
-    });
+      paymentMethod,
+      status: 'PAID',
+      paidAt: new Date(),
+      referenceId: newMembership._id,
+      notes: notes || `Membership ${plan.name} renewal for ${days} days`,
+    }).catch((err) => console.error('Membership payment creation error:', err));
 
     return res.status(201).json({
       success: true,
       message: `Successfully renewed ${plan.name} membership for ${user.firstName}`,
-      data: newMembership,
+      data: {
+        ...newMembership.toObject(),
+        plan,
+        invoiceNumber,
+        transactionId,
+      },
     });
   } catch (error) {
     console.error('assignOrRenewMembership error:', error);

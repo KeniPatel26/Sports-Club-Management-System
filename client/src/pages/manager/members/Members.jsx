@@ -702,6 +702,64 @@ export const Members = () => {
               </div>
             )}
 
+            {detailTab === 'memberships' && (
+              <div>
+                {(!memberDetails.memberships || memberDetails.memberships.length === 0) ? (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: '#64748B' }}>No membership subscriptions on record.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {memberDetails.memberships.map((m, idx) => {
+                      const isActive = m.status === 'ACTIVE' && (!m.expiryDate || new Date(m.expiryDate) > new Date());
+                      return (
+                        <div
+                          key={m._id || idx}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '1rem',
+                            backgroundColor: isActive ? 'rgba(217, 142, 104, 0.08)' : '#F4F6FC',
+                            borderRadius: '10px',
+                            border: isActive ? '1px solid #D98E68' : '1px solid #DDE2EC',
+                          }}
+                        >
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <strong style={{ fontSize: '1rem', color: '#17263B' }}>
+                                {m.plan?.name || 'Membership Plan'}
+                              </strong>
+                              <span
+                                style={{
+                                  padding: '2px 8px',
+                                  borderRadius: '6px',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 800,
+                                  backgroundColor: isActive ? '#E6F4EA' : '#F1F3F5',
+                                  color: isActive ? '#137333' : '#5F6368',
+                                }}
+                              >
+                                {isActive ? 'CURRENT ACTIVE' : (m.status || 'EXPIRED')}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: '#64748B', marginTop: '0.25rem' }}>
+                              {new Date(m.startDate).toLocaleDateString()} &rarr; {new Date(m.endDate || m.expiryDate).toLocaleDateString()}
+                              {m.paymentMethod && ` • Paid via ${m.paymentMethod}`}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ fontWeight: 800, fontSize: '1.05rem', color: '#17263B' }}>₹{m.amountPaid || m.plan?.price || 0}</span>
+                            <div style={{ fontSize: '0.75rem', color: m.paymentStatus === 'PAID' ? '#137333' : '#D93025', fontWeight: 700 }}>
+                              Payment: {m.paymentStatus || 'PAID'}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             {detailTab === 'bookings' && (
               <div>
                 {memberDetails.bookings?.length === 0 ? (
@@ -716,7 +774,57 @@ export const Members = () => {
                         </div>
                         <div style={{ textAlign: 'right' }}>
                           <span style={{ fontWeight: 700, color: '#17263B' }}>₹{b.finalAmount}</span>
-                          <div style={{ fontSize: '0.75rem', color: '#8FAF98', fontWeight: 700 }}>{b.status}</div>
+                          <div style={{ fontSize: '0.75rem', color: b.status === 'COMPLETED' ? '#137333' : '#D98E68', fontWeight: 700 }}>{b.status}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {detailTab === 'shop orders' && (
+              <div>
+                {(!memberDetails.shopOrders || memberDetails.shopOrders.length === 0) ? (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: '#64748B' }}>No sports pro shop orders found.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                    {memberDetails.shopOrders.map((o) => (
+                      <div key={o._id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 1rem', backgroundColor: '#F4F6FC', borderRadius: '8px' }}>
+                        <div>
+                          <strong>Order #{o._id?.toString().slice(-6).toUpperCase()}</strong> • {new Date(o.createdAt).toLocaleDateString()}
+                          <div style={{ fontSize: '0.78rem', color: '#64748B' }}>
+                            {o.items?.map((it) => `${it.name || it.product?.name || 'Item'} (x${it.quantity})`).join(', ')}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontWeight: 700, color: '#17263B' }}>₹{o.total}</span>
+                          <div style={{ fontSize: '0.75rem', color: '#137333', fontWeight: 700 }}>{o.status?.toUpperCase()}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {detailTab === 'canteen orders' && (
+              <div>
+                {(!memberDetails.canteenOrders || memberDetails.canteenOrders.length === 0) ? (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: '#64748B' }}>No cafe / canteen orders found.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                    {memberDetails.canteenOrders.map((o) => (
+                      <div key={o._id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem 1rem', backgroundColor: '#F4F6FC', borderRadius: '8px' }}>
+                        <div>
+                          <strong>Cafe Order #{o._id?.toString().slice(-6).toUpperCase()}</strong> • {new Date(o.createdAt).toLocaleDateString()}
+                          <div style={{ fontSize: '0.78rem', color: '#64748B' }}>
+                            {o.items?.map((it) => `${it.name || it.product?.name || 'Item'} (x${it.quantity})`).join(', ')}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontWeight: 700, color: '#17263B' }}>₹{o.total}</span>
+                          <div style={{ fontSize: '0.75rem', color: '#137333', fontWeight: 700 }}>{o.status?.toUpperCase()}</div>
                         </div>
                       </div>
                     ))}
@@ -739,7 +847,7 @@ export const Members = () => {
                         </div>
                         <div style={{ textAlign: 'right' }}>
                           <span style={{ fontWeight: 700, color: '#17263B' }}>₹{inv.totalAmount}</span>
-                          <div style={{ fontSize: '0.75rem', color: '#8FAF98', fontWeight: 700 }}>{inv.paymentStatus}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#137333', fontWeight: 700 }}>{inv.paymentStatus}</div>
                         </div>
                       </div>
                     ))}
